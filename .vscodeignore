@@ -1,0 +1,7 @@
+**/.git/**
+**/.vscode/**
+**/.vscode-test/**
+**/*.map
+**/node_modules/**
+webview-ui/node_modules/**
+webview-ui/src/**
