@@ -25,7 +25,7 @@ export class RepoImportService {
       name: path.basename(folder.fsPath),
       path: folder.fsPath,
       detectedStack: await this.detectTechStack(folder),
-      lastScannedAt: new Date().toISOString()
+      lastScannedAt: undefined
     };
 
     const current = this.getProjects();
@@ -55,6 +55,17 @@ export class RepoImportService {
         : project
     );
     await this.context.globalState.update(PROJECTS_KEY, updated);
+  }
+
+  public async removeProject(projectId: string): Promise<ImportedProject | undefined> {
+    const projects = this.getProjects();
+    const removed = projects.find((p) => p.id === projectId);
+    if (!removed) {
+      return undefined;
+    }
+    const updated = projects.filter((project) => project.id !== projectId);
+    await this.context.globalState.update(PROJECTS_KEY, updated);
+    return removed;
   }
 
   private createId(rawPath: string): string {

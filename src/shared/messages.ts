@@ -1,11 +1,3 @@
-export type WebviewRequest =
-  | { type: 'APP_READY' }
-  | { type: 'IMPORT_PROJECT' }
-  | { type: 'SCAN_PROJECT'; payload: { projectId: string } }
-  | { type: 'GENERATE_PBI_DRAFTS'; payload: { projectId: string } }
-  | { type: 'SAVE_ADO_SETTINGS'; payload: AdoSettingsInput }
-  | { type: 'PUSH_PROJECT_TO_ADO'; payload: { projectId: string } };
-
 export interface ProjectScanSummary {
   routes: string[];
   apiEndpoints: string[];
@@ -21,6 +13,16 @@ export interface ImportedProject {
   scanSummary?: ProjectScanSummary;
 }
 
+export type AdoWorkItemType =
+  | 'Product Backlog Item'
+  | 'User Story'
+  | 'Feature'
+  | 'Epic'
+  | 'Task'
+  | 'Bug';
+
+export type PbiStatus = 'draft' | 'ready' | 'pushed';
+
 export interface PbiDraft {
   id: string;
   projectId: string;
@@ -30,6 +32,11 @@ export interface PbiDraft {
   acceptanceCriteria: string[];
   testScenarios: string[];
   iteration: string;
+  workItemType?: AdoWorkItemType;
+  status?: PbiStatus;
+  adoWorkItemId?: number;
+  adoWorkItemUrl?: string;
+  updatedAt?: string;
 }
 
 export interface AdoSettings {
@@ -37,18 +44,99 @@ export interface AdoSettings {
   projectName: string;
   areaPath?: string;
   iterationPath?: string;
+  defaultWorkItemType?: AdoWorkItemType;
 }
 
 export interface AdoSettingsInput extends AdoSettings {
   pat?: string;
 }
 
+export type ThemePreference = 'light' | 'dark' | 'auto';
+
+export interface UiSettings {
+  theme: ThemePreference;
+}
+
 export interface AppStatePayload {
   projects: ImportedProject[];
   pbiDrafts: PbiDraft[];
   adoSettings?: AdoSettings;
+  uiSettings: UiSettings;
+  hasAdoPat: boolean;
 }
 
+export interface AiSuggestion {
+  title?: string;
+  description?: string;
+  acceptanceCriteria?: string[];
+  testScenarios?: string[];
+}
+
+export interface BulkChildInput {
+  suffix: string;
+  description?: string;
+  acceptanceCriteria?: string[];
+  testScenarios?: string[];
+  effortDays?: 1 | 2 | 3 | 4 | 5;
+}
+
+export interface BulkBreakdownRequest {
+  prefix: string;
+  separator: string;
+  projectId?: string;
+  iteration?: string;
+  childWorkItemType: AdoWorkItemType;
+  parentWorkItemType?: AdoWorkItemType;
+  parentDescription?: string;
+  children: BulkChildInput[];
+}
+
+export type WebviewRequest =
+  | { type: 'APP_READY' }
+  | { type: 'IMPORT_PROJECT' }
+  | { type: 'REMOVE_PROJECT'; payload: { projectId: string } }
+  | { type: 'SCAN_PROJECT'; payload: { projectId: string } }
+  | { type: 'GENERATE_PBI_DRAFTS'; payload: { projectId: string } }
+  | {
+      type: 'CREATE_PBI_DRAFT';
+      payload: {
+        projectId?: string;
+        title?: string;
+        openCopilotChat?: 'newStory';
+        seedIdea?: string;
+      };
+    }
+  | { type: 'UPDATE_PBI_DRAFT'; payload: { draft: PbiDraft } }
+  | { type: 'DELETE_PBI_DRAFT'; payload: { draftId: string } }
+  | { type: 'PUSH_PBI_TO_ADO'; payload: { draftId: string } }
+  | { type: 'PUSH_PROJECT_TO_ADO'; payload: { projectId: string; draftIds?: string[] } }
+  | { type: 'SAVE_ADO_SETTINGS'; payload: AdoSettingsInput }
+  | {
+      type: 'TEST_ADO_CONNECTION';
+      payload?: { orgUrl: string; projectName: string; pat?: string };
+    }
+  | { type: 'REFINE_PBI_WITH_AI'; payload: { draftId: string; instruction?: string } }
+  | { type: 'GENERATE_FULL_STORY_AI'; payload: { draftId: string; seedText?: string } }
+  | {
+      type: 'OPEN_IN_COPILOT_CHAT';
+      payload: {
+        draftId: string;
+        mode?: 'refine' | 'newStory';
+        seedIdea?: string;
+      };
+    }
+  | { type: 'APPLY_AI_SUGGESTION'; payload: { draftId: string; suggestion: AiSuggestion } }
+  | { type: 'AI_SUGGEST_BREAKDOWN'; payload: { prefix: string; description: string; count?: number } }
+  | { type: 'BULK_CREATE_DRAFTS'; payload: BulkBreakdownRequest }
+  | { type: 'BULK_PUSH_TO_ADO'; payload: BulkBreakdownRequest & { draftIds: string[] } }
+  | { type: 'OPEN_EXTERNAL'; payload: { url: string } }
+  | { type: 'SET_THEME'; payload: { theme: ThemePreference } };
+
 export type ExtensionEvent =
+  | { type: 'DRAFT_CREATED'; payload: { draftId: string } }
   | { type: 'STATE_UPDATED'; payload: AppStatePayload }
-  | { type: 'TOAST'; payload: { level: 'info' | 'error'; message: string } };
+  | { type: 'TOAST'; payload: { level: 'info' | 'error' | 'success'; message: string } }
+  | { type: 'AI_PROGRESS'; payload: { draftId?: string; message: string; busy: boolean } }
+  | { type: 'AI_SUGGESTION_READY'; payload: { draftId: string; suggestion: AiSuggestion } }
+  | { type: 'AI_BREAKDOWN_READY'; payload: { prefix: string; children: BulkChildInput[] } }
+  | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } };
