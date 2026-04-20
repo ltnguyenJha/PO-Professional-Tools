@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AdoProgressPayload,
   AiSuggestion,
   AppStatePayload,
   ImportedProject,
@@ -9,6 +10,7 @@ import type {
 import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadingBar } from '../components/LoadingBar';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -21,6 +23,7 @@ interface Props {
   state: AppStatePayload;
   suggestions: Record<string, AiSuggestion>;
   aiBusyDraftId?: string;
+  adoProgress: AdoProgressPayload;
   focusDraftId?: string;
   onConsumedFocusDraft?: () => void;
   send: (message: WebviewRequest) => void;
@@ -38,6 +41,7 @@ export function PbiStudio({
   state,
   suggestions,
   aiBusyDraftId,
+  adoProgress,
   focusDraftId,
   onConsumedFocusDraft,
   send,
@@ -190,6 +194,15 @@ export function PbiStudio({
   const active = working;
   const suggestion = activeId ? suggestions[activeId] : undefined;
   const aiBusy = aiBusyDraftId === activeId;
+  const adoSyncingThis =
+    adoProgress.busy &&
+    adoProgress.scope === 'single' &&
+    Boolean(activeId) &&
+    adoProgress.draftId === activeId;
+  const adoMessage =
+    adoSyncingThis && adoProgress.message.trim().length > 0
+      ? adoProgress.message
+      : 'Syncing with Azure DevOps…';
   const isLinkedToAdo = Boolean(active?.status === 'pushed' && active?.adoWorkItemId != null);
 
   const tryApplyRawToActive = useCallback(
@@ -495,6 +508,10 @@ export function PbiStudio({
         </div>
       </div>
 
+      {active && adoSyncingThis && (
+        <LoadingBar label={adoMessage} ariaLabel={`Azure DevOps: ${adoMessage}`} />
+      )}
+
       <div className="studio">
         <aside className="studio-list">
           <div className="searchbar">
@@ -565,15 +582,23 @@ export function PbiStudio({
                 <div className="card-header">
                   <h3>Edit item</h3>
                   <div className="action-row">
-                    <button className="btn btn-sm" onClick={save}>
+                    <button className="btn btn-sm" onClick={save} disabled={adoSyncingThis}>
                       Save
                     </button>
                     {isLinkedToAdo ? (
-                      <button className="btn btn-primary btn-sm" onClick={updateInAdo}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={updateInAdo}
+                        disabled={adoSyncingThis}
+                      >
                         Update in ADO
                       </button>
                     ) : (
-                      <button className="btn btn-primary btn-sm" onClick={pushOne}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={pushOne}
+                        disabled={adoSyncingThis}
+                      >
                         Push to ADO
                       </button>
                     )}
@@ -764,7 +789,7 @@ export function PbiStudio({
                     rows={4}
                     value={fullStorySeed}
                     onChange={(e) => setFullStorySeed(e.target.value)}
-                    placeholder="Paste your idea here, or leave empty to use the Description field above."
+                    placeholder="Goals, actors, constraints, integrations, or compliance notes — or leave empty to expand from the Description field above."
                   />
                 </label>
                 <div className="action-row">
@@ -834,9 +859,10 @@ export function PbiStudio({
                   Runs Copilot inside the extension. Review each field before applying.
                 </p>
                 <label className="field">
-                  Optional instruction
-                  <input
-                    placeholder="e.g. tighten the acceptance criteria, use BDD style"
+                  PO notes for refinement (optional — prioritized when filled)
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. compliance must mention NACHA; mobile-first; keep scope to guest pay only"
                     value={aiInstruction}
                     onChange={(e) => setAiInstruction(e.target.value)}
                   />

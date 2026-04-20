@@ -4,6 +4,10 @@
   "description": "Local PO assistant for project scanning, AI-backed PBI generation, and Azure DevOps sync.",
   "version": "0.1.0",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ltnguyenJha/PO-Professional-Tools.git"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -39,7 +43,7 @@
     "watch": "node esbuild.js --watch",
     "watch:webview": "npm --prefix webview-ui run dev",
     "lint": "eslint src --ext .ts",
-    "package": "vsce package"
+    "package": "npx @vscode/vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

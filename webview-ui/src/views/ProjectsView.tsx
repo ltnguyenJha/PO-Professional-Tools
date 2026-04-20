@@ -1,18 +1,41 @@
 import { useState } from 'react';
-import type { ImportedProject, WebviewRequest } from '../types';
+import type { AdoProgressPayload, ImportedProject, WebviewRequest } from '../types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadingBar } from '../components/LoadingBar';
 
 interface Props {
   projects: ImportedProject[];
+  adoProgress: AdoProgressPayload;
   send: (message: WebviewRequest) => void;
 }
 
-export function ProjectsView({ projects, send }: Props): JSX.Element {
+export function ProjectsView({ projects, adoProgress, send }: Props): JSX.Element {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const target = projects.find((p) => p.id === confirmId);
 
+  const projectAdoLabel = (projectId: string): string | undefined => {
+    if (
+      !adoProgress.busy ||
+      adoProgress.scope !== 'project' ||
+      adoProgress.projectId !== projectId
+    ) {
+      return undefined;
+    }
+    return adoProgress.message.trim().length > 0
+      ? adoProgress.message
+      : 'Syncing with Azure DevOps…';
+  };
+
   return (
     <div className="content">
+      {adoProgress.busy && adoProgress.scope === 'project' && adoProgress.projectId && (
+        <div className="bulk-ado-banner" style={{ marginBottom: 8 }}>
+          <LoadingBar
+            label={projectAdoLabel(adoProgress.projectId) ?? 'Syncing with Azure DevOps…'}
+            ariaLabel={`Azure DevOps: ${projectAdoLabel(adoProgress.projectId) ?? 'syncing'}`}
+          />
+        </div>
+      )}
       <div className="section-title">
         <h3>Projects</h3>
         <span className="muted">{projects.length} imported</span>
@@ -64,6 +87,7 @@ export function ProjectsView({ projects, send }: Props): JSX.Element {
               </button>
               <button
                 className="btn btn-ghost btn-sm"
+                disabled={Boolean(projectAdoLabel(project.id))}
                 onClick={() =>
                   send({ type: 'PUSH_PROJECT_TO_ADO', payload: { projectId: project.id } })
                 }

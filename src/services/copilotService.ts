@@ -27,6 +27,16 @@ const FULL_STORY_JSON_BRIDGE = [
   '---'
 ].join('\n');
 
+const REFINE_PO_PRIORITY = [
+  '---',
+  'PO / STAKEHOLDER INPUT (priority rules):',
+  '- The Product Owner description and optional PO notes below are the source of truth for business intent, scope boundaries, personas, and constraints.',
+  '- LINKED PROJECT CONTEXT grounds technical accuracy (routes, APIs, modules); merge it with the PO text — do not replace business requirements with generic technical filler.',
+  '- Expand thin descriptions into clear prose: add missing user value, risks, and dependencies implied by the PO text or notes.',
+  '- If PO notes conflict with older criteria, follow the notes and the description.',
+  '---'
+].join('\n');
+
 const SYSTEM_PROMPT = [
   'You are a senior Product Owner assistant.',
   'Refine backlog items so they are clear, concise, testable, and stakeholder-ready.',
@@ -35,7 +45,8 @@ const SYSTEM_PROMPT = [
   '{ "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
   'When breaking a feature into children, respond with:',
   '{ "children": [ { "suffix": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] } ] }',
-  'Never include keys outside the schema. Never wrap output in markdown.'
+  'Never include keys outside the schema. Never wrap output in markdown.',
+  REFINE_PO_PRIORITY
 ].join('\n');
 
 /** Stronger prompt for in-panel full story: fewer, sharper ACs; valid JSON strings. */
@@ -126,12 +137,21 @@ export class CopilotService {
     const rulebook = await this.getProductManagerRulebook();
 
     const linkedPart = options?.linkedProjectContext
-      ? `LINKED PROJECT CONTEXT (align backlog text with this codebase):\n${options.linkedProjectContext}\n---\n\n`
+      ? `LINKED PROJECT CONTEXT (technical grounding — combine with PO text, do not ignore business intent):\n${options.linkedProjectContext}\n---\n\n`
       : '';
+    const poNotes =
+      instruction && instruction.trim().length > 0
+        ? [
+            'ADDITIONAL PO NOTES (prioritized — reflect these in description, criteria, and tests):',
+            instruction.trim(),
+            ''
+          ].join('\n')
+        : '';
     const userPrompt =
       linkedPart +
       [
-        instruction ? `PO instruction: ${instruction}` : 'Refine the backlog item below.',
+        poNotes,
+        'TASK: Refine the backlog item for Azure DevOps. Preserve facts and constraints from the PO description; improve clarity and testability.',
         'Return JSON with keys: description, acceptanceCriteria, testScenarios (optional title).',
         '',
         `Title: ${draft.title}`,
@@ -139,8 +159,8 @@ export class CopilotService {
         `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
         `Effort (days): ${draft.effortDays}`,
         '',
-        'Current description:',
-        draft.description || '(empty)',
+        'PRODUCT OWNER DESCRIPTION (primary business context):',
+        draft.description?.trim() ? draft.description.trim() : '(empty — infer carefully from title and linked context, or state assumptions briefly in the description field.)',
         '',
         'Current acceptance criteria:',
         ...draft.acceptanceCriteria.map((item, i) => `${i + 1}. ${item}`),
@@ -203,17 +223,20 @@ export class CopilotService {
       [
         'Generate the full backlog item (replace description, criteria, and tests entirely).',
         '',
-        'BUSINESS CONTEXT (primary input):',
+        'BUSINESS CONTEXT (primary input — expand with concrete actors, constraints, and outcomes):',
         seed,
         '',
         `Working title: ${draft.title}`,
         `Iteration: ${draft.iteration}`,
         `Work item type: ${draft.workItemType ?? 'Product Backlog Item'}`,
         '',
-        'Optional notes from the draft (merge with context if useful):',
-        draft.description && draft.description.trim() !== seed ? draft.description : '(none beyond context above)',
+        'Additional description from the draft (merge facts; do not drop stakeholder requirements):',
+        draft.description && draft.description.trim() !== seed.trim()
+          ? draft.description.trim()
+          : '(none beyond seed above)',
         '',
-        'Ignore any previous acceptance criteria unless they add facts; prefer a fresh, tight set per the system rules.'
+        'If the seed is thin, enrich from the title and linked context while staying faithful to stated scope.',
+        'Ignore stale acceptance criteria unless they state irreplaceable facts; prefer a fresh, tight set per the system rules.'
       ].join('\n');
 
     const messages = [
@@ -330,9 +353,13 @@ export class CopilotService {
       linkedBulkPart +
       [
         `Feature prefix: ${prefix}`,
-        `Feature description: ${description}`,
+        '',
+        'FEATURE DESCRIPTION FROM PO (respect scope, personas, and constraints — do not invent unrelated work):',
+        description.trim() || '(none)',
+        '',
         `Break this feature into about ${count} focused child backlog items.`,
         'Each child is a vertical slice and uses a short, user-facing suffix (no prefix).',
+        'Child descriptions should trace back to specifics in the feature description or linked codebase (routes/APIs/modules).',
         'Return JSON only: { "children": [ { "suffix", "description", "acceptanceCriteria", "testScenarios" } ] }.'
       ].join('\n');
 
@@ -386,6 +413,7 @@ export class CopilotService {
     const rulebook = this.clipForChatRulebook(await this.getProductManagerRulebook());
     const prompt = [
       '@github Refine this Product Backlog Item per the PRODUCT_MANAGER_RULEBOOK below (PayRailz / fintech PO standards).',
+      'Prioritize the Product Owner description and business intent; use LINKED PROJECT for technical grounding.',
       'When done, reply with JSON only in this shape: { "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }.',
       'Optionally include "title": string if you suggest a clearer title.',
       'Do not create files or reports/ — output JSON only. I will paste the JSON into PO Tools → Apply AI Result.',
@@ -400,7 +428,7 @@ export class CopilotService {
       `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
       `Effort (days): ${draft.effortDays}`,
       '',
-      'Current description:',
+      'PRODUCT OWNER DESCRIPTION (primary):',
       draft.description || '(empty)',
       '',
       'Current acceptance criteria:',

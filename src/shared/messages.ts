@@ -156,11 +156,22 @@ export type WebviewRequest =
   | { type: 'OPEN_EXTERNAL'; payload: { url: string } }
   | { type: 'SET_THEME'; payload: { theme: ThemePreference } };
 
+export type AdoProgressScope = 'single' | 'bulk' | 'project';
+
+export interface AdoProgressPayload {
+  busy: boolean;
+  message: string;
+  scope: AdoProgressScope;
+  draftId?: string;
+  projectId?: string;
+}
+
 export type ExtensionEvent =
   | { type: 'DRAFT_CREATED'; payload: { draftId: string } }
   | { type: 'STATE_UPDATED'; payload: AppStatePayload }
   | { type: 'TOAST'; payload: { level: 'info' | 'error' | 'success'; message: string } }
   | { type: 'AI_PROGRESS'; payload: { draftId?: string; message: string; busy: boolean } }
+  | { type: 'ADO_PROGRESS'; payload: AdoProgressPayload }
   | { type: 'AI_SUGGESTION_READY'; payload: { draftId: string; suggestion: AiSuggestion } }
   | { type: 'AI_BREAKDOWN_READY'; payload: { prefix: string; children: BulkChildInput[] } }
   | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } };

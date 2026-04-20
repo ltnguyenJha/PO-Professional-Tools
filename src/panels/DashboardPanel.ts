@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import {
+  AdoProgressPayload,
   AdoSettings,
   BulkBreakdownRequest,
   BulkChildInput,
@@ -309,9 +310,25 @@ export class DashboardPanel {
     if (!ctx) {
       return;
     }
-    const toPush = await this.mergeAutoMermaidForAdo(draft);
-    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
-    await this.applyPushResult(result.created, result.errors);
+    try {
+      this.postAdoProgress({
+        busy: true,
+        message: 'Preparing work item (diagram, fields)…',
+        scope: 'single',
+        draftId
+      });
+      const toPush = await this.mergeAutoMermaidForAdo(draft);
+      this.postAdoProgress({
+        busy: true,
+        message: 'Pushing to Azure DevOps…',
+        scope: 'single',
+        draftId
+      });
+      const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
+      await this.applyPushResult(result.created, result.errors);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'single' });
+    }
   }
 
   private async handleUpdateInAdo(draftId: string, draftFromWebview?: PbiDraft): Promise<void> {
@@ -337,8 +354,20 @@ export class DashboardPanel {
     if (!ctx) {
       return;
     }
-    const toSync = await this.mergeAutoMermaidForAdo(draft);
     try {
+      this.postAdoProgress({
+        busy: true,
+        message: 'Preparing update (diagram, fields)…',
+        scope: 'single',
+        draftId
+      });
+      const toSync = await this.mergeAutoMermaidForAdo(draft);
+      this.postAdoProgress({
+        busy: true,
+        message: 'Updating work item in Azure DevOps…',
+        scope: 'single',
+        draftId
+      });
       await this.adoService.updateDraftInAdo(
         ctx.settings,
         ctx.pat,
@@ -355,6 +384,8 @@ export class DashboardPanel {
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       this.postToast('error', `Update failed: ${messageText}`);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'single' });
     }
     await this.postState();
   }
@@ -378,24 +409,28 @@ export class DashboardPanel {
     if (!ctx) {
       return;
     }
-    this.post({
-      type: 'AI_PROGRESS',
-      payload: { message: 'Generating diagram attachments for drafts…', busy: true }
-    });
-    let prepared: PbiDraft[];
     try {
-      prepared = [];
-      for (const d of drafts) {
-        prepared.push(await this.mergeAutoMermaidForAdo(d, { showProgress: false }));
-      }
-    } finally {
-      this.post({
-        type: 'AI_PROGRESS',
-        payload: { message: '', busy: false }
+      this.postAdoProgress({
+        busy: true,
+        message: `Preparing ${drafts.length} draft(s)…`,
+        scope: 'project',
+        projectId
       });
+      const prepared: PbiDraft[] = [];
+      for (const d of drafts) {
+        prepared.push(await this.mergeAutoMermaidForAdo(d));
+      }
+      this.postAdoProgress({
+        busy: true,
+        message: 'Pushing to Azure DevOps…',
+        scope: 'project',
+        projectId
+      });
+      const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, prepared);
+      await this.applyPushResult(result.created, result.errors);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'project' });
     }
-    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, prepared);
-    await this.applyPushResult(result.created, result.errors);
   }
 
   /** Repo or workspace folder link required for AI context and ADO push. */
@@ -419,33 +454,18 @@ export class DashboardPanel {
   }
 
   /** Adds an AI-generated Mermaid file to pending attachments when Copilot can produce one. */
-  private async mergeAutoMermaidForAdo(
-    draft: PbiDraft,
-    options?: { showProgress?: boolean }
-  ): Promise<PbiDraft> {
-    const showProgress = options?.showProgress !== false;
+  private async mergeAutoMermaidForAdo(draft: PbiDraft): Promise<PbiDraft> {
     const token = new vscode.CancellationTokenSource().token;
-    if (showProgress) {
-      this.post({
-        type: 'AI_PROGRESS',
-        payload: { message: 'Generating diagram attachment from backlog text…', busy: true }
-      });
+    const generated = await this.copilotService.tryGenerateMermaidAttachment(draft, token);
+    if (!generated) {
+      return draft;
     }
-    try {
-      const generated = await this.copilotService.tryGenerateMermaidAttachment(draft, token);
-      if (!generated) {
-        return draft;
-      }
-      const existing = draft.attachments ?? [];
-      return { ...draft, attachments: [...existing, generated] };
-    } finally {
-      if (showProgress) {
-        this.post({
-          type: 'AI_PROGRESS',
-          payload: { message: '', busy: false }
-        });
-      }
-    }
+    const existing = draft.attachments ?? [];
+    return { ...draft, attachments: [...existing, generated] };
+  }
+
+  private postAdoProgress(payload: AdoProgressPayload): void {
+    this.post({ type: 'ADO_PROGRESS', payload });
   }
 
   private async handleSaveAdoSettings(payload: BulkSaveInput): Promise<void> {
@@ -719,47 +739,51 @@ export class DashboardPanel {
       }
     }
 
-    this.post({
-      type: 'AI_PROGRESS',
-      payload: { message: 'Generating diagram attachments for drafts…', busy: true }
-    });
-    let preparedChildren: PbiDraft[];
     try {
-      preparedChildren = [];
+      this.postAdoProgress({
+        busy: true,
+        message: `Preparing ${children.length} backlog item(s)…`,
+        scope: 'bulk'
+      });
+      const preparedChildren: PbiDraft[] = [];
       for (const d of children) {
-        preparedChildren.push(await this.mergeAutoMermaidForAdo(d, { showProgress: false }));
+        preparedChildren.push(await this.mergeAutoMermaidForAdo(d));
+      }
+      this.postAdoProgress({
+        busy: true,
+        message: request.parentWorkItemType
+          ? 'Creating parent and children in Azure DevOps…'
+          : 'Pushing to Azure DevOps…',
+        scope: 'bulk'
+      });
+
+      if (request.parentWorkItemType) {
+        const bulk = await this.adoService.pushWithParent(
+          ctx.settings,
+          ctx.pat,
+          {
+            title: request.prefix,
+            description:
+              request.parentDescription ||
+              `Parent for ${preparedChildren.length} child items generated by PO Tools.`,
+            workItemType: request.parentWorkItemType,
+            iteration: request.iteration
+          },
+          preparedChildren
+        );
+        await this.applyPushResult(bulk.created, bulk.errors);
+        if (bulk.parent) {
+          this.postToast(
+            'success',
+            `Parent "${request.prefix}" created as #${bulk.parent.workItemId} with ${bulk.created.length} child(ren).`
+          );
+        }
+      } else {
+        const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, preparedChildren);
+        await this.applyPushResult(result.created, result.errors);
       }
     } finally {
-      this.post({
-        type: 'AI_PROGRESS',
-        payload: { message: '', busy: false }
-      });
-    }
-
-    if (request.parentWorkItemType) {
-      const bulk = await this.adoService.pushWithParent(
-        ctx.settings,
-        ctx.pat,
-        {
-          title: request.prefix,
-          description:
-            request.parentDescription ||
-            `Parent for ${preparedChildren.length} child items generated by PO Tools.`,
-          workItemType: request.parentWorkItemType,
-          iteration: request.iteration
-        },
-        preparedChildren
-      );
-      await this.applyPushResult(bulk.created, bulk.errors);
-      if (bulk.parent) {
-        this.postToast(
-          'success',
-          `Parent "${request.prefix}" created as #${bulk.parent.workItemId} with ${bulk.created.length} child(ren).`
-        );
-      }
-    } else {
-      const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, preparedChildren);
-      await this.applyPushResult(result.created, result.errors);
+      this.postAdoProgress({ busy: false, message: '', scope: 'bulk' });
     }
   }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AdoProgressPayload,
   AiSuggestion,
   AppStatePayload,
   BulkChildInput,
@@ -37,6 +38,12 @@ const EMPTY_STATE: AppStatePayload = {
   hasAdoPat: false
 };
 
+const EMPTY_ADO_PROGRESS: AdoProgressPayload = {
+  busy: false,
+  message: '',
+  scope: 'single'
+};
+
 export function App(): JSX.Element {
   const [state, setState] = useState<AppStatePayload>(EMPTY_STATE);
   const [view, setView] = useState<ViewId>('dashboard');
@@ -49,6 +56,7 @@ export function App(): JSX.Element {
     { ok: boolean; message: string } | undefined
   >();
   const [focusDraftId, setFocusDraftId] = useState<string | undefined>(undefined);
+  const [adoProgress, setAdoProgress] = useState<AdoProgressPayload>(EMPTY_ADO_PROGRESS);
   const toastIdRef = useRef(0);
 
   const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -78,6 +86,13 @@ export function App(): JSX.Element {
           } else {
             setBreakdownBusy(message.payload.busy);
           }
+          return;
+        case 'ADO_PROGRESS':
+          setAdoProgress(
+            message.payload.busy
+              ? message.payload
+              : { ...EMPTY_ADO_PROGRESS, scope: message.payload.scope }
+          );
           return;
         case 'AI_SUGGESTION_READY':
           setSuggestions((prev) => ({
@@ -179,13 +194,14 @@ export function App(): JSX.Element {
           <DashboardView state={state} onNavigate={(target) => setView(target)} />
         )}
         {view === 'projects' && (
-          <ProjectsView projects={state.projects} send={sendMessage} />
+          <ProjectsView projects={state.projects} adoProgress={adoProgress} send={sendMessage} />
         )}
         {view === 'studio' && (
           <PbiStudio
             state={state}
             suggestions={suggestions}
             aiBusyDraftId={aiBusyDraftId}
+            adoProgress={adoProgress}
             focusDraftId={focusDraftId}
             onConsumedFocusDraft={() => setFocusDraftId(undefined)}
             send={sendMessage}
@@ -198,6 +214,7 @@ export function App(): JSX.Element {
             drafts={state.pbiDrafts}
             adoSettings={state.adoSettings}
             aiBusy={breakdownBusy}
+            adoProgress={adoProgress}
             suggestedChildren={suggestedChildren}
             onConsumeSuggestion={consumeSuggestedChildren}
             send={sendMessage}

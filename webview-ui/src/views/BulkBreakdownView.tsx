@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
+  AdoProgressPayload,
   AdoSettings,
   AdoWorkItemType,
   BulkBreakdownRequest,
@@ -8,6 +9,7 @@ import type {
   PbiDraft,
   WebviewRequest
 } from '../types';
+import { LoadingBar } from '../components/LoadingBar';
 import { WORK_ITEM_TYPES } from '../types';
 
 type Mode = 'manual' | 'ai' | 'scan';
@@ -18,6 +20,7 @@ interface Props {
   drafts: PbiDraft[];
   adoSettings?: AdoSettings;
   aiBusy: boolean;
+  adoProgress: AdoProgressPayload;
   suggestedChildren?: BulkChildInput[];
   onConsumeSuggestion: () => void;
   send: (message: WebviewRequest) => void;
@@ -28,10 +31,17 @@ export function BulkBreakdownView({
   drafts,
   adoSettings,
   aiBusy,
+  adoProgress,
   suggestedChildren,
   onConsumeSuggestion,
   send
 }: Props): JSX.Element {
+  const bulkAdoBusy = adoProgress.busy && adoProgress.scope === 'bulk';
+  const bulkAdoLabel =
+    bulkAdoBusy && adoProgress.message.trim().length > 0
+      ? adoProgress.message
+      : 'Syncing with Azure DevOps…';
+
   const [mode, setMode] = useState<Mode>('manual');
   const [prefix, setPrefix] = useState('PAL Guest Payment');
   const [separator, setSeparator] = useState(' - ');
@@ -162,6 +172,11 @@ export function BulkBreakdownView({
 
   return (
     <div className="content">
+      {bulkAdoBusy && (
+        <div className="bulk-ado-banner">
+          <LoadingBar label={bulkAdoLabel} ariaLabel={`Azure DevOps: ${bulkAdoLabel}`} />
+        </div>
+      )}
       {linkTargets.length === 0 && (
         <p className="hint card" style={{ marginBottom: 12 }}>
           Open a workspace folder or import a project on the Projects tab — bulk breakdown requires a
@@ -282,10 +297,10 @@ export function BulkBreakdownView({
         {mode === 'ai' && (
           <>
             <label className="field">
-              Feature description
+              Feature description (be specific — personas, constraints, channels)
               <textarea
-                rows={4}
-                placeholder="Guest users can pay their loan without an account, including login, verify loan, take payment, and show a receipt."
+                rows={5}
+                placeholder="Who is affected, what problem is solved, boundaries (in/out of scope), compliance or reporting needs, and happy vs edge paths."
                 value={aiDescription}
                 onChange={(e) => setAiDescription(e.target.value)}
               />
@@ -301,7 +316,11 @@ export function BulkBreakdownView({
               />
             </label>
             <div className="action-row">
-              <button className="btn btn-primary" disabled={aiBusy} onClick={requestAi}>
+              <button
+                className="btn btn-primary"
+                disabled={aiBusy || bulkAdoBusy}
+                onClick={requestAi}
+              >
                 {aiBusy ? 'Asking Copilot...' : 'Suggest breakdown with AI'}
               </button>
               {children.length > 0 && (
@@ -363,13 +382,17 @@ export function BulkBreakdownView({
         <div className="card-header">
           <h3>Preview ({effectiveChildren.length} item{effectiveChildren.length === 1 ? '' : 's'})</h3>
           <div className="action-row">
-            <button className="btn" onClick={createDrafts} disabled={effectiveChildren.length === 0}>
+            <button
+              className="btn"
+              onClick={createDrafts}
+              disabled={effectiveChildren.length === 0 || bulkAdoBusy}
+            >
               Save as drafts
             </button>
             <button
               className="btn btn-primary"
               onClick={pushToAdo}
-              disabled={effectiveChildren.length === 0}
+              disabled={effectiveChildren.length === 0 || bulkAdoBusy}
             >
               Create drafts &amp; push to ADO
             </button>
