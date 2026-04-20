@@ -23,6 +23,13 @@ export const WORK_ITEM_TYPES: AdoWorkItemType[] = [
 
 export type PbiStatus = 'draft' | 'ready' | 'pushed';
 
+export interface PbiAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  dataBase64: string;
+}
+
 export interface PbiDraft {
   id: string;
   projectId: string;
@@ -37,6 +44,7 @@ export interface PbiDraft {
   adoWorkItemId?: number;
   adoWorkItemUrl?: string;
   updatedAt?: string;
+  attachments?: PbiAttachment[];
 }
 
 export interface AdoSettings {
@@ -96,6 +104,8 @@ export interface BulkBreakdownRequest {
 
 export interface AppStatePayload {
   projects: ImportedProject[];
+  /** When omitted (older sessions), treat as `projects`. */
+  linkTargets?: ImportedProject[];
   pbiDrafts: PbiDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
@@ -128,7 +138,8 @@ export type WebviewRequest =
     }
   | { type: 'UPDATE_PBI_DRAFT'; payload: { draft: PbiDraft } }
   | { type: 'DELETE_PBI_DRAFT'; payload: { draftId: string } }
-  | { type: 'PUSH_PBI_TO_ADO'; payload: { draftId: string } }
+  | { type: 'PUSH_PBI_TO_ADO'; payload: { draftId: string; draft?: PbiDraft } }
+  | { type: 'UPDATE_PBI_IN_ADO'; payload: { draftId: string; draft?: PbiDraft } }
   | { type: 'PUSH_PROJECT_TO_ADO'; payload: { projectId: string; draftIds?: string[] } }
   | { type: 'SAVE_ADO_SETTINGS'; payload: AdoSettingsInput }
   | {
@@ -146,7 +157,10 @@ export type WebviewRequest =
       };
     }
   | { type: 'APPLY_AI_SUGGESTION'; payload: { draftId: string; suggestion: AiSuggestion } }
-  | { type: 'AI_SUGGEST_BREAKDOWN'; payload: { prefix: string; description: string; count?: number } }
+  | {
+      type: 'AI_SUGGEST_BREAKDOWN';
+      payload: { prefix: string; description: string; count?: number; projectId?: string };
+    }
   | { type: 'BULK_CREATE_DRAFTS'; payload: BulkBreakdownRequest }
   | { type: 'BULK_PUSH_TO_ADO'; payload: BulkBreakdownRequest & { draftIds: string[] } }
   | { type: 'OPEN_EXTERNAL'; payload: { url: string } }

@@ -1,8 +1,10 @@
 import * as azdev from 'azure-devops-node-api';
 import { JsonPatchOperation } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
+import { Readable } from 'stream';
 import {
   AdoSettings,
   AdoWorkItemType,
+  PbiAttachment,
   PbiDraft
 } from '../shared/messages';
 import { resolveIterationPathForPush } from '../shared/iterationUtils';
@@ -10,9 +12,12 @@ import { resolveIterationPathForPush } from '../shared/iterationUtils';
 // The azure-devops-node-api typings declare `op` as the `Operation` enum (numeric),
 // but the REST endpoint expects the string verb ('add', 'remove', ...). We keep the
 // string form at runtime and use this loose shape for authoring the document.
-type PatchEntry = { op: string; path: string; value: unknown };
+type PatchEntry = { op: string; path: string; value?: unknown };
+type FieldPatchOp = 'add' | 'replace';
 const asPatch = (entries: PatchEntry[]): JsonPatchOperation[] =>
   entries as unknown as JsonPatchOperation[];
+
+const MAX_ATTACHMENT_BYTES = 28 * 1024 * 1024;
 
 export interface PushItemResult {
   draftId: string;
@@ -77,7 +82,7 @@ export class AdoService {
 
     for (const draft of drafts) {
       try {
-        const patch = asPatch(this.buildPatchEntries(settings, draft));
+        const patch = asPatch(this.buildFieldPatches(settings, draft, 'add'));
         const type = this.resolveWorkItemType(settings, draft);
         const item = await witApi.createWorkItem(undefined, patch, settings.projectName, type);
         if (item.id) {
@@ -86,6 +91,17 @@ export class AdoService {
             workItemId: item.id,
             workItemUrl: item._links?.html?.href ?? this.buildBrowserUrl(settings, item.id)
           });
+          if (draft.attachments && draft.attachments.length > 0) {
+            try {
+              await this.syncAttachments(witApi, settings, item.id, draft.attachments);
+            } catch (attachErr) {
+              const msg = attachErr instanceof Error ? attachErr.message : String(attachErr);
+              errors.push({
+                draftId: draft.id,
+                message: `Work item #${item.id} was created but attachment upload failed: ${msg}`
+              });
+            }
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -149,7 +165,7 @@ export class AdoService {
 
     for (const draft of children) {
       try {
-        const basePatch = this.buildPatchEntries(settings, draft);
+        const basePatch = this.buildFieldPatches(settings, draft, 'add');
         basePatch.push({
           op: 'add',
           path: '/relations/-',
@@ -181,6 +197,78 @@ export class AdoService {
     return { parent: parentResult, created, errors };
   }
 
+  /**
+   * Applies field updates to an existing work item (after initial push).
+   * Optionally uploads and links attachments (diagrams, mermaid exports, etc.).
+   */
+  public async updateDraftInAdo(
+    settings: AdoSettings,
+    pat: string,
+    draft: PbiDraft,
+    workItemId: number
+  ): Promise<void> {
+    const connection = this.createConnection(settings, pat);
+    const witApi = await connection.getWorkItemTrackingApi();
+    const patch = asPatch(this.buildFieldPatches(settings, draft, 'replace'));
+    await witApi.updateWorkItem(undefined, patch, workItemId, settings.projectName);
+    if (draft.attachments && draft.attachments.length > 0) {
+      try {
+        await this.syncAttachments(witApi, settings, workItemId, draft.attachments);
+      } catch (attachErr) {
+        const msg = attachErr instanceof Error ? attachErr.message : String(attachErr);
+        throw new Error(`Work item fields were updated but attachment upload failed: ${msg}`);
+      }
+    }
+  }
+
+  private async syncAttachments(
+    witApi: Awaited<ReturnType<azdev.WebApi['getWorkItemTrackingApi']>>,
+    settings: AdoSettings,
+    workItemId: number,
+    attachments: PbiAttachment[]
+  ): Promise<void> {
+    const project = settings.projectName;
+    const areaPath = settings.areaPath;
+
+    for (const att of attachments) {
+      let buffer: Buffer;
+      try {
+        buffer = Buffer.from(att.dataBase64, 'base64');
+      } catch {
+        continue;
+      }
+      if (buffer.length === 0 || buffer.length > MAX_ATTACHMENT_BYTES) {
+        continue;
+      }
+
+      const stream = Readable.from(buffer);
+      const ref = await witApi.createAttachment(
+        undefined,
+        stream,
+        att.fileName,
+        'Simple',
+        project,
+        areaPath
+      );
+      if (!ref?.url) {
+        continue;
+      }
+
+      const relPatch = asPatch([
+        {
+          op: 'add',
+          path: '/relations/-',
+          value: {
+            rel: 'AttachedFile',
+            url: ref.url,
+            attributes: { comment: 'PO Tools' }
+          }
+        }
+      ]);
+      await witApi.updateWorkItem(undefined, relPatch, workItemId, project);
+    }
+  }
+
   private createConnection(settings: AdoSettings, pat: string): azdev.WebApi {
     const authHandler = azdev.getPersonalAccessTokenHandler(pat);
     const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
@@ -208,41 +296,53 @@ export class AdoService {
     return input.endsWith('/') ? input.slice(0, -1) : input;
   }
 
-  private buildPatchEntries(settings: AdoSettings, draft: PbiDraft): PatchEntry[] {
-    const acceptanceCriteria = `<ul>${draft.acceptanceCriteria
+  private buildFieldPatches(
+    settings: AdoSettings,
+    draft: PbiDraft,
+    op: FieldPatchOp
+  ): PatchEntry[] {
+    const acceptanceCriteriaHtml = `<ul>${draft.acceptanceCriteria
       .map((item) => `<li>${this.escapeHtml(item)}</li>`)
       .join('')}</ul>`;
-    const testScenarios = `<ul>${draft.testScenarios
+    const testScenariosHtml = `<ul>${draft.testScenarios
       .map((item) => `<li>${this.escapeHtml(item)}</li>`)
       .join('')}</ul>`;
 
-    const description = [
-      `<p>${this.escapeHtml(draft.description)}</p>`,
-      '<h3>Acceptance Criteria</h3>',
-      acceptanceCriteria,
-      '<h3>Test Scenarios</h3>',
-      testScenarios,
+    const descriptionParts = [`<p>${this.escapeHtml(draft.description)}</p>`];
+    if (draft.testScenarios.length > 0) {
+      descriptionParts.push('<h3>Test Scenarios</h3>', testScenariosHtml);
+    }
+    descriptionParts.push(
       '<h3>PO Tools Metadata</h3>',
       `<p>Project Id: ${this.escapeHtml(draft.projectId)}</p>`
-    ].join('');
+    );
+    const description = descriptionParts.join('');
 
     const entries: PatchEntry[] = [
-      { op: 'add', path: '/fields/System.Title', value: draft.title },
-      { op: 'add', path: '/fields/System.Description', value: description },
-      { op: 'add', path: '/fields/System.Tags', value: 'AI-Generated;PO-Tools' },
+      { op, path: '/fields/System.Title', value: draft.title },
+      { op, path: '/fields/System.Description', value: description },
+      { op, path: '/fields/System.Tags', value: 'AI-Generated;PO-Tools' },
       {
-        op: 'add',
+        op,
         path: '/fields/Microsoft.VSTS.Scheduling.Effort',
         value: draft.effortDays
       }
     ];
 
     if (settings.areaPath) {
-      entries.push({ op: 'add', path: '/fields/System.AreaPath', value: settings.areaPath });
+      entries.push({ op, path: '/fields/System.AreaPath', value: settings.areaPath });
+    }
+
+    if (draft.acceptanceCriteria.length > 0) {
+      entries.push({
+        op,
+        path: '/fields/Microsoft.VSTS.Common.AcceptanceCriteria',
+        value: acceptanceCriteriaHtml
+      });
     }
 
     const iterationPath = resolveIterationPathForPush(settings, draft);
-    entries.push({ op: 'add', path: '/fields/System.IterationPath', value: iterationPath });
+    entries.push({ op, path: '/fields/System.IterationPath', value: iterationPath });
 
     return entries;
   }

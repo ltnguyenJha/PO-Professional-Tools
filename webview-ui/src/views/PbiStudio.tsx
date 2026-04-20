@@ -10,6 +10,10 @@ import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
+import {
+  extractMermaidBlocksAsAttachments,
+  filesToAttachments
+} from '../utils/attachments';
 
 const AUTO_APPLY_KEY = 'poTools.pbi.autoApplyCopilotJson';
 
@@ -39,7 +43,8 @@ export function PbiStudio({
   send,
   onDismissSuggestion
 }: Props): JSX.Element {
-  const { pbiDrafts, projects } = state;
+  const { pbiDrafts, linkTargets: linkTargetsState, projects } = state;
+  const linkTargets = linkTargetsState ?? projects;
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('all');
   const [activeId, setActiveId] = useState<string | undefined>(pbiDrafts[0]?.id);
@@ -48,7 +53,7 @@ export function PbiStudio({
   const [pastedAi, setPastedAi] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const [newScope, setNewScope] = useState<string>(STANDALONE_PROJECT_ID);
+  const [newScope, setNewScope] = useState<string>('');
   const [heroTitle, setHeroTitle] = useState('');
   const [heroSeed, setHeroSeed] = useState('');
   const [autoApplyNotice, setAutoApplyNotice] = useState('');
@@ -60,6 +65,7 @@ export function PbiStudio({
     }
   });
   const lastClipboardApplyHash = useRef<string>('');
+  const fileAttachInputRef = useRef<HTMLInputElement>(null);
   /** Extra context for in-panel full-story generation (optional; falls back to Description). */
   const [fullStorySeed, setFullStorySeed] = useState('');
 
@@ -98,13 +104,36 @@ export function PbiStudio({
   }, [focusDraftId, pbiDrafts, onConsumedFocusDraft]);
 
   useEffect(() => {
+    if (linkTargets.length === 0) {
+      return;
+    }
+    setNewScope((prev) => {
+      if (prev && linkTargets.some((p) => p.id === prev)) {
+        return prev;
+      }
+      return linkTargets[0]!.id;
+    });
+  }, [linkTargets]);
+
+  useEffect(() => {
     const source = pbiDrafts.find((d) => d.id === activeId);
-    setWorking(source ? { ...source } : undefined);
+    if (!source) {
+      setWorking(undefined);
+    } else {
+      let next: PbiDraft = { ...source };
+      if (linkTargets.length > 0) {
+        const valid = linkTargets.some((t) => t.id === next.projectId);
+        if (!valid || next.projectId === STANDALONE_PROJECT_ID) {
+          next = { ...next, projectId: linkTargets[0]!.id };
+        }
+      }
+      setWorking(next);
+    }
     setAiInstruction('');
     setPastedAi('');
     setFullStorySeed('');
     lastClipboardApplyHash.current = '';
-  }, [activeId, pbiDrafts]);
+  }, [activeId, pbiDrafts, linkTargets]);
 
   const persistAutoApply = (value: boolean): void => {
     setAutoApplyEnabled(value);
@@ -115,13 +144,22 @@ export function PbiStudio({
     }
   };
 
+  const canCreateLinked =
+    linkTargets.length > 0 &&
+    Boolean(newScope) &&
+    linkTargets.some((p) => p.id === newScope);
+
   const createPayload = (openChat: boolean): void => {
-    const projectId =
-      newScope === STANDALONE_PROJECT_ID ? undefined : newScope;
+    if (!canCreateLinked) {
+      window.alert(
+        'Open a workspace folder or import a project on the Projects tab, then pick a linked project.'
+      );
+      return;
+    }
     send({
       type: 'CREATE_PBI_DRAFT',
       payload: {
-        projectId,
+        projectId: newScope,
         title: heroTitle.trim() || undefined,
         openCopilotChat: openChat ? 'newStory' : undefined,
         seedIdea: heroSeed.trim() || undefined
@@ -134,10 +172,16 @@ export function PbiStudio({
   };
 
   const quickCreateBlank = (): void => {
+    if (!canCreateLinked) {
+      window.alert(
+        'Open a workspace folder or import a project on the Projects tab, then pick a linked project.'
+      );
+      return;
+    }
     send({
       type: 'CREATE_PBI_DRAFT',
       payload: {
-        projectId: newScope === STANDALONE_PROJECT_ID ? undefined : newScope,
+        projectId: newScope,
         title: undefined
       }
     });
@@ -146,6 +190,7 @@ export function PbiStudio({
   const active = working;
   const suggestion = activeId ? suggestions[activeId] : undefined;
   const aiBusy = aiBusyDraftId === activeId;
+  const isLinkedToAdo = Boolean(active?.status === 'pushed' && active?.adoWorkItemId != null);
 
   const tryApplyRawToActive = useCallback(
     (raw: string): boolean => {
@@ -213,8 +258,55 @@ export function PbiStudio({
 
   const pushOne = (): void => {
     if (active) {
-      send({ type: 'PUSH_PBI_TO_ADO', payload: { draftId: active.id } });
+      send({ type: 'PUSH_PBI_TO_ADO', payload: { draftId: active.id, draft: active } });
     }
+  };
+
+  const updateInAdo = (): void => {
+    if (active) {
+      send({ type: 'UPDATE_PBI_IN_ADO', payload: { draftId: active.id, draft: active } });
+    }
+  };
+
+  const onPickAttachments = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const files = e.target.files;
+    if (!files?.length || !active) {
+      return;
+    }
+    const next = await filesToAttachments(files);
+    setWorking({
+      ...active,
+      attachments: [...(active.attachments ?? []), ...next]
+    });
+    e.target.value = '';
+  };
+
+  const removeAttachment = (id: string): void => {
+    if (!active) {
+      return;
+    }
+    setWorking({
+      ...active,
+      attachments: (active.attachments ?? []).filter((a) => a.id !== id)
+    });
+  };
+
+  const addMermaidFromDescription = (): void => {
+    if (!active) {
+      return;
+    }
+    const found = extractMermaidBlocksAsAttachments(active.description);
+    if (found.length === 0) {
+      setAutoApplyNotice('No ```mermaid``` blocks found in Description.');
+      window.setTimeout(() => setAutoApplyNotice(''), 3500);
+      return;
+    }
+    setWorking({
+      ...active,
+      attachments: [...(active.attachments ?? []), ...found]
+    });
+    setAutoApplyNotice(`Added ${found.length} Mermaid file(s) to attachments.`);
+    window.setTimeout(() => setAutoApplyNotice(''), 4000);
   };
 
   const refine = (): void => {
@@ -290,22 +382,34 @@ export function PbiStudio({
         <section className="card studio-hero">
           <h2 style={{ margin: '0 0 8px' }}>PBI Studio — start here</h2>
           <p className="card-subtitle" style={{ marginBottom: 16 }}>
-            Create a new backlog item without scanning a repo. Use{' '}
-            <strong>VS Code Copilot Chat</strong> to co-author the story, then copy the reply — with{' '}
-            <strong>Auto-apply</strong> on (default), returning to this panel or pasting into the Apply
-            box merges JSON into your draft automatically.
+            Link each backlog item to a <strong>repo or workspace folder</strong> so AI refinement,
+            full-story generation, and Copilot Chat use your codebase (Product Manager prompt + linked
+            context). Use <strong>VS Code Copilot Chat</strong> to co-author if you like — with{' '}
+            <strong>Auto-apply</strong> on (default), JSON from chat can merge into your draft
+            automatically.
           </p>
+          {linkTargets.length === 0 ? (
+            <p className="hint" style={{ marginBottom: 16 }}>
+              Open a folder in this workspace or use the <strong>Projects</strong> tab to import a repo
+              before creating a PBI.
+            </p>
+          ) : null}
           <div className="field-row">
             <label className="field">
-              Link to project (optional)
-              <select value={newScope} onChange={(e) => setNewScope(e.target.value)}>
-                <option value={STANDALONE_PROJECT_ID}>Standalone — no repo</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              Link to project (required)
+              {linkTargets.length > 0 ? (
+                <select value={newScope} onChange={(e) => setNewScope(e.target.value)}>
+                  {linkTargets.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="hint" style={{ marginTop: 6 }}>
+                  No workspace folders yet — add one above first.
+                </p>
+              )}
             </label>
             <label className="field">
               Working title (optional)
@@ -326,17 +430,21 @@ export function PbiStudio({
             />
           </label>
           <div className="action-row" style={{ marginTop: 8 }}>
-            <button className="btn btn-primary" onClick={() => createPayload(true)}>
+            <button
+              className="btn btn-primary"
+              disabled={!canCreateLinked}
+              onClick={() => createPayload(true)}
+            >
               Create &amp; open Copilot Chat
             </button>
-            <button className="btn" onClick={() => createPayload(false)}>
+            <button className="btn" disabled={!canCreateLinked} onClick={() => createPayload(false)}>
               Create blank PBI only
             </button>
           </div>
           <p className="hint" style={{ marginTop: 12 }}>
-            When Copilot replies with JSON, select your new draft in the list and use{' '}
-            <strong>Apply AI Result</strong> below. You can also generate PBIs from a repo scan in{' '}
-            <strong>Projects</strong>.
+            The list includes <strong>imported projects</strong> and <strong>folders in this workspace</strong>{' '}
+            (multi-root). Use <strong>Projects</strong> to import or scan; linking here does not require import.
+            When Copilot replies with JSON, select your new draft and use <strong>Apply AI Result</strong> below.
           </p>
         </section>
       </div>
@@ -351,26 +459,31 @@ export function PbiStudio({
           <select
             value={newScope}
             onChange={(e) => setNewScope(e.target.value)}
-            title="Attach new items to a project or standalone"
+            title="Link new items to a repo or workspace folder (required)"
             style={{ maxWidth: 200 }}
+            disabled={linkTargets.length === 0}
           >
-            <option value={STANDALONE_PROJECT_ID}>Standalone</option>
-            {projects.map((p) => (
+            {linkTargets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
-          <button className="btn btn-primary btn-sm" onClick={quickCreateBlank}>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={!canCreateLinked}
+            onClick={quickCreateBlank}
+          >
             + New PBI
           </button>
           <button
             className="btn btn-sm"
+            disabled={!canCreateLinked}
             onClick={() => {
               send({
                 type: 'CREATE_PBI_DRAFT',
                 payload: {
-                  projectId: newScope === STANDALONE_PROJECT_ID ? undefined : newScope,
+                  projectId: newScope,
                   openCopilotChat: 'newStory',
                   seedIdea: undefined
                 }
@@ -396,7 +509,7 @@ export function PbiStudio({
               title="Filter by project"
             >
               <option value="all">All</option>
-              {projects.map((p) => (
+              {linkTargets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -414,7 +527,7 @@ export function PbiStudio({
             >
               <div className="title">{draft.title}</div>
               <div className="meta">
-                <span>{projectName(projects, draft.projectId)}</span>
+                <span>{projectName(linkTargets, draft.projectId)}</span>
                 <span
                   className={`chip ${
                     draft.status === 'pushed' ? 'success' : 'info'
@@ -455,9 +568,15 @@ export function PbiStudio({
                     <button className="btn btn-sm" onClick={save}>
                       Save
                     </button>
-                    <button className="btn btn-primary btn-sm" onClick={pushOne}>
-                      Push to ADO
-                    </button>
+                    {isLinkedToAdo ? (
+                      <button className="btn btn-primary btn-sm" onClick={updateInAdo}>
+                        Update in ADO
+                      </button>
+                    ) : (
+                      <button className="btn btn-primary btn-sm" onClick={pushOne}>
+                        Push to ADO
+                      </button>
+                    )}
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={() => setConfirmDelete(active.id)}
@@ -476,6 +595,33 @@ export function PbiStudio({
                         setWorking({ ...active, title: e.target.value })
                       }
                     />
+                  </label>
+                  <label className="field">
+                    Linked project (required)
+                    <select
+                      value={
+                        linkTargets.some((t) => t.id === active.projectId)
+                          ? active.projectId
+                          : linkTargets[0]?.id ?? active.projectId
+                      }
+                      title="Repo or workspace folder this item is associated with"
+                      onChange={(e) =>
+                        setWorking({ ...active, projectId: e.target.value })
+                      }
+                      disabled={linkTargets.length === 0}
+                    >
+                      {linkTargets.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="hint" style={{ marginTop: 6 }}>
+                      Refine, full-story AI, and Copilot Chat scan this folder (README, layout,
+                      package.json, and last Projects scan when present) so descriptions match the
+                      Product Manager rulebook and your codebase. Azure DevOps push requires a linked
+                      project.
+                    </p>
                   </label>
                   <label className="field">
                     Work Item Type
@@ -549,6 +695,55 @@ export function PbiStudio({
                   placeholder="Describe a test scenario"
                   onChange={(next) => setWorking({ ...active, testScenarios: next })}
                 />
+
+                <input
+                  ref={fileAttachInputRef}
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  accept=".png,.jpg,.jpeg,.gif,.svg,.pdf,.md,.mmd,.txt,text/plain,image/*"
+                  onChange={(e) => void onPickAttachments(e)}
+                />
+                <div className="field-row" style={{ marginTop: 12 }}>
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
+                    <strong>Attachments (upload on Push / Update in ADO)</strong>
+                    <p className="hint" style={{ margin: '4px 0 8px' }}>
+                      Diagrams, Mermaid exports, or specs appear under the work item in Azure DevOps.
+                      Pending files clear after a successful sync.
+                    </p>
+                    <div className="action-row" style={{ flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => fileAttachInputRef.current?.click()}
+                      >
+                        Add files…
+                      </button>
+                      <button type="button" className="btn btn-sm" onClick={addMermaidFromDescription}>
+                        Add Mermaid from Description
+                      </button>
+                    </div>
+                    <ul className="attachment-chips" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                      {(active.attachments ?? []).map((a) => (
+                        <li key={a.id} style={{ marginBottom: 4 }}>
+                          <span style={{ marginRight: 8 }}>{a.fileName}</span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => removeAttachment(a.id)}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {(active.attachments ?? []).length === 0 && (
+                      <p className="hint" style={{ marginTop: 6 }}>
+                        No pending attachments.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </article>
 
               <article className="card">

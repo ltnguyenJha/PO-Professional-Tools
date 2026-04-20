@@ -11,6 +11,7 @@ import {
   WebviewRequest
 } from '../shared/messages';
 import { iterationLeafFromPath } from '../shared/iterationUtils';
+import { buildLinkedProjectContext } from '../services/linkedProjectContext';
 import { AdoService } from '../services/adoService';
 import { CodeAnalyzer } from '../services/codeAnalyzer';
 import { CopilotService } from '../services/copilotService';
@@ -55,7 +56,7 @@ export class DashboardPanel {
     private readonly secretStorage: SecretStorageService = new SecretStorageService(context),
     private readonly settingsService: SettingsService = new SettingsService(context),
     private readonly adoService: AdoService = new AdoService(),
-    private readonly copilotService: CopilotService = new CopilotService()
+    private readonly copilotService: CopilotService = new CopilotService(context)
   ) {
     this.panel.webview.html = this.getHtml();
 
@@ -72,6 +73,12 @@ export class DashboardPanel {
       },
       null,
       this.disposables
+    );
+
+    this.disposables.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        void this.postState();
+      })
     );
   }
 
@@ -102,7 +109,10 @@ export class DashboardPanel {
         await this.handleDeleteDraft(message.payload.draftId);
         return;
       case 'PUSH_PBI_TO_ADO':
-        await this.handlePushSingle(message.payload.draftId);
+        await this.handlePushSingle(message.payload.draftId, message.payload.draft);
+        return;
+      case 'UPDATE_PBI_IN_ADO':
+        await this.handleUpdateInAdo(message.payload.draftId, message.payload.draft);
         return;
       case 'PUSH_PROJECT_TO_ADO':
         await this.handlePushProject(message.payload.projectId, message.payload.draftIds);
@@ -132,7 +142,8 @@ export class DashboardPanel {
         await this.handleSuggestBreakdown(
           message.payload.prefix,
           message.payload.description,
-          message.payload.count
+          message.payload.count,
+          message.payload.projectId
         );
         return;
       case 'BULK_CREATE_DRAFTS':
@@ -195,12 +206,25 @@ export class DashboardPanel {
     openCopilotChat?: 'newStory';
     seedIdea?: string;
   }): Promise<void> {
+    const targets = await this.importService.getLinkTargets();
+    if (targets.length === 0) {
+      this.postToast(
+        'error',
+        'Open a workspace folder or import a project on the Projects tab before creating a PBI.'
+      );
+      return;
+    }
     const raw = payload.projectId?.trim();
-    const projectExists =
-      raw &&
-      raw !== STANDALONE_PROJECT_ID &&
-      this.importService.getProjects().some((p) => p.id === raw);
-    const projectId = projectExists ? raw! : STANDALONE_PROJECT_ID;
+    if (!raw || raw === STANDALONE_PROJECT_ID) {
+      this.postToast('error', 'Choose a linked project so AI can use your codebase.');
+      return;
+    }
+    const match = targets.find((p) => p.id === raw);
+    if (!match) {
+      this.postToast('error', 'Pick a valid linked project from the list.');
+      return;
+    }
+    const projectId = match.id;
 
     const ado = this.settingsService.getAdoSettings();
     const draft = this.draftService.createBlankDraft({
@@ -214,7 +238,12 @@ export class DashboardPanel {
     this.post({ type: 'DRAFT_CREATED', payload: { draftId: draft.id } });
 
     if (payload.openCopilotChat === 'newStory') {
-      await this.copilotService.openNewStoryInCopilotChat(draft, payload.seedIdea);
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(projectId);
+      await this.copilotService.openNewStoryInCopilotChat(
+        draft,
+        payload.seedIdea,
+        linkedProjectContext
+      );
       this.postToast(
         'info',
         'Copilot Chat opened. Tip: use PBI Studio → Generate full story in-panel for one-click apply without pasting JSON.'
@@ -257,18 +286,77 @@ export class DashboardPanel {
     await this.postState();
   }
 
-  private async handlePushSingle(draftId: string): Promise<void> {
+  private async handlePushSingle(draftId: string, draftFromWebview?: PbiDraft): Promise<void> {
+    if (draftFromWebview) {
+      await this.draftService.upsert(this.context.globalState, draftFromWebview);
+    }
     const draft = this.findDraft(draftId);
     if (!draft) {
       this.postToast('error', 'Draft not found.');
+      return;
+    }
+    if (!(await this.ensureDraftLinkedProject(draft))) {
+      return;
+    }
+    if (draft.adoWorkItemId != null && draft.status === 'pushed') {
+      this.postToast(
+        'info',
+        'This item is already in Azure DevOps. Use "Update in ADO" to sync your changes.'
+      );
       return;
     }
     const ctx = await this.requireAdoContext();
     if (!ctx) {
       return;
     }
-    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [draft]);
+    const toPush = await this.mergeAutoMermaidForAdo(draft);
+    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
     await this.applyPushResult(result.created, result.errors);
+  }
+
+  private async handleUpdateInAdo(draftId: string, draftFromWebview?: PbiDraft): Promise<void> {
+    if (draftFromWebview) {
+      await this.draftService.upsert(this.context.globalState, draftFromWebview);
+    }
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    if (!(await this.ensureDraftLinkedProject(draft))) {
+      return;
+    }
+    if (draft.adoWorkItemId == null || draft.status !== 'pushed') {
+      this.postToast(
+        'error',
+        'Update in ADO is only available after a successful push. Use "Push to ADO" first.'
+      );
+      return;
+    }
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      return;
+    }
+    const toSync = await this.mergeAutoMermaidForAdo(draft);
+    try {
+      await this.adoService.updateDraftInAdo(
+        ctx.settings,
+        ctx.pat,
+        toSync,
+        draft.adoWorkItemId
+      );
+      const cleared: PbiDraft = {
+        ...draft,
+        attachments: [],
+        updatedAt: new Date().toISOString()
+      };
+      await this.draftService.upsert(this.context.globalState, cleared);
+      this.postToast('success', `Updated work item #${draft.adoWorkItemId} in Azure DevOps.`);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error);
+      this.postToast('error', `Update failed: ${messageText}`);
+    }
+    await this.postState();
   }
 
   private async handlePushProject(projectId: string, draftIds?: string[]): Promise<void> {
@@ -281,12 +369,83 @@ export class DashboardPanel {
       this.postToast('error', 'No drafts to push for this project.');
       return;
     }
+    for (const d of drafts) {
+      if (!(await this.ensureDraftLinkedProject(d))) {
+        return;
+      }
+    }
     const ctx = await this.requireAdoContext();
     if (!ctx) {
       return;
     }
-    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, drafts);
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { message: 'Generating diagram attachments for drafts…', busy: true }
+    });
+    let prepared: PbiDraft[];
+    try {
+      prepared = [];
+      for (const d of drafts) {
+        prepared.push(await this.mergeAutoMermaidForAdo(d, { showProgress: false }));
+      }
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { message: '', busy: false }
+      });
+    }
+    const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, prepared);
     await this.applyPushResult(result.created, result.errors);
+  }
+
+  /** Repo or workspace folder link required for AI context and ADO push. */
+  private async ensureDraftLinkedProject(draft: PbiDraft): Promise<boolean> {
+    if (draft.projectId === STANDALONE_PROJECT_ID) {
+      this.postToast(
+        'error',
+        'Link this backlog item to a project (repo or workspace folder) in PBI Studio before syncing to Azure DevOps.'
+      );
+      return false;
+    }
+    const targets = await this.importService.getLinkTargets();
+    if (!targets.some((t) => t.id === draft.projectId)) {
+      this.postToast(
+        'error',
+        'Linked project is missing or invalid. Choose a project from the Linked project list.'
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /** Adds an AI-generated Mermaid file to pending attachments when Copilot can produce one. */
+  private async mergeAutoMermaidForAdo(
+    draft: PbiDraft,
+    options?: { showProgress?: boolean }
+  ): Promise<PbiDraft> {
+    const showProgress = options?.showProgress !== false;
+    const token = new vscode.CancellationTokenSource().token;
+    if (showProgress) {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { message: 'Generating diagram attachment from backlog text…', busy: true }
+      });
+    }
+    try {
+      const generated = await this.copilotService.tryGenerateMermaidAttachment(draft, token);
+      if (!generated) {
+        return draft;
+      }
+      const existing = draft.attachments ?? [];
+      return { ...draft, attachments: [...existing, generated] };
+    } finally {
+      if (showProgress) {
+        this.post({
+          type: 'AI_PROGRESS',
+          payload: { message: '', busy: false }
+        });
+      }
+    }
   }
 
   private async handleSaveAdoSettings(payload: BulkSaveInput): Promise<void> {
@@ -358,6 +517,24 @@ export class DashboardPanel {
     }
   }
 
+  private async buildLinkedContextForProjectId(
+    projectId: string | undefined
+  ): Promise<string | undefined> {
+    if (!projectId || projectId === STANDALONE_PROJECT_ID) {
+      return undefined;
+    }
+    const targets = await this.importService.getLinkTargets();
+    const t = targets.find((p) => p.id === projectId);
+    if (!t) {
+      return undefined;
+    }
+    return buildLinkedProjectContext({
+      rootPath: t.path,
+      projectName: t.name,
+      scanSummary: t.scanSummary
+    });
+  }
+
   private async handleRefine(draftId: string, instruction?: string): Promise<void> {
     const draft = this.findDraft(draftId);
     if (!draft) {
@@ -366,11 +543,14 @@ export class DashboardPanel {
     }
     this.post({
       type: 'AI_PROGRESS',
-      payload: { draftId, message: 'Refining with Copilot...', busy: true }
+      payload: { draftId, message: 'Scanning linked project & refining with Copilot...', busy: true }
     });
     const token = new vscode.CancellationTokenSource().token;
     try {
-      const suggestion = await this.copilotService.refineDraft(draft, instruction, token);
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const suggestion = await this.copilotService.refineDraft(draft, instruction, token, {
+        linkedProjectContext
+      });
       this.post({
         type: 'AI_SUGGESTION_READY',
         payload: { draftId, suggestion }
@@ -392,11 +572,17 @@ export class DashboardPanel {
     }
     this.post({
       type: 'AI_PROGRESS',
-      payload: { draftId, message: 'Generating full story with Copilot (in-panel)...', busy: true }
+      payload: { draftId, message: 'Scanning linked project & generating full story...', busy: true }
     });
     const token = new vscode.CancellationTokenSource().token;
     try {
-      const suggestion = await this.copilotService.generateFullStoryFromSeed(draft, seedText, token);
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const suggestion = await this.copilotService.generateFullStoryFromSeed(
+        draft,
+        seedText,
+        token,
+        { linkedProjectContext }
+      );
       await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
       this.postToast(
         'success',
@@ -423,9 +609,11 @@ export class DashboardPanel {
       this.postToast('error', 'Draft not found.');
       return;
     }
+    const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
     await this.copilotService.openInCopilotChat(draft, {
       mode: payload.mode,
-      seedIdea: payload.seedIdea
+      seedIdea: payload.seedIdea,
+      linkedProjectContext
     });
     this.postToast(
       'info',
@@ -467,19 +655,22 @@ export class DashboardPanel {
   private async handleSuggestBreakdown(
     prefix: string,
     description: string,
-    count: number | undefined
+    count: number | undefined,
+    projectId?: string
   ): Promise<void> {
     this.post({
       type: 'AI_PROGRESS',
-      payload: { message: `Asking Copilot to break down "${prefix}"...`, busy: true }
+      payload: { message: `Scanning project & breaking down "${prefix}"...`, busy: true }
     });
     const token = new vscode.CancellationTokenSource().token;
     try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(projectId);
       const children = await this.copilotService.suggestBreakdown(
         prefix,
         description,
         count ?? 5,
-        token
+        token,
+        { linkedProjectContext }
       );
       this.post({
         type: 'AI_BREAKDOWN_READY',
@@ -495,6 +686,12 @@ export class DashboardPanel {
   }
 
   private async handleBulkCreate(request: BulkBreakdownRequest): Promise<void> {
+    const targets = await this.importService.getLinkTargets();
+    const pid = request.projectId?.trim();
+    if (!pid || pid === STANDALONE_PROJECT_ID || !targets.some((t) => t.id === pid)) {
+      this.postToast('error', 'Choose “Attach to project” before creating bulk drafts.');
+      return;
+    }
     const drafts = this.buildBulkDrafts(request);
     const existing = this.draftService.getAll(this.context.globalState);
     await this.draftService.saveAll(this.context.globalState, [...existing, ...drafts]);
@@ -516,6 +713,28 @@ export class DashboardPanel {
       this.postToast('error', 'No drafts selected for bulk push.');
       return;
     }
+    for (const d of children) {
+      if (!(await this.ensureDraftLinkedProject(d))) {
+        return;
+      }
+    }
+
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { message: 'Generating diagram attachments for drafts…', busy: true }
+    });
+    let preparedChildren: PbiDraft[];
+    try {
+      preparedChildren = [];
+      for (const d of children) {
+        preparedChildren.push(await this.mergeAutoMermaidForAdo(d, { showProgress: false }));
+      }
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { message: '', busy: false }
+      });
+    }
 
     if (request.parentWorkItemType) {
       const bulk = await this.adoService.pushWithParent(
@@ -525,11 +744,11 @@ export class DashboardPanel {
           title: request.prefix,
           description:
             request.parentDescription ||
-            `Parent for ${children.length} child items generated by PO Tools.`,
+            `Parent for ${preparedChildren.length} child items generated by PO Tools.`,
           workItemType: request.parentWorkItemType,
           iteration: request.iteration
         },
-        children
+        preparedChildren
       );
       await this.applyPushResult(bulk.created, bulk.errors);
       if (bulk.parent) {
@@ -539,7 +758,7 @@ export class DashboardPanel {
         );
       }
     } else {
-      const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, children);
+      const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, preparedChildren);
       await this.applyPushResult(result.created, result.errors);
     }
   }
@@ -598,12 +817,14 @@ export class DashboardPanel {
         if (!match) {
           return draft;
         }
+        const hadError = errors.some((e) => e.draftId === draft.id);
         return {
           ...draft,
           status: 'pushed' as const,
           adoWorkItemId: match.workItemId,
           adoWorkItemUrl: match.workItemUrl,
-          updatedAt: nowIso
+          updatedAt: nowIso,
+          attachments: hadError ? draft.attachments : []
         };
       });
       await this.draftService.saveAll(this.context.globalState, updated);
@@ -656,6 +877,7 @@ export class DashboardPanel {
       type: 'STATE_UPDATED',
       payload: {
         projects: this.importService.getProjects(),
+        linkTargets: await this.importService.getLinkTargets(),
         pbiDrafts: this.draftService.getAll(this.context.globalState),
         adoSettings: this.settingsService.getAdoSettings(),
         uiSettings: this.settingsService.getUiSettings(),

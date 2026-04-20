@@ -13,7 +13,8 @@ import { WORK_ITEM_TYPES } from '../types';
 type Mode = 'manual' | 'ai' | 'scan';
 
 interface Props {
-  projects: ImportedProject[];
+  /** Imported repos plus workspace folders (same as PBI Studio link list). */
+  linkTargets: ImportedProject[];
   drafts: PbiDraft[];
   adoSettings?: AdoSettings;
   aiBusy: boolean;
@@ -23,7 +24,7 @@ interface Props {
 }
 
 export function BulkBreakdownView({
-  projects,
+  linkTargets,
   drafts,
   adoSettings,
   aiBusy,
@@ -34,8 +35,20 @@ export function BulkBreakdownView({
   const [mode, setMode] = useState<Mode>('manual');
   const [prefix, setPrefix] = useState('PAL Guest Payment');
   const [separator, setSeparator] = useState(' - ');
-  const [projectId, setProjectId] = useState<string>(projects[0]?.id ?? '');
+  const [projectId, setProjectId] = useState<string>(linkTargets[0]?.id ?? '');
   const [iteration, setIteration] = useState<string>(adoSettings?.iterationPath ?? '');
+
+  useEffect(() => {
+    if (linkTargets.length === 0) {
+      return;
+    }
+    setProjectId((prev) => {
+      if (prev && linkTargets.some((p) => p.id === prev)) {
+        return prev;
+      }
+      return linkTargets[0]!.id;
+    });
+  }, [linkTargets]);
   const [childType, setChildType] = useState<AdoWorkItemType>(
     adoSettings?.defaultWorkItemType ?? 'Product Backlog Item'
   );
@@ -61,7 +74,7 @@ export function BulkBreakdownView({
       .map((suffix) => ({ suffix }));
   }, [manualText]);
 
-  const scanProject = projects.find((p) => p.id === projectId);
+  const scanProject = linkTargets.find((p) => p.id === projectId);
   const scanChildren: BulkChildInput[] = useMemo(() => {
     if (!scanProject?.scanSummary) {
       return [];
@@ -83,7 +96,7 @@ export function BulkBreakdownView({
   const request = (): BulkBreakdownRequest => ({
     prefix,
     separator,
-    projectId: projectId || undefined,
+    projectId,
     iteration: iteration || undefined,
     childWorkItemType: childType,
     parentWorkItemType: parentType === 'none' ? undefined : parentType,
@@ -92,6 +105,10 @@ export function BulkBreakdownView({
   });
 
   const createDrafts = (): void => {
+    if (!projectId.trim() || !linkTargets.some((p) => p.id === projectId)) {
+      alert('Choose “Attach to project” (a repo or workspace folder) before creating drafts.');
+      return;
+    }
     if (effectiveChildren.length === 0) {
       alert('Add at least one child item first.');
       return;
@@ -100,6 +117,10 @@ export function BulkBreakdownView({
   };
 
   const pushToAdo = (): void => {
+    if (!projectId.trim() || !linkTargets.some((p) => p.id === projectId)) {
+      alert('Choose “Attach to project” before pushing to Azure DevOps.');
+      return;
+    }
     const req = request();
     if (req.children.length === 0) {
       alert('Add at least one child item first.');
@@ -120,18 +141,33 @@ export function BulkBreakdownView({
   };
 
   const requestAi = (): void => {
+    if (!projectId.trim() || !linkTargets.some((p) => p.id === projectId)) {
+      alert('Choose “Attach to project” before running AI breakdown.');
+      return;
+    }
     if (!prefix || !aiDescription.trim()) {
       alert('Fill in prefix and description first.');
       return;
     }
     send({
       type: 'AI_SUGGEST_BREAKDOWN',
-      payload: { prefix, description: aiDescription.trim(), count: aiCount }
+      payload: {
+        prefix,
+        description: aiDescription.trim(),
+        count: aiCount,
+        projectId
+      }
     });
   };
 
   return (
     <div className="content">
+      {linkTargets.length === 0 && (
+        <p className="hint card" style={{ marginBottom: 12 }}>
+          Open a workspace folder or import a project on the Projects tab — bulk breakdown requires a
+          linked repo or folder for AI context.
+        </p>
+      )}
       <section className="card">
         <div className="card-header">
           <h3>Feature definition</h3>
@@ -150,15 +186,22 @@ export function BulkBreakdownView({
             <input value={separator} onChange={(e) => setSeparator(e.target.value)} />
           </label>
           <label className="field">
-            Attach to project
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">None (standalone)</option>
-              {projects.map((p) => (
+            Attach to project (required)
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              disabled={linkTargets.length === 0}
+            >
+              {linkTargets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
             </select>
+            <p className="hint" style={{ marginTop: 6 }}>
+              AI breakdown scans this repo (same as PBI Studio) so child stories align with the
+              Product Manager prompt and real modules or APIs.
+            </p>
           </label>
           <label className="field">
             Iteration

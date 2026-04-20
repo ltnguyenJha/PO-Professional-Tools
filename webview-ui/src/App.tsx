@@ -30,6 +30,7 @@ interface Toast {
 
 const EMPTY_STATE: AppStatePayload = {
   projects: [],
+  linkTargets: [],
   pbiDrafts: [],
   adoSettings: undefined,
   uiSettings: { theme: 'auto' },
@@ -193,7 +194,7 @@ export function App(): JSX.Element {
         )}
         {view === 'bulk' && (
           <BulkBreakdownView
-            projects={state.projects}
+            linkTargets={state.linkTargets ?? state.projects}
             drafts={state.pbiDrafts}
             adoSettings={state.adoSettings}
             aiBusy={breakdownBusy}
