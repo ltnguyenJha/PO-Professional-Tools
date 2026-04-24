@@ -17,3 +17,9 @@
 
 ### CancellationTokenSource lifecycle in DashboardPanel handlers (2026-04-24)
 `new vscode.CancellationTokenSource().token` leaks the source object (it is never disposed). Always store the source: `const cts = new vscode.CancellationTokenSource()`, pass `cts.token` to service calls, and call `cts.dispose()` in the `finally` block so the underlying VS Code resource is released regardless of success or error.
+
+### Repo context gathering via gatherRepoContext() (2026-04-25)
+`CopilotService.gatherRepoContext()` collects four signals from the active workspace: package.json metadata (name, version, description), first 800 chars of README.md, last 15 git commits via `git log --oneline -15`, and up to 60 key files via `git ls-files "*.ts" "*.tsx" "*.json"`. All git/fs operations are wrapped in a single try/catch — if the workspace is absent or git is unavailable, the method returns an empty string silently. The context is injected into `generateFromInvestWizard()` via `messages.unshift()` so it precedes the system and user messages.
+
+### BugReportInput contract and message flow (2026-04-25)
+`BugReportInput` lives in `src/shared/messages.ts`. It carries: `whereLocation` (component/area/page), `howToReproduce` (steps), `acceptanceCriteria` (definition of fixed), and six INVEST boolean flags. The webview posts `GENERATE_BUG_REPORT` or `OPEN_BUG_REPORT_IN_CHAT` with this payload. `DashboardPanel` routes both to dedicated handlers. `generateBugReport` returns `AiSuggestion` (extended with `investSummary?: string`); the panel posts `{ type: 'AI_SUGGESTION', payload: { suggestion } }` on success. Progress is communicated via `{ type: 'LOADING', payload: { message, busy } }`. Both new event types are added to `ExtensionEvent` in `messages.ts`.

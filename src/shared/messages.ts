@@ -84,6 +84,22 @@ export interface AiSuggestion {
   description?: string;
   acceptanceCriteria?: string[];
   testScenarios?: string[];
+  investSummary?: string;
+}
+
+export interface BugReportInput {
+  /** Component, area, or page where the bug occurs. */
+  whereLocation: string;
+  /** Steps to reproduce the bug. */
+  howToReproduce: string;
+  /** Definition of "fixed" — what must be true when the bug is resolved. */
+  acceptanceCriteria: string;
+  independent: boolean;
+  negotiable: boolean;
+  valuable: boolean;
+  estimable: boolean;
+  small: boolean;
+  testable: boolean;
 }
 
 export interface InvestWizardInput {
@@ -171,7 +187,9 @@ export type WebviewRequest =
   | {
       type: 'OPEN_INVEST_WIZARD_IN_CHAT';
       payload: { draftId: string; wizard: InvestWizardInput };
-    };
+    }
+  | { type: 'GENERATE_BUG_REPORT'; payload: BugReportInput }
+  | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput };
 
 export type AdoProgressScope = 'single' | 'bulk' | 'project';
 
@@ -191,4 +209,6 @@ export type ExtensionEvent =
   | { type: 'ADO_PROGRESS'; payload: AdoProgressPayload }
   | { type: 'AI_SUGGESTION_READY'; payload: { draftId: string; suggestion: AiSuggestion } }
   | { type: 'AI_BREAKDOWN_READY'; payload: { prefix: string; children: BulkChildInput[] } }
-  | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } };
+  | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } }
+  | { type: 'LOADING'; payload: { message: string; busy: boolean } }
+  | { type: 'AI_SUGGESTION'; payload: { suggestion: AiSuggestion } };

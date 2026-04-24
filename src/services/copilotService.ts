@@ -1,7 +1,11 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft } from '../shared/messages';
+import { AiSuggestion, BugReportInput, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -521,6 +525,43 @@ export class CopilotService {
     }
   }
 
+  private async gatherRepoContext(): Promise<string> {
+    const execAsync = promisify(exec);
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) {
+      return '';
+    }
+
+    const lines: string[] = ['=== REPOSITORY CONTEXT ==='];
+    try {
+      const pkgPath = path.join(workspaceRoot, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        lines.push(`Project: ${pkg.name} v${pkg.version} — ${pkg.description ?? ''}`);
+      }
+
+      const readmePath = path.join(workspaceRoot, 'README.md');
+      if (fs.existsSync(readmePath)) {
+        const readme = fs.readFileSync(readmePath, 'utf-8').slice(0, 800);
+        lines.push(`\nREADME:\n${readme}`);
+      }
+
+      const { stdout: log } = await execAsync('git log --oneline -15', { cwd: workspaceRoot });
+      lines.push(`\nRecent commits:\n${log.trim()}`);
+
+      const { stdout: files } = await execAsync(
+        'git ls-files "*.ts" "*.tsx" "*.json" --exclude-standard',
+        { cwd: workspaceRoot }
+      );
+      const fileList = files.trim().split('\n').slice(0, 60).join('\n');
+      lines.push(`\nKey files:\n${fileList}`);
+    } catch {
+      // Git not available or no workspace — return empty context silently
+    }
+    lines.push('=== END CONTEXT ===');
+    return lines.join('\n');
+  }
+
   private async pickModel(): Promise<vscode.LanguageModelChat> {
     // Try copilot gpt-4o first, then any copilot model, then any available model
     let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
@@ -687,6 +728,15 @@ export class CopilotService {
       vscode.LanguageModelChatMessage.User(userPrompt)
     ];
 
+    const repoCtx = await this.gatherRepoContext();
+    if (repoCtx) {
+      messages.unshift(
+        vscode.LanguageModelChatMessage.User(
+          `Use the following repository context to inform your user story generation:\n\n${repoCtx}`
+        )
+      );
+    }
+
     const response = await model.sendRequest(messages, {}, token);
     const text = await this.collect(response);
     const parsed = this.parseJsonWithRepair(text);
@@ -757,6 +807,136 @@ export class CopilotService {
       linkedClip ? `\n---\nLINKED PROJECT (technical grounding):\n${linkedClip}` : '',
       rulebook.trim().length > 0
         ? `\n---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
+        : ''
+    ]
+      .filter((line) => line !== undefined)
+      .join('\n');
+
+    await this.openChatWithPrompt(prompt);
+  }
+
+  /**
+   * Generates a structured bug PBI from the Bug Report Wizard inputs.
+   * Injects repo context for technical grounding.
+   */
+  public async generateBugReport(
+    input: BugReportInput,
+    token: vscode.CancellationToken
+  ): Promise<AiSuggestion> {
+    const model = await this.pickModel();
+
+    const bugSystemPrompt = [
+      'You are an expert Product Owner assistant.',
+      'Given a bug report and repository context, generate a structured bug PBI with: title, description, acceptance criteria, and INVEST-compliant definition of done.',
+      'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+      '',
+      'Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "investSummary": string }',
+      '',
+      'TITLE: Concise bug title under 120 characters, starting with a verb (e.g. "Fix", "Resolve").',
+      'DESCRIPTION: 2–3 paragraphs. State the observed behaviour, expected behaviour, and business impact.',
+      'ACCEPTANCE CRITERIA: 3–6 verifiable outcomes confirming the bug is fixed. Prefer Given/When/Then.',
+      'INVEST SUMMARY: 1–2 sentence summary of how this item satisfies the provided INVEST flags.',
+      'Never output invalid JSON.'
+    ].join('\n');
+
+    const investFlags = [
+      `Independent=${input.independent}`,
+      `Negotiable=${input.negotiable}`,
+      `Valuable=${input.valuable}`,
+      `Estimable=${input.estimable}`,
+      `Small=${input.small}`,
+      `Testable=${input.testable}`
+    ].join(', ');
+
+    const bugUserPrompt = [
+      'Bug Location: ' + input.whereLocation,
+      '',
+      'Steps to Reproduce:',
+      input.howToReproduce,
+      '',
+      'Acceptance Criteria (definition of fixed):',
+      input.acceptanceCriteria,
+      '',
+      `INVEST: ${investFlags}`,
+      '',
+      'Generate a JSON response matching this schema: { "title": string, "description": string, "acceptanceCriteria": string[], "investSummary": string }'
+    ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(bugSystemPrompt),
+      vscode.LanguageModelChatMessage.User(bugUserPrompt)
+    ];
+
+    const repoCtx = await this.gatherRepoContext();
+    if (repoCtx) {
+      messages.unshift(
+        vscode.LanguageModelChatMessage.User(
+          `Use the following repository context to inform your bug PBI generation:\n\n${repoCtx}`
+        )
+      );
+    }
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    const suggestion = this.suggestionFromParsed(parsed);
+    if (typeof parsed.investSummary === 'string' && parsed.investSummary.trim().length > 0) {
+      suggestion.investSummary = parsed.investSummary.trim();
+    }
+    if (
+      !suggestion.title &&
+      !suggestion.description &&
+      !suggestion.acceptanceCriteria?.length
+    ) {
+      throw new Error('Model returned empty fields. Add more detail and try again.');
+    }
+    return suggestion;
+  }
+
+  /**
+   * Opens Copilot Chat with a structured guided prompt built from Bug Report Wizard inputs.
+   * Adapts the INVEST wizard chat pattern for bug reporting.
+   */
+  public async openBugReportInChat(input: BugReportInput): Promise<void> {
+    const rulebook = this.clipForChatRulebook(await this.getProductManagerRulebook());
+
+    const investFlags = [
+      `Independent=${input.independent}`,
+      `Negotiable=${input.negotiable}`,
+      `Valuable=${input.valuable}`,
+      `Estimable=${input.estimable}`,
+      `Small=${input.small}`,
+      `Testable=${input.testable}`
+    ].join(', ');
+
+    const prompt = [
+      '@github You are a senior Product Owner assistant helping to write a well-formed bug report PBI.',
+      'The PO has provided details about the bug. Your job is to:',
+      '  1. Review the information for gaps or ambiguity.',
+      '  2. Ask at most 2–3 targeted clarifying questions if needed.',
+      '  3. Produce a finalized bug PBI when ready.',
+      '',
+      'When ready, reply with JSON only (no markdown fences):',
+      '{ "title": string, "description": string, "acceptanceCriteria": string[], "investSummary": string }',
+      'IMPORTANT: Never use unescaped double quotes inside JSON string values.',
+      '',
+      FULL_STORY_JSON_BRIDGE,
+      '',
+      '=== BUG REPORT INPUTS ===',
+      '',
+      'Bug Location (component/area/page):',
+      input.whereLocation,
+      '',
+      'Steps to Reproduce:',
+      input.howToReproduce,
+      '',
+      'Acceptance Criteria (definition of fixed):',
+      input.acceptanceCriteria,
+      '',
+      `INVEST Flags: ${investFlags}`,
+      '',
+      rulebook.trim().length > 0
+        ? `---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
         : ''
     ]
       .filter((line) => line !== undefined)

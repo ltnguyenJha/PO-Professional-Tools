@@ -92,6 +92,18 @@ export interface InvestWizardInput {
   benefit: string;
 }
 
+export interface BugReportInput {
+  whereLocation: string;
+  howToReproduce: string;
+  acceptanceCriteria: string;
+  independent: boolean;
+  negotiable: boolean;
+  valuable: boolean;
+  estimable: boolean;
+  small: boolean;
+  testable: boolean;
+}
+
 export interface BulkChildInput {
   suffix: string;
   description?: string;
@@ -192,7 +204,9 @@ export type WebviewRequest =
   | {
       type: 'OPEN_INVEST_WIZARD_IN_CHAT';
       payload: { draftId: string; wizard: InvestWizardInput };
-    };
+    }
+  | { type: 'GENERATE_BUG_REPORT'; payload: BugReportInput }
+  | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput };
 
 interface VsCodeApi {
   postMessage(message: WebviewRequest): void;

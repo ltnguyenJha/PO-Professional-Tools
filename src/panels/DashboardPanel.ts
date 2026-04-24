@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import {
   AdoProgressPayload,
   AdoSettings,
+  BugReportInput,
   BulkBreakdownRequest,
   BulkChildInput,
   ExtensionEvent,
@@ -150,6 +151,12 @@ export class DashboardPanel {
           message.payload.draftId,
           message.payload.wizard
         );
+        return;
+      case 'GENERATE_BUG_REPORT':
+        await this.handleGenerateBugReport(message.payload);
+        return;
+      case 'OPEN_BUG_REPORT_IN_CHAT':
+        await this.handleOpenBugReportInChat(message.payload);
         return;
       case 'AI_SUGGEST_BREAKDOWN':
         await this.handleSuggestBreakdown(
@@ -708,6 +715,35 @@ export class DashboardPanel {
     this.postToast(
       'info',
       'Copilot Chat opened with your INVEST wizard context. Collaborate with the agent, then paste JSON into Apply AI Result.'
+    );
+  }
+
+  private async handleGenerateBugReport(input: BugReportInput): Promise<void> {
+    this.post({
+      type: 'LOADING',
+      payload: { message: 'Generating bug report...', busy: true }
+    });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      const result = await this.copilotService.generateBugReport(input, cts.token);
+      this.post({ type: 'AI_SUGGESTION', payload: { suggestion: result } });
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      cts.dispose();
+      this.post({
+        type: 'LOADING',
+        payload: { message: '', busy: false }
+      });
+    }
+  }
+
+  private async handleOpenBugReportInChat(input: BugReportInput): Promise<void> {
+    await this.copilotService.openBugReportInChat(input);
+    this.postToast(
+      'info',
+      'Copilot Chat opened with your bug report context. Collaborate with the agent, then paste JSON into Apply AI Result.'
     );
   }
 

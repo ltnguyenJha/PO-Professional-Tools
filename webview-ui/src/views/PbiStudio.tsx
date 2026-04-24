@@ -3,6 +3,7 @@ import type {
   AdoProgressPayload,
   AiSuggestion,
   AppStatePayload,
+  BugReportInput,
   ImportedProject,
   InvestWizardInput,
   PbiDraft,
@@ -13,6 +14,7 @@ import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
 import { UserStoryWizard } from '../components/UserStoryWizard';
+import { BugReportWizard } from '../components/BugReportWizard';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -74,6 +76,14 @@ export function PbiStudio({
   const fileAttachInputRef = useRef<HTMLInputElement>(null);
   /** Extra context for in-panel full-story generation (optional; falls back to Description). */
   const [fullStorySeed, setFullStorySeed] = useState('');
+
+  // PBI type selector: 'feature' | 'bug'
+  const [pbiType, setPbiType] = useState<'feature' | 'bug'>('feature');
+  // Collapsible section state — all start expanded
+  const [openEditItem, setOpenEditItem] = useState(true);
+  const [openFullStory, setOpenFullStory] = useState(true);
+  const [openCopilotChat, setOpenCopilotChat] = useState(true);
+  const [openRefineAI, setOpenRefineAI] = useState(true);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -140,6 +150,11 @@ export function PbiStudio({
     setFullStorySeed('');
     lastClipboardApplyHash.current = '';
   }, [activeId, pbiDrafts, linkTargets]);
+
+  // Reset pbi type selector to 'feature' whenever the selected draft changes
+  useEffect(() => {
+    setPbiType('feature');
+  }, [activeId]);
 
   const persistAutoApply = (value: boolean): void => {
     setAutoApplyEnabled(value);
@@ -293,6 +308,14 @@ export function PbiStudio({
     if (active) {
       send({ type: 'OPEN_INVEST_WIZARD_IN_CHAT', payload: { draftId: active.id, wizard } });
     }
+  };
+
+  const handleBugGenerate = (input: BugReportInput): void => {
+    send({ type: 'GENERATE_BUG_REPORT', payload: input });
+  };
+
+  const handleBugOpenInChat = (input: BugReportInput): void => {
+    send({ type: 'OPEN_BUG_REPORT_IN_CHAT', payload: input });
   };
 
   const onPickAttachments = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -593,38 +616,45 @@ export function PbiStudio({
               )}
 
               <article className="card">
-                <div className="card-header">
-                  <h3>Edit item</h3>
-                  <div className="action-row">
-                    <button className="btn btn-sm" onClick={save} disabled={adoSyncingThis}>
-                      Save
-                    </button>
-                    {isLinkedToAdo ? (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={updateInAdo}
-                        disabled={adoSyncingThis}
-                      >
-                        Update in ADO
+                <div className="section-header" onClick={() => setOpenEditItem((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>Edit item</h3>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="action-row">
+                      <button className="btn btn-sm" onClick={save} disabled={adoSyncingThis}>
+                        Save
                       </button>
-                    ) : (
+                      {isLinkedToAdo ? (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={updateInAdo}
+                          disabled={adoSyncingThis}
+                        >
+                          Update in ADO
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={pushOne}
+                          disabled={adoSyncingThis}
+                        >
+                          Push to ADO
+                        </button>
+                      )}
                       <button
-                        className="btn btn-primary btn-sm"
-                        onClick={pushOne}
-                        disabled={adoSyncingThis}
+                        className="btn btn-danger btn-sm"
+                        onClick={() => setConfirmDelete(active.id)}
                       >
-                        Push to ADO
+                        Delete
                       </button>
-                    )}
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => setConfirmDelete(active.id)}
-                    >
-                      Delete
-                    </button>
+                    </div>
+                    <span className={`section-chevron ${openEditItem ? 'open' : ''}`}>▾</span>
                   </div>
                 </div>
 
+                <div className={`section-body ${openEditItem ? '' : 'collapsed'}`}>
                 <div className="field-row">
                   <label className="field" style={{ gridColumn: '1 / -1' }}>
                     Title
@@ -783,20 +813,53 @@ export function PbiStudio({
                     )}
                   </div>
                 </div>
+                </div>{/* end section-body */}
               </article>
 
-              <UserStoryWizard
-                key={active.id}
-                draftId={active.id}
-                aiBusy={aiBusy}
-                onGenerate={handleWizardGenerate}
-                onOpenInChat={handleWizardOpenInChat}
-              />
+              <div className="pbi-type-selector-wrap">
+                <div className="pbi-type-selector">
+                  <button
+                    type="button"
+                    className={`pbi-type-btn${pbiType === 'feature' ? ' active' : ''}`}
+                    onClick={() => setPbiType('feature')}
+                  >
+                    🆕 New Feature
+                  </button>
+                  <button
+                    type="button"
+                    className={`pbi-type-btn${pbiType === 'bug' ? ' active' : ''}`}
+                    onClick={() => setPbiType('bug')}
+                  >
+                    🐛 Bug
+                  </button>
+                </div>
+              </div>
+
+              {pbiType === 'feature' ? (
+                <UserStoryWizard
+                  key={`feature-${active.id}`}
+                  draftId={active.id}
+                  aiBusy={aiBusy}
+                  onGenerate={handleWizardGenerate}
+                  onOpenInChat={handleWizardOpenInChat}
+                />
+              ) : (
+                <BugReportWizard
+                  key={`bug-${active.id}`}
+                  onGenerate={handleBugGenerate}
+                  onOpenInChat={handleBugOpenInChat}
+                />
+              )}
 
               <article className="card">
-                <div className="card-header">
-                  <h3>Generate full story in-panel (no Chat paste)</h3>                  {aiBusy && <span className="chip info">Generating…</span>}
+                <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiBusy && <span className="chip info">Generating…</span>}
+                    <span className={`section-chevron ${openFullStory ? 'open' : ''}`}>▾</span>
+                  </div>
                 </div>
+                <div className={`section-body ${openFullStory ? '' : 'collapsed'}`}>
                 <p className="card-subtitle">
                   Uses the same GitHub Copilot <strong>language model inside VS Code</strong> (not Copilot
                   Chat). This path <strong>applies title, description, acceptance criteria, and tests
@@ -833,13 +896,18 @@ export function PbiStudio({
                     Generate full story &amp; apply
                   </button>
                 </div>
+                </div>{/* end section-body */}
               </article>
 
               <article className="card">
-                <div className="card-header">
-                  <h3>VS Code Copilot Chat</h3>
-                  {aiBusy && <span className="chip info">Copilot is thinking...</span>}
+                <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>VS Code Copilot Chat</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiBusy && <span className="chip info">Copilot is thinking...</span>}
+                    <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
+                  </div>
                 </div>
+                <div className={`section-body ${openCopilotChat ? '' : 'collapsed'}`}>
                 <p className="card-subtitle">
                   <strong>Build story</strong> opens Chat with a prompt to draft the user story and
                   acceptance criteria from scratch (or your seed). <strong>Refine</strong> improves
@@ -869,13 +937,18 @@ export function PbiStudio({
                     Refine in Copilot Chat
                   </button>
                 </div>
+                </div>{/* end section-body */}
               </article>
 
               <article className="card">
-                <div className="card-header">
-                  <h3>Refine with AI (in panel)</h3>
-                  {aiBusy && <span className="chip info">Working...</span>}
+                <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiBusy && <span className="chip info">Working...</span>}
+                    <span className={`section-chevron ${openRefineAI ? 'open' : ''}`}>▾</span>
+                  </div>
                 </div>
+                <div className={`section-body ${openRefineAI ? '' : 'collapsed'}`}>
                 <p className="card-subtitle">
                   Runs Copilot inside the extension. Review each field before applying.
                 </p>
@@ -1028,6 +1101,7 @@ export function PbiStudio({
                     </button>
                   </div>
                 </div>
+                </div>{/* end section-body */}
               </article>
             </>
           )}

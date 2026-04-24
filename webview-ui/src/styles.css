@@ -1165,6 +1165,115 @@ button {
 }
 
 /* ================================================================
+   Collapsible sections
+   ================================================================ */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-chevron {
+  transition: transform var(--transition);
+  font-size: 1.1rem;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.section-chevron.open {
+  transform: rotate(0deg);
+}
+
+.section-chevron:not(.open) {
+  transform: rotate(-90deg);
+}
+
+.section-body {
+  overflow: hidden;
+  transition: max-height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-height: 9999px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-body.collapsed {
+  max-height: 0 !important;
+}
+
+/* ================================================================
+   PBI type selector (segmented pill control)
+   ================================================================ */
+.pbi-type-selector-wrap {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.pbi-type-selector {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--panel);
+  max-width: 320px;
+  width: 100%;
+}
+
+.pbi-type-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pbi-type-btn.active {
+  background: var(--accent);
+  color: #ecfeff;
+  font-weight: 600;
+}
+
+.pbi-type-btn:not(.active):hover {
+  background: var(--panel-muted);
+  color: var(--ink);
+}
+
+/* ================================================================
+   Bug report preview card
+   ================================================================ */
+.bug-preview-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.bug-preview-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+}
+
+.bug-preview-label {
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  min-width: 78px;
+  flex-shrink: 0;
+}
+
+/* ================================================================
    Responsive
    ================================================================ */
 @media (max-width: 960px) {

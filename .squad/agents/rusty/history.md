@@ -30,3 +30,25 @@
 - `--line-strong` — used for inactive step connectors and prefix border separators
 - `--success-soft` / `--success` — INVEST grid "ok" cell colors, also step "done" state
 - `--transition` — applied to step node and connector so rail state changes animate smoothly
+
+### 2026-01-02 — Collapsible Sections, Bug Wizard, Type Selector
+
+**Collapsible sections (Feature 1):**
+- Used `max-height` transition pattern: `.section-body { max-height: 9999px; transition: max-height 220ms; }` and `.section-body.collapsed { max-height: 0 !important; }`. The large open-state value (9999px) enables the collapse animation to work in both directions.
+- Wrapped each card's button+chevron in a `stopPropagation` container inside `.section-header` so save/push/delete buttons don't accidentally collapse the card on click.
+- `.section-body` uses `display: flex; flex-direction: column; gap: 10px` to maintain card spacing inside the body when expanded.
+- Did NOT modify `UserStoryWizard`'s internal collapse (it already has its own `expanded` state + Collapse/Expand button — no need to double-wrap).
+
+**Type selector (Feature 2):**
+- Segmented pill control (`.pbi-type-selector`) with active state using `--accent` background + `#ecfeff` text. Used `#ecfeff` (matching `.btn-primary`) instead of `--accent-ink` — in light mode, `--accent-ink` is too dark against the accent background.
+- `pbiType` state resets to `'feature'` via `useEffect([activeId])` whenever the selected draft changes.
+- `key={`feature-${active.id}`}` / `key={`bug-${active.id}`}` ensures both wizards remount (clear internal state) when type or draft changes.
+
+**BugReportWizard (Feature 3):**
+- 4-step wizard mirrors UserStoryWizard patterns exactly: same step-rail, same INVEST hint box, same `.wizard-btn-generate` / `.wizard-btn-chat` button styles.
+- Step 3 shows a `<blockquote className="wizard-preview">` preview card and a clickable INVEST grid (cells toggle ok/warn on click — manual self-verification vs. UserStoryWizard's auto-computed grid).
+- Bug report emoji `🐛` inside `.wizard-icon` — avoids needing a custom SVG for initial ship.
+- Handlers use `send()` (PbiStudio prop) rather than `vscode.postMessage()` directly — consistent with all other action handlers in PbiStudio.
+
+**Type contract:**
+- `BugReportInput` added to `webview-ui/src/types.ts`; `GENERATE_BUG_REPORT` and `OPEN_BUG_REPORT_IN_CHAT` added to `WebviewRequest`. Linus must mirror these in `src/shared/messages.ts`.
