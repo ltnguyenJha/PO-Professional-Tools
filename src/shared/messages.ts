@@ -86,6 +86,15 @@ export interface AiSuggestion {
   testScenarios?: string[];
 }
 
+export interface InvestWizardInput {
+  background: string;
+  why: string;
+  how: string;
+  persona: string;
+  want: string;
+  benefit: string;
+}
+
 export interface BulkChildInput {
   suffix: string;
   description?: string;
@@ -154,7 +163,15 @@ export type WebviewRequest =
   | { type: 'BULK_CREATE_DRAFTS'; payload: BulkBreakdownRequest }
   | { type: 'BULK_PUSH_TO_ADO'; payload: BulkBreakdownRequest & { draftIds: string[] } }
   | { type: 'OPEN_EXTERNAL'; payload: { url: string } }
-  | { type: 'SET_THEME'; payload: { theme: ThemePreference } };
+  | { type: 'SET_THEME'; payload: { theme: ThemePreference } }
+  | {
+      type: 'GENERATE_FROM_INVEST_WIZARD';
+      payload: { draftId: string; wizard: InvestWizardInput };
+    }
+  | {
+      type: 'OPEN_INVEST_WIZARD_IN_CHAT';
+      payload: { draftId: string; wizard: InvestWizardInput };
+    };
 
 export type AdoProgressScope = 'single' | 'bulk' | 'project';
 

@@ -4,6 +4,7 @@ import type {
   AiSuggestion,
   AppStatePayload,
   ImportedProject,
+  InvestWizardInput,
   PbiDraft,
   WebviewRequest
 } from '../types';
@@ -11,6 +12,7 @@ import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
+import { UserStoryWizard } from '../components/UserStoryWizard';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -278,6 +280,18 @@ export function PbiStudio({
   const updateInAdo = (): void => {
     if (active) {
       send({ type: 'UPDATE_PBI_IN_ADO', payload: { draftId: active.id, draft: active } });
+    }
+  };
+
+  const handleWizardGenerate = (wizard: InvestWizardInput): void => {
+    if (active) {
+      send({ type: 'GENERATE_FROM_INVEST_WIZARD', payload: { draftId: active.id, wizard } });
+    }
+  };
+
+  const handleWizardOpenInChat = (wizard: InvestWizardInput): void => {
+    if (active) {
+      send({ type: 'OPEN_INVEST_WIZARD_IN_CHAT', payload: { draftId: active.id, wizard } });
     }
   };
 
@@ -771,10 +785,17 @@ export function PbiStudio({
                 </div>
               </article>
 
+              <UserStoryWizard
+                key={active.id}
+                draftId={active.id}
+                aiBusy={aiBusy}
+                onGenerate={handleWizardGenerate}
+                onOpenInChat={handleWizardOpenInChat}
+              />
+
               <article className="card">
                 <div className="card-header">
-                  <h3>Generate full story in-panel (no Chat paste)</h3>
-                  {aiBusy && <span className="chip info">Generating…</span>}
+                  <h3>Generate full story in-panel (no Chat paste)</h3>                  {aiBusy && <span className="chip info">Generating…</span>}
                 </div>
                 <p className="card-subtitle">
                   Uses the same GitHub Copilot <strong>language model inside VS Code</strong> (not Copilot

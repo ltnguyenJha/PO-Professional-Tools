@@ -139,6 +139,18 @@ export class DashboardPanel {
           message.payload.suggestion
         );
         return;
+      case 'GENERATE_FROM_INVEST_WIZARD':
+        await this.handleGenerateFromInvestWizard(
+          message.payload.draftId,
+          message.payload.wizard
+        );
+        return;
+      case 'OPEN_INVEST_WIZARD_IN_CHAT':
+        await this.handleOpenInvestWizardInChat(
+          message.payload.draftId,
+          message.payload.wizard
+        );
+        return;
       case 'AI_SUGGEST_BREAKDOWN':
         await this.handleSuggestBreakdown(
           message.payload.prefix,
@@ -640,6 +652,61 @@ export class DashboardPanel {
       payload.mode === 'newStory'
         ? 'Copilot Chat opened. Build your story; paste JSON into Apply AI Result when done.'
         : 'Copilot Chat opened with the refinement prompt. Paste JSON back in Apply AI Result.'
+    );
+  }
+
+  private async handleGenerateFromInvestWizard(
+    draftId: string,
+    wizard: import('../shared/messages').InvestWizardInput
+  ): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Generating full story from INVEST wizard answers…', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const suggestion = await this.copilotService.generateFromInvestWizard(
+        draft,
+        wizard,
+        token,
+        { linkedProjectContext }
+      );
+      await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
+      this.postToast(
+        'success',
+        'Full story generated from your INVEST answers and applied. Review the fields above, then Save or Push to ADO.'
+      );
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+  }
+
+  private async handleOpenInvestWizardInChat(
+    draftId: string,
+    wizard: import('../shared/messages').InvestWizardInput
+  ): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+    await this.copilotService.openInvestWizardInChat(draft, wizard, linkedProjectContext);
+    this.postToast(
+      'info',
+      'Copilot Chat opened with your INVEST wizard context. Collaborate with the agent, then paste JSON into Apply AI Result.'
     );
   }
 

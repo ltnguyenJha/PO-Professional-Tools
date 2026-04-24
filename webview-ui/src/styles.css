@@ -849,6 +849,197 @@ button {
   }
 }
 
+/* ================================================================
+   User Story Wizard
+   ================================================================ */
+.wizard-card {
+  border-color: var(--accent);
+  background: linear-gradient(
+    135deg,
+    var(--accent-soft) 0%,
+    var(--panel) 60%
+  );
+}
+
+.wizard-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+/* Step indicator track */
+.wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 0;
+}
+
+.wizard-step-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  border-radius: var(--radius);
+  transition: background var(--transition), color var(--transition);
+  position: relative;
+}
+
+.wizard-step-dot:not(:last-child)::after {
+  content: '';
+  display: block;
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.wizard-step-dot:hover {
+  background: var(--panel-muted);
+  color: var(--ink);
+}
+
+.wizard-step-dot.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.wizard-step-dot.done {
+  color: var(--success);
+}
+
+.wizard-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wizard-step-dot.active .wizard-step-num {
+  background: var(--accent);
+  color: #ecfeff;
+  border-color: var(--accent);
+}
+
+.wizard-step-dot.done .wizard-step-num {
+  background: var(--success-soft);
+  border-color: var(--success);
+}
+
+.wizard-step-label {
+  font-size: 0.78rem;
+}
+
+/* Step body */
+.wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invest-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel-muted);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.invest-hint-text {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+
+.wizard-question strong {
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+/* Summary section */
+.wizard-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wizard-preview {
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+/* INVEST grid */
+.wizard-invest-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .wizard-invest-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.invest-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.invest-cell.ok {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.invest-cell.warn {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.invest-letter {
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.invest-label {
+  font-size: 0.65rem;
+  color: inherit;
+  font-weight: 500;
+}
+
+.invest-status {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .bulk-ado-banner {
   margin-bottom: 12px;
 }

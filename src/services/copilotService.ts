@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BulkChildInput, PbiAttachment, PbiDraft } from '../shared/messages';
+import { AiSuggestion, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -607,5 +607,147 @@ export class CopilotService {
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
     return items.length > 0 ? items : undefined;
+  }
+
+  /**
+   * Generates a full backlog item from the User Story Wizard INVEST answers.
+   * Uses the structured Background / Why / How / User Story inputs as primary business context.
+   */
+  public async generateFromInvestWizard(
+    draft: PbiDraft,
+    wizard: InvestWizardInput,
+    token: vscode.CancellationToken,
+    options?: { linkedProjectContext?: string }
+  ): Promise<AiSuggestion> {
+    const model = await this.pickModel();
+    const rulebook = await this.getProductManagerRulebook();
+
+    const systemBlock = [
+      FULL_STORY_SYSTEM_PROMPT,
+      '',
+      FULL_STORY_JSON_BRIDGE,
+      rulebook.trim().length > 0
+        ? `---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
+        : '---\n(Product Manager rulebook not found.)'
+    ].join('\n');
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT:\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userStory = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
+
+    const userPrompt =
+      linkedPart +
+      [
+        'Generate the full backlog item from the Product Owner\'s structured INVEST wizard answers below.',
+        '',
+        '--- INVEST WIZARD ANSWERS (primary business input — use as the source of truth) ---',
+        '',
+        `BACKGROUND (context / problem):`,
+        wizard.background.trim(),
+        '',
+        `WHY (business value / outcome):`,
+        wizard.why.trim(),
+        '',
+        `HOW (user flow / interaction):`,
+        wizard.how.trim(),
+        '',
+        `USER STORY:`,
+        userStory,
+        '',
+        '--- END WIZARD ANSWERS ---',
+        '',
+        `Working title: ${draft.title}`,
+        `Work item type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+        `Iteration: ${draft.iteration}`,
+        '',
+        'Generate: title (action-oriented, under 120 chars), description (2-4 paragraphs, user value first),',
+        'exactly 4-7 testable acceptance criteria (Given/When/Then preferred), and 4-8 practical test scenarios.',
+        'The description must incorporate background, why, and how in natural prose.',
+        'Acceptance criteria must be verifiable against the user story benefit.'
+      ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    const suggestion = this.suggestionFromParsed(parsed);
+    if (
+      !suggestion.description &&
+      !suggestion.acceptanceCriteria?.length &&
+      !suggestion.testScenarios?.length
+    ) {
+      throw new Error(
+        'Model returned empty fields. Add more detail in the wizard steps and try again.'
+      );
+    }
+    return suggestion;
+  }
+
+  /**
+   * Opens Copilot Chat with a structured guided prompt built from INVEST wizard answers.
+   * The prompt frames the conversation around How/Why/Background/User Story so the agent
+   * can ask follow-up questions and collaborate with the PO.
+   */
+  public async openInvestWizardInChat(
+    draft: PbiDraft,
+    wizard: InvestWizardInput,
+    linkedProjectContext?: string
+  ): Promise<void> {
+    const rulebook = this.clipForChatRulebook(await this.getProductManagerRulebook());
+    const linkedClip = linkedProjectContext ? this.clipLinkedForChat(linkedProjectContext) : '';
+
+    const userStory = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
+
+    const prompt = [
+      '@github You are a senior Product Owner assistant collaborating with a PO to refine a backlog item.',
+      'The PO has answered four INVEST-guided questions (Background, Why, How, User Story).',
+      'Your job is to:',
+      '  1. Review the answers for gaps, ambiguity, or scope creep.',
+      '  2. Ask at most 2–3 targeted clarifying questions if anything is unclear.',
+      '  3. Once the PO answers (or if everything is clear), produce the final backlog item.',
+      '',
+      'When ready, reply with JSON only (no markdown fences):',
+      '{ "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
+      'IMPORTANT: Never use unescaped double quotes inside JSON string values.',
+      '',
+      REFINE_JSON_BRIDGE,
+      '',
+      '=== PO INVEST WIZARD ANSWERS ===',
+      '',
+      'BACKGROUND (context / problem):',
+      wizard.background.trim(),
+      '',
+      'WHY (business value / expected outcome):',
+      wizard.why.trim(),
+      '',
+      'HOW (user flow / interaction):',
+      wizard.how.trim(),
+      '',
+      'USER STORY:',
+      userStory,
+      '',
+      '=== DRAFT CONTEXT ===',
+      `Working title: ${draft.title}`,
+      `Work item type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+      `Iteration: ${draft.iteration}`,
+      `Effort: ${draft.effortDays} day(s)`,
+      draft.description?.trim()
+        ? `\nExisting description (merge or replace as appropriate):\n${draft.description.trim()}`
+        : '',
+      linkedClip ? `\n---\nLINKED PROJECT (technical grounding):\n${linkedClip}` : '',
+      rulebook.trim().length > 0
+        ? `\n---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
+        : ''
+    ]
+      .filter((line) => line !== undefined)
+      .join('\n');
+
+    await this.openChatWithPrompt(prompt);
   }
 }
