@@ -23,3 +23,23 @@
 
 ### BugReportInput contract and message flow (2026-04-25)
 `BugReportInput` lives in `src/shared/messages.ts`. It carries: `whereLocation` (component/area/page), `howToReproduce` (steps), `acceptanceCriteria` (definition of fixed), and six INVEST boolean flags. The webview posts `GENERATE_BUG_REPORT` or `OPEN_BUG_REPORT_IN_CHAT` with this payload. `DashboardPanel` routes both to dedicated handlers. `generateBugReport` returns `AiSuggestion` (extended with `investSummary?: string`); the panel posts `{ type: 'AI_SUGGESTION', payload: { suggestion } }` on success. Progress is communicated via `{ type: 'LOADING', payload: { message, busy } }`. Both new event types are added to `ExtensionEvent` in `messages.ts`.
+
+### Cross-Agent Integration: Bug Report Wizard ↔ Service (2026-04-25)
+
+**Coordination with Rusty (Frontend):**
+- Rusty built collapsible sections on all PBI Studio cards, type selector (Bug/Feature pill), and 4-step BugReportWizard component
+- Rusty added `BugReportInput` interface and message types to webview (`webview-ui/src/types.ts`), signaling contract requirements
+- Rusty wired wizard handlers to send `GENERATE_BUG_REPORT` and `OPEN_BUG_REPORT_IN_CHAT` messages with payload
+
+**Backend completion:**
+- Mirrored all webview types to `src/shared/messages.ts`
+- Added generic `LOADING` and `AI_SUGGESTION` event types (bug reports don't tie to drafts → no draftId)
+- Implemented `generateBugReport()` and `openBugReportInChat()` in CopilotService with model fallback chain
+- Added `gatherRepoContext()` to inject workspace intelligence (package.json, README, git log, file list) into generations
+- Wired DashboardPanel handlers with proper `CancellationTokenSource` lifecycle
+
+**Integration result:**
+- Both agents committed together (b953dc8): full build passed, 47 modules, 18.90KB CSS, 215KB JS, zero errors
+- Bug report workflow complete: UX → message send → service handling → AI generation → result display
+- Repo context improves LM accuracy; model fallback chain ensures org compatibility
+

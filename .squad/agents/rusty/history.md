@@ -51,4 +51,18 @@
 - Handlers use `send()` (PbiStudio prop) rather than `vscode.postMessage()` directly — consistent with all other action handlers in PbiStudio.
 
 **Type contract:**
-- `BugReportInput` added to `webview-ui/src/types.ts`; `GENERATE_BUG_REPORT` and `OPEN_BUG_REPORT_IN_CHAT` added to `WebviewRequest`. Linus must mirror these in `src/shared/messages.ts`.
+- `BugReportInput` added to `webview-ui/src/types.ts`; `GENERATE_BUG_REPORT` and `OPEN_BUG_REPORT_IN_CHAT` added to `WebviewRequest`. Linus mirrored these in `src/shared/messages.ts`.
+
+### 2026-04-25 — Cross-Agent Integration: Bug Report Wizard ↔ Service
+
+**Coordination with Linus (Backend):**
+- Linus mirrored `BugReportInput` and message types to `src/shared/messages.ts`, added generic `LOADING` and `AI_SUGGESTION` event types (no draftId requirement)
+- Linus wired `GENERATE_BUG_REPORT` and `OPEN_BUG_REPORT_IN_CHAT` handlers in DashboardPanel
+- Linus implemented `generateBugReport()` and `openBugReportInChat()` in CopilotService
+- Linus added `gatherRepoContext()` to inject workspace intelligence into bug report generation
+
+**Frontend completion:**
+- Both agents committed together (b953dc8): full build passed, 47 modules, 18.90KB CSS, 215KB JS, zero errors
+- Webview UX complete: collapsible sections, type selector, 4-step wizard → ready for backend message handling
+- All style patterns (step rail, INVEST grid, button styles) consistent with UserStoryWizard
+
