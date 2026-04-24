@@ -11,3 +11,9 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### pickModel() fallback chain (2026-04-24)
+`vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a three-pass fallback: `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw.
+
+### CancellationTokenSource lifecycle in DashboardPanel handlers (2026-04-24)
+`new vscode.CancellationTokenSource().token` leaks the source object (it is never disposed). Always store the source: `const cts = new vscode.CancellationTokenSource()`, pass `cts.token` to service calls, and call `cts.dispose()` in the `finally` block so the underlying VS Code resource is released regardless of success or error.

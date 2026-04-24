@@ -148,7 +148,26 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
     <article className="card wizard-card">
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="wizard-icon">🧙</span>
+          <span className="wizard-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+              <path d="M20 3v4" />
+              <path d="M22 5h-4" />
+              <path d="M4 17v2" />
+              <path d="M5 18H3" />
+            </svg>
+          </span>
           <div>
             <h3 style={{ margin: 0 }}>User Story Wizard</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
@@ -175,36 +194,39 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
 
       {expanded && (
         <>
-          {/* Step indicator */}
+          {/* Step progress rail */}
           <div className="wizard-steps">
             {STEPS.map((s, i) => (
-              <button
-                key={s.key}
-                type="button"
-                className={`wizard-step-dot ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}
-                onClick={() => setStep(i)}
-                title={s.label}
-              >
-                <span className="wizard-step-num">{i < step ? '✓' : i + 1}</span>
-                <span className="wizard-step-label">{s.label}</span>
-              </button>
+              <div key={s.key} className="wizard-step-item">
+                {i > 0 && (
+                  <div className={`wizard-step-connector${i <= step ? ' filled' : ''}`} />
+                )}
+                <button
+                  type="button"
+                  className={`wizard-step-node${i === step ? ' active' : ''}${i < step ? ' done' : ''}`}
+                  onClick={() => setStep(i)}
+                  title={s.label}
+                >
+                  {i < step ? '✓' : i + 1}
+                </button>
+                <span className={`wizard-step-label${i === step ? ' active' : ''}${i < step ? ' done' : ''}`}>
+                  {s.label}
+                </span>
+              </div>
             ))}
           </div>
 
           {/* Step content */}
           <div className="wizard-body">
-            <div className="invest-hint">
-              <span className="chip info" style={{ fontSize: '0.72rem' }}>
-                INVEST: {currentStep.invest.hint}
-              </span>
-              <span className="invest-hint-text">{currentStep.invest.text}</span>
-            </div>
+            <div className="wizard-step-caption">Step {step + 1} of {STEPS.length}</div>
 
             <div className="wizard-question">
-              <strong>{currentStep.title}</strong>
-              <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
-                {currentStep.description}
-              </p>
+              <div className="wizard-question-title">{currentStep.title}</div>
+              {currentStep.description && (
+                <p className="card-subtitle" style={{ margin: '4px 0 0' }}>
+                  {currentStep.description}
+                </p>
+              )}
             </div>
 
             {step === 0 && (
@@ -247,44 +269,51 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
             )}
 
             {step === 3 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label className="field">
-                  As a…
+              <div className="wizard-story-inputs">
+                <div className="wizard-story-field">
+                  <span className="wizard-story-prefix">As a</span>
                   <input
                     value={persona}
                     onChange={(e) => setPersona(e.target.value)}
                     placeholder="e.g. guest user who needs to pay a loan without an account"
                     autoFocus
                   />
-                </label>
-                <label className="field">
-                  I want…
+                </div>
+                <div className="wizard-story-field">
+                  <span className="wizard-story-prefix">I want</span>
                   <input
                     value={want}
                     onChange={(e) => setWant(e.target.value)}
                     placeholder="e.g. to submit a payment using only my account number"
                   />
-                </label>
-                <label className="field">
-                  So that…
+                </div>
+                <div className="wizard-story-field">
+                  <span className="wizard-story-prefix">So that</span>
                   <input
                     value={benefit}
                     onChange={(e) => setBenefit(e.target.value)}
                     placeholder="e.g. I can complete the transaction without registering"
                   />
-                </label>
+                </div>
 
                 {persona.trim() && want.trim() && benefit.trim() && (
-                  <div className="wizard-preview">
-                    <span className="chip success">Preview</span>
-                    <p style={{ margin: '6px 0 0', fontStyle: 'italic', fontSize: '0.88rem' }}>
+                  <blockquote className="wizard-preview">
+                    <p>
                       "As a <strong>{persona}</strong>, I want <strong>{want}</strong>, so that{' '}
                       <strong>{benefit}</strong>."
                     </p>
-                  </div>
+                  </blockquote>
                 )}
               </div>
             )}
+
+            {/* INVEST hint — subtle, at bottom of body */}
+            <div className="invest-hint">
+              <span className="chip info" style={{ fontSize: '0.72rem', flexShrink: 0 }}>
+                INVEST: {currentStep.invest.hint}
+              </span>
+              <span className="invest-hint-text">{currentStep.invest.text}</span>
+            </div>
 
             {/* Navigation */}
             <div className="action-row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
@@ -327,34 +356,35 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
                   <div key={letter} className={`invest-cell ${ok ? 'ok' : 'warn'}`}>
                     <span className="invest-letter">{letter}</span>
                     <span className="invest-label">{label}</span>
-                    <span className="invest-status">{ok ? '✓' : '?'}</span>
+                    <span className="invest-status">{ok ? '✓' : '⚠'}</span>
                   </div>
                 ))}
               </div>
-              <p className="hint" style={{ marginTop: 4 }}>
-                INVEST is advisory — ? means the answer may need more detail, not that it's wrong.
+              <p className="hint" style={{ marginTop: 2 }}>
+                INVEST is advisory — ⚠ means the answer may need more detail, not that it's wrong.
               </p>
-              <div className="action-row">
-                <button
-                  className="btn btn-primary"
-                  disabled={aiBusy}
-                  onClick={handleGenerate}
-                >
-                  {aiBusy ? 'Generating…' : 'Generate full story & apply'}
-                </button>
-                <button
-                  className="btn"
-                  disabled={aiBusy}
-                  onClick={handleOpenChat}
-                >
-                  Refine in Copilot Chat
-                </button>
+              <div className="wizard-actions">
+                <div className="wizard-action-item">
+                  <button
+                    className="btn btn-primary wizard-btn-generate"
+                    disabled={aiBusy}
+                    onClick={handleGenerate}
+                  >
+                    {aiBusy ? 'Generating…' : 'Generate full story & apply'}
+                  </button>
+                  <span className="hint">Applies title, ACs &amp; tests</span>
+                </div>
+                <div className="wizard-action-item">
+                  <button
+                    className="btn wizard-btn-chat"
+                    disabled={aiBusy}
+                    onClick={handleOpenChat}
+                  >
+                    Refine in Copilot Chat
+                  </button>
+                  <span className="hint">Collaborate before applying</span>
+                </div>
               </div>
-              <p className="hint">
-                <strong>Generate full story</strong> applies title, description, acceptance criteria, and tests
-                directly. <strong>Refine in Copilot Chat</strong> opens a guided conversation so you can
-                collaborate before applying.
-              </p>
             </div>
           )}
         </>

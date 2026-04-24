@@ -668,13 +668,13 @@ export class DashboardPanel {
       type: 'AI_PROGRESS',
       payload: { draftId, message: 'Generating full story from INVEST wizard answers…', busy: true }
     });
-    const token = new vscode.CancellationTokenSource().token;
+    const cts = new vscode.CancellationTokenSource();
     try {
       const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
       const suggestion = await this.copilotService.generateFromInvestWizard(
         draft,
         wizard,
-        token,
+        cts.token,
         { linkedProjectContext }
       );
       await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
@@ -686,6 +686,7 @@ export class DashboardPanel {
       const messageText = error instanceof Error ? error.message : 'Unknown error';
       this.postToast('error', messageText);
     } finally {
+      cts.dispose();
       this.post({
         type: 'AI_PROGRESS',
         payload: { draftId, message: '', busy: false }

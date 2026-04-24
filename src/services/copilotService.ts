@@ -522,14 +522,28 @@ export class CopilotService {
   }
 
   private async pickModel(): Promise<vscode.LanguageModelChat> {
-    const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+    // Try copilot gpt-4o first, then any copilot model, then any available model
+    let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+    if (models.length === 0) {
+      models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+    }
+    if (models.length === 0) {
+      models = await vscode.lm.selectChatModels({});
+    }
     const preferred =
       models.find((m) => m.family.toLowerCase().includes('gpt-4o')) ??
       models.find((m) => m.family.toLowerCase().includes('gpt-4')) ??
       models[0];
     if (!preferred) {
+      const action = await vscode.window.showErrorMessage(
+        'No language model is available. Sign in to GitHub Copilot and enable Chat, then retry. If using a custom LM provider, ensure it is configured and active.',
+        'Open Copilot Settings'
+      );
+      if (action === 'Open Copilot Settings') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'github.copilot');
+      }
       throw new Error(
-        'No GitHub Copilot chat model is available. Sign in to Copilot and enable Chat, then retry.'
+        'No language model is available. Sign in to GitHub Copilot and enable Chat, then retry.'
       );
     }
     return preferred;
