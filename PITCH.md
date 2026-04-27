@@ -211,151 +211,62 @@ Review the draft → click **Push to ADO**. Item appears in Azure DevOps with co
 
 ---
 
-## Extensibility Roadmap
+## Extensibility & Roadmap
 
-### Product Evolution Timeline
+### Platform Strategy
 
-```mermaid
-timeline
-    title PO Professional Tools: 18-Month Roadmap
-    
-    section Phase 1 — Azure DevOps (Now)
-        Work Items API : Create, update, link
-        PAT Authentication : Secure credential storage
-        Area/Iteration Paths : Organizational structure
-        Parent Linking : Feature/Epic hierarchies
-    
-    section Phase 2 — Multi-Platform (6 Months)
-        Monday.com Integration : Boards, items, subitems
-        ClickUp Integration : Tasks, subtasks, custom fields
-        Jira Cloud Integration : Issues, epics, JQL queries
-        Linear Integration : Issues, projects, cycles
-    
-    section Phase 3 — Plugin Ecosystem (12 Months)
-        Custom Connectors : ServiceNow, Salesforce, REST APIs
-        Template Marketplace : Community PBI templates
-        Custom Scanners : Extensible code analysis
-        Advanced APIs : Programmatic tool access
-    
-    section Phase 4 — Team Collaboration (18 Months)
-        Shared Drafts : JSON export/import, Git sharing
-        Review Workflows : Built-in approval gates
-        Analytics Dashboard : Velocity, INVEST compliance
-        Audit Trail : Complete change history
-```
+PO Professional Tools is **designed as a platform**, not a point solution. Built on modular architecture for extensibility.
 
-### Detailed Phase Breakdown
+### Current Status
 
-#### **Phase 1: Azure DevOps (Shipped)**
-- ✅ Work Items API (create, update, link)
-- ✅ PAT authentication
-- ✅ Area/iteration path support
-- ✅ Parent linking (Feature/Epic)
+**✅ Phase 1 — Azure DevOps (In Development)**
 
-**Outcome:** Core tool is production-ready for Azure DevOps shops.
+- Work Items API (create, update, link)
+- PAT authentication
+- Area/iteration path support
+- Parent linking (Feature/Epic)
+- Screenshot attachments
+- INVEST pattern guidance
 
----
+### Upcoming Features
 
-#### **Phase 2: Multi-Platform Integrations (Next 6 Months)**
+**📋 Next Sprint:**
+- Iteration dropdown selector
+- Dark mode for bulk breakdown
+- Bug refinement section
+- INVEST pattern flow with AI guidance
 
-```mermaid
-graph LR
-    subgraph Core["PO Professional Tools Core"]
-        UI["Webview UI<br/>React"]
-        Scanner["Scanner Service"]
-        Copilot["Copilot Service"]
-    end
-    
-    subgraph Integrations["Platform Adapters"]
-        A["Monday.com<br/>GraphQL API"]
-        B["ClickUp<br/>REST API"]
-        C["Jira Cloud<br/>REST API"]
-        D["Linear<br/>GraphQL API"]
-    end
-    
-    UI --> A
-    UI --> B
-    UI --> C
-    UI --> D
-    
-    style UI fill:#10b981,color:#fff
-    style Scanner fill:#0ea5e9,color:#fff
-    style Copilot fill:#f59e0b,color:#fff
-    
-    style A fill:#8b5cf6,color:#fff
-    style B fill:#8b5cf6,color:#fff
-    style C fill:#8b5cf6,color:#fff
-    style D fill:#8b5cf6,color:#fff
-```
+**📋 Short-term (Next Quarter):**
+- Multiple project scanning for bulk breakdown
+- UI refactor with improved design patterns
+- Test case automation & CI/CD integration
+- Enhanced Copilot prompts for edge cases
 
+**📋 Future Platforms:**
 - **Monday.com** — Boards, items, subitems, custom fields
 - **ClickUp** — Tasks, subtasks, custom statuses
 - **Jira Cloud** — Issues, epics, sprints, JQL queries
 - **Linear** — Issues, projects, cycles
 
-**Why:** Teams don't stick with one tool. Once adoption happens in Azure DevOps, demand shifts to "can you do this for Monday?" and "what about ClickUp?" Multi-platform support is the key to network effects.
+**📋 Ecosystem:**
+- Plugin SDK for custom connectors
+- Template marketplace for community contributions
+- Custom scanner extensibility
+- Team collaboration features (shared drafts, review workflows)
+- Analytics dashboard (velocity, INVEST compliance)
 
 ---
 
-#### **Phase 3: Plugin Ecosystem (12 Months)**
+## 💡 How to Help Shape the Roadmap
 
-```mermaid
-graph TB
-    Core["PO Professional Tools<br/>Core Engine"]
-    
-    Core --> Plugins["🔌 Plugin API Layer"]
-    
-    Plugins --> P1["Custom Connectors"]
-    Plugins --> P2["Template Marketplace"]
-    Plugins --> P3["Custom Scanners"]
-    
-    P1 --> Use1["ServiceNow<br/>Salesforce<br/>Custom REST"]
-    P2 --> Use2["Community PBI<br/>Templates<br/>INVEST Rules"]
-    P3 --> Use3["Detect Feature<br/>Flags<br/>Custom Tags"]
-    
-    style Core fill:#2563eb,color:#fff,stroke-width:2px
-    style Plugins fill:#10b981,color:#fff,stroke-width:2px
-    
-    style P1 fill:#06b6d4,color:#fff
-    style P2 fill:#06b6d4,color:#fff
-    style P3 fill:#06b6d4,color:#fff
-```
+**This tool is built FOR Product Owners, BY the community.** Your input matters.
 
-- **Custom Connectors** — Org-specific integrations (ServiceNow, Salesforce, custom REST APIs)
-- **Template Marketplace** — Community-contributed PBI templates, acceptance criteria patterns, INVEST scoring rules
-- **Custom Scanners** — Extend scanner to detect custom annotations, trace IDs, feature flags
+- **Have a feature request?** Open an issue with the `enhancement` label
+- **Found a bug?** Report it with the `bug` label and screenshots
+- **Want to integrate with your tool?** Check out the planned platforms or propose a custom connector
+- **Ready to contribute?** Start with a `good first issue` or join the Squad team
 
-**Why:** Enterprises have custom workflows. A plugin SDK lets them build connectors without touching the core. This creates a marketplace and recurring revenue model.
-
----
-
-#### **Phase 4: Team Collaboration (18 Months)**
-
-- **Shared Drafts** — Export/import PBI drafts as JSON; share via Git or network drives
-- **Review Workflows** — Built-in approval flows for PBI quality gates
-- **Analytics Dashboard** — Track PBI velocity, INVEST compliance, cycle time from draft to done
-
-**Why:** POs don't work alone. Shared review workflows and analytics enable distributed teams to collaborate and measure impact.
-
----
-
-### Why This Roadmap Matters
-
-**Azure DevOps is the wedge.** Once POs adopt the tool, they'll demand integrations for Monday.com, ClickUp, and their custom internal systems. This becomes a **platform**, not a point solution.
-
-```mermaid
-graph LR
-    A["Phase 1<br/>Azure Wedge"] --> B["Phase 2<br/>Multi-Platform"]
-    B --> C["Phase 3<br/>Plugin Ecosystem"]
-    C --> D["Phase 4<br/>Platform Network"]
-    
-    D -->|Revenue| E["Marketplace Sales<br/>Premium Support<br/>Custom Dev"]
-    
-    style A fill:#2563eb,color:#fff
-    style B fill:#0ea5e9,color:#fff
-    style C fill:#10b981,color:#fff
-    style D fill:#8b5cf6,color:#fff
-    style E fill:#f59e0b,color:#fff,stroke-width:2px
+All decisions are logged in `.squad/decisions.md` — you'll always know the "why" behind every choice.
 
 ---
 
@@ -390,137 +301,213 @@ graph LR
 
 ## 🤖 Meet the AI Team
 
-This project is built with **Squad** — an AI team coordination system that enables multiple specialized agents to collaborate autonomously. Our core team:
+This project is built with **Squad** — an AI team coordination system that enables multiple specialized agents to collaborate autonomously. Each team member brings specialized expertise, personality, and perspective.
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                      🏗️  DANNY — Lead                          │
-│                  Strategic Decision Maker                       │
-├────────────────────────────────────────────────────────────────┤
-│ • Owns product architecture and roadmap alignment              │
-│ • Reviews major features for quality and scope coherence       │
-│ • Makes technical trade-off decisions                          │
-│ • Mentors other agents on strategic direction                  │
-└────────────────────────────────────────────────────────────────┘
+### The Squad
 
-┌────────────────────────────────────────────────────────────────┐
-│               ⚛️  RUSTY — Frontend Developer                    │
-│                    UI/UX Implementation                         │
-├────────────────────────────────────────────────────────────────┤
-│ • Builds React components in the VS Code Webview               │
-│ • Handles UI state management and responsiveness               │
-│ • Owns PBI Studio, Bulk Breakdown, and Project interfaces      │
-│ • Ensures consistent design patterns and accessibility         │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────┐
-│               🔧  LINUS — Backend Developer                    │
-│                  Services & Integrations                        │
-├────────────────────────────────────────────────────────────────┤
-│ • Implements Scanner, Copilot, and ADO integration services    │
-│ • Manages VS Code Extension API interactions                   │
-│ • Handles authentication (PAT), API calls, and data flow        │
-│ • Plans multi-platform integrations (Monday, ClickUp, Jira)    │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────┐
-│              🧪  LIVINGSTON — Quality Engineer                 │
-│                  Testing & Edge Case Coverage                  │
-├────────────────────────────────────────────────────────────────┤
-│ • Designs and implements unit and integration tests            │
-│ • Validates edge cases and error handling paths                │
-│ • Ensures PBI generation quality and accuracy                  │
-│ • Owns test coverage and CI/CD pipeline health                 │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────┐
-│              📋  SCRIBE — Session Logger                        │
-│              Memory, Decisions, and Logs                        │
-├────────────────────────────────────────────────────────────────┤
-│ • Records all decisions made during development                │
-│ • Maintains team memory (.squad/decisions.md)                  │
-│ • Logs session activity for transparency and auditing          │
-│ • Bridges knowledge across team members and sessions           │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────┐
-│              🔄  RALPH — Work Monitor                           │
-│                  Queue Management & Continuity                 │
-├────────────────────────────────────────────────────────────────┤
-│ • Monitors GitHub issues and pull requests                     │
-│ • Triages incoming work and routes to appropriate agents       │
-│ • Ensures the team never sits idle; keeps pipeline flowing     │
-│ • Manages backlog prioritization and work-in-progress          │
-└────────────────────────────────────────────────────────────────┘
-```
-
-### How the Team Works Together
-
-```mermaid
-sequenceDiagram
-    User->>Ralph: "Add new feature"
-    Ralph->>Danny: Triage & prioritize
-    Danny->>Linus: "Build backend service"
-    Danny->>Rusty: "Build UI component"
-    Linus->>Linus: Implement & test
-    Rusty->>Rusty: Implement & test
-    Linus->>Livingston: "Review code quality"
-    Rusty->>Livingston: "Review code quality"
-    Livingston->>Livingston: Run test suite
-    Livingston->>Danny: Verdict (approved/rejected)
-    Danny->>Scribe: "Log decision & merge"
-    Scribe->>Scribe: Record to decisions.md
-    Danny->>User: ✅ Feature shipped
-```
-
-### Why This Matters for Contributors
-
-**You're not alone.** When you join the team:
-
-- 🤝 **Collaboration** — Work alongside specialized agents who handle their domains expertly
-- 📚 **Shared Memory** — All decisions, code patterns, and learnings are captured in `.squad/decisions.md`
-- 🔍 **Quality Gates** — Livingston ensures nothing ships with bugs; Danny ensures nothing deviates from vision
-- 📊 **Visibility** — Ralph keeps the backlog visible and prioritized; you always know what's next
-- ⚡ **Continuity** — Scribe maintains institutional memory across sessions; you're never starting from scratch
-
-### Want to Contribute?
-
-The Squad system makes it easy for new team members to jump in:
-
-1. **Clone the repo** and review `.squad/team.md` to meet the team
-2. **Read `.squad/decisions.md`** to understand what's been decided and why
-3. **Pick an issue** or propose a feature — Ralph will route it to the right agent
-4. **Work in parallel** — Your work doesn't block others; we use git worktrees and parallel branches
-5. **Get feedback early** — Reviews from Danny and Livingston before merge
+> **Each agent brings more than skills—they bring personality, judgment, and passion for the craft.** This isn't assembly-line engineering; it's collaboration between specialists who actually *care* about what they're building.
 
 ---
 
-### Why Join Now?
+#### 🏗️ **DANNY** — The Visionary Architect
+
+**"Let's zoom out. What's the real problem?"**
+
+Danny is the quarterback of the team. He sees three moves ahead and refuses to let ambition override pragmatism. He's obsessed with product coherence—every feature must strengthen the platform, not fragment it. Decisions are *final*, but only after he's tested them against reality.
+
+**Working with Danny:**
+- Bring him problems, not solutions. He'll figure out the path.
+- He respects honesty: "This won't work because..." is music to his ears
+- Expect pushback. It's not rejection; it's refinement.
+- Once he decides, move forward with confidence. He's already considered the alternatives.
+
+**His superpower:** Seeing patterns across codebases, features, and teams that others miss. He's the one who connects the dots.
+
+---
+
+#### ⚛️ **RUSTY** — The Craftsman
+
+**"Ship it. What's the UX here?"**
+
+Rusty lives for the details that matter. He doesn't just build UIs—he *ships*. Every pixel, every animation, every interaction is an opportunity to delight users or frustrate them. Rusty chooses delight, and he'll ship fast iterations to get there.
+
+**Working with Rusty:**
+- Give him constraints, not micromanagement. He'll figure out the best path.
+- Test early and often. He ships fast so you can give him fast feedback.
+- Trust his UX judgment. He's thinking about how the tool *feels*, not just how it looks.
+- Don't ask "how long?" Ask "what do you need to be unblocked?"
+
+**His superpower:** Making complex features feel effortless. Dark mode. Accessibility. Performance. He sweats these details because users notice them.
+
+---
+
+#### 🔧 **LINUS** — The Problem Solver
+
+**"Let me think about the edge cases."**
+
+Linus is the glue holding the system together. He builds services that *just work*—reliably, predictably, defensively. He's not flashy, but he's *someone you trust* to not miss an edge case. Azure integrations, scanner services, authentication—these are his domain.
+
+**Working with Linus:**
+- Write specs together before building. He needs clear contracts.
+- Give him time to think. Rushing him creates technical debt.
+- Respect integration work. It's unsexy, but it's where most bugs hide.
+- Listen when he says something needs error handling. He's thought about failure modes you haven't.
+
+**His superpower:** Building systems that scale without surprises. Error paths are designed as carefully as happy paths.
+
+---
+
+#### 🧪 **LIVINGSTON** — The Guardian
+
+**"What if it fails? Let me try to break it."**
+
+Livingston is quality conscience. He doesn't slow the team down; he *prevents disasters*. He thinks in edge cases, error scenarios, and user suffering. Quality isn't a checklist—it's a mindset. Bugs caught in QA save hundreds of frustrated users.
+
+**Working with Livingston:**
+- Embrace pushback. He respects your work enough to improve it.
+- Test-driven development isn't bureaucracy to him—it's common sense.
+- If he questions an edge case, he's seen it fail before. Trust him.
+- He celebrates good code and great testing as loudly as he rejects half-baked work.
+
+**His superpower:** Finding the bug nobody else saw. He's a pattern-recognition machine for failure modes.
+
+---
+
+#### 📋 **SCRIBE** — The Memory Keeper
+
+**"Write it once, so no one has to rediscover it."**
+
+Scribe is silent but indispensable. While the team is building, Scribe is capturing *why*. Decisions. Reasoning. Alternatives considered. Five years from now, when someone asks "why did we choose this?", Scribe has the answer in `.squad/decisions.md`.
+
+**Working with Scribe:**
+- Tell her when you decide something. She can't capture what she doesn't see.
+- Explain the reasoning, not just the outcome. Future developers need the context.
+- Trust the archive. If it says "we decided on pattern A," use pattern A (unless reversing it deliberately).
+- She's the bridge between this session and the next. Future you will thank present Scribe.
+
+**Her superpower:** Institutional memory. She ensures teams never rediscover the same insight twice.
+
+---
+
+#### 🔄 **RALPH** — The Relentless
+
+**"What's on the board? Are we blocked? Next action?"**
+
+Ralph is the orchestrator of motion. He doesn't build features; he ensures the team is *always doing the most important thing*. He's restless. He's never satisfied. He's the voice asking "what's next?" and keeping momentum flowing even when chaos wants to jam things up.
+
+**Working with Ralph:**
+- Tell him when you're blocked. He can't unblock invisible problems.
+- He celebrates shipped work loudly. Let him feel the wins.
+- Prioritize ruthlessly with him. If everything's urgent, nothing is.
+- He's thinking about your next task before you finish your current one.
+
+**His superpower:** Keeping the machine running. Clearing blockers. Knowing what should happen next before anyone asks.
+
+---
+
+### How We Actually Work
+
+```mermaid
+sequenceDiagram
+    Ralph->>Danny: Priority: "User wants screenshot uploads"
+    Danny->>Linus: "Design the upload service?"
+    Danny->>Rusty: "Build the upload UI?"
+    Note over Linus,Rusty: Work in parallel
+    Linus->>Livingston: "Test my edge cases"
+    Rusty->>Livingston: "Test my interactions"
+    Livingston->>Livingston: Runs 50 test scenarios
+    Livingston->>Danny: ✅ Quality gate passed
+    Danny->>Scribe: "Log why we chose this approach"
+    Scribe->>Scribe: Archives to decisions.md
+    Danny->>Ralph: ✅ Feature shipped
+    Ralph->>Ralph: Marks issue done, finds next blocker
+```
+
+**No sequential bottlenecks.** No "waiting for review." No "I didn't know what to do." Every agent owns their domain, and the team moves in parallel.
+
+---
+
+### Why This Matters for Contributors
+
+**You're not joining a bot factory. You're joining a team.**
+
+When you contribute:
+
+- 🤝 **Work alongside specialists** — Each agent is a true expert in their domain. Danny won't overrule Rusty on UX decisions. Linus won't accept sloppy testing. Livingston won't pass off untested code.
+- 📚 **Inherit institutional memory** — All decisions, code patterns, and learnings live in `.squad/decisions.md`. You're not starting from scratch; you're building on a foundation of thoughtful choices.
+- 🔍 **Never ship broken** — Livingston's quality gates aren't bureaucracy; they're your safety net. Bugs caught in PR save users from pain and your team from firefighting.
+- 📊 **Always know what's next** — Ralph keeps the backlog visible and prioritized. You never have to wonder "what should I work on?"
+- 🚀 **Move fast in parallel** — No sequential approvals. No "waiting for code review." Each agent owns their domain; you work in parallel and merge with confidence.
+
+### Want to Join?
+
+This is a founding moment. We're looking for:
+
+- **TypeScript developers** who care about architecture and testing (work with Danny, Linus, Livingston)
+- **React/UX engineers** who sweat the details (join Rusty's mission for delightful UI)
+- **Product Owners** who want to dogfood the tool and shape the roadmap (Ralph + Danny would love your input)
+- **QA engineers** who think in edge cases (Livingston is building something here)
+- **Technical writers** who can document patterns (Scribe needs backup on team continuity)
+
+**How to get started:**
+
+1. **Read `.squad/team.md`** — Meet the team and understand roles
+2. **Review `.squad/decisions.md`** — Understand what's been decided and why
+3. **Clone and run locally** — 5-minute setup (see README)
+4. **Pick an issue** or propose a feature — Ralph will route it to the right specialist
+5. **Get early feedback** — Danny and Livingston review for coherence and quality
+
+---
+
+### Why This Is the Perfect Time to Join
 
 **1. Solve a Real Problem**  
-Every Product Owner fights this pain. You have the opportunity to ship a tool that reclaims 60% of a PO's week and makes backlog management feel effortless.
+Every Product Owner fights this pain. Ship a tool that reclaims 60% of a PO's week and makes backlog management feel effortless. Real users, real impact, from day one.
 
 **2. Shape the Product**  
-This is the founding moment. Your input defines the roadmap. Want Monday.com integration? Custom templates? Advanced analytics? You decide.
+This is the founding moment. Your input defines the roadmap. Want Monday.com integration? Custom templates? Advanced analytics? You decide. You're not following a script—you're writing it.
 
 **3. Own the Platform Play**  
-Azure DevOps is the wedge. The next phase is multi-platform integrations and a plugin ecosystem. Early contributors become domain experts in a space with zero competition.
+Azure DevOps is the wedge. The next phase is multi-platform integrations and a plugin ecosystem. Early contributors become domain experts in a space with zero competition. The bar is set *now*, and you'll set it.
 
-**4. Local-First Wins**  
-SaaS tools lose to compliance, firewalls, and data sovereignty concerns. Local-first tools win in enterprise. This architecture is defensible.
+**4. Enterprise Win**  
+SaaS tools lose to compliance, firewalls, and data sovereignty concerns. Local-first tools win in enterprise. This architecture is defensible—and defensible technology wins contracts.
 
-### What We're Building
+**5. Join a Team That Ships**  
+Work with specialists who know their craft. No bureaucracy. No "waiting for approvals." Just skilled people solving hard problems together and shipping constantly.
 
-- **Months 1–3:** Stabilize Azure DevOps integration, add screenshot attachments, refine Copilot prompts
-- **Months 4–6:** Ship Monday.com and ClickUp integrations; launch template marketplace
-- **Months 7–12:** Plugin SDK, custom scanner API, team collaboration features
+---
+
+## What's Next
+
+**Current Focus (Phase 1):**
+- ✅ PBI Studio core (create, scan, generate, push)
+- ✅ Azure DevOps integration
+- 🔄 Screenshot attachments for PBIs
+- 🔄 Refined Copilot prompts for better suggestions
+
+**Coming Up (Phase 2):**
+- 📋 Monday.com and ClickUp integrations
+- 🏪 Template marketplace
+- 🔌 Plugin SDK
+- 🤝 Team collaboration features
 
 ### How to Get Involved
 
-1. **Clone the repo:** `git clone <repo-url>`
-2. **Run locally:** Follow README setup (5 minutes)
-3. **Test the workflow:** Add a project → scan → generate → push to ADO
-4. **Join the team:** Contribute code, templates, or integrations. We're looking for TypeScript devs, UX designers, and POs who want to dogfood the tool.
+**The simplest onboarding:**
+
+1. **Clone and read:** `git clone <repo-url> && cat .squad/team.md`
+2. **Understand context:** Read `.squad/decisions.md` (2 min read)
+3. **Set up locally:** `npm install && npm run dev` (5 minutes)
+4. **Test the workflow:** Create a PBI → scan → generate → push to ADO
+5. **Pick an issue** — Ralph will tell you what unblocks the team
+6. **Submit a PR** — Danny + Livingston review for coherence and quality
+
+**What to expect:**
+- Quick feedback loops (not slow, heavyweight reviews)
+- Clear explanations of why changes matter or don't (Danny + Scribe document reasoning)
+- Respect for your time and expertise
+- A team that celebrates shipped work
 
 ---
 
