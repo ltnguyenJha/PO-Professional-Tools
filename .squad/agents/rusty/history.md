@@ -66,3 +66,20 @@
 - Webview UX complete: collapsible sections, type selector, 4-step wizard → ready for backend message handling
 - All style patterns (step rail, INVEST grid, button styles) consistent with UserStoryWizard
 
+### 2026-04-25 — Collapse State Defaults: Wizard Prominence
+
+**User preference:**
+- User Story Wizard and Bug Report Wizard should be the prominent, uncollapsed sections by default
+- Utility sections (Edit Item, Generate Full Story, VS Code Copilot Chat, Refine with AI) should default to collapsed state
+- Users can expand these utility sections as needed, but the wizards are the primary workflow entry points
+
+**Implementation:**
+- Changed 4 `useState` calls in `PbiStudio.tsx` (lines 83-86) from `true` to `false`: `openEditItem`, `openFullStory`, `openCopilotChat`, `openRefineAI`
+- Updated comment on line 82 from "all start expanded" to "wizards start expanded, utility sections collapsed"
+- Wizards remain expanded via their internal state (`UserStoryWizard.tsx` line 102, `BugReportWizard.tsx` line 73)
+- Build verified: 47 modules, 18.90KB CSS, 215KB JS, zero errors
+
+**Key pattern:**
+- Wizard components control their own expand/collapse state internally — PbiStudio section state controls the surrounding utility card sections only
+- This pattern keeps wizard behavior decoupled from the parent view's collapsible card UX
+
