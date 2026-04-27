@@ -305,103 +305,153 @@ This project is built with **Squad** — an AI team coordination system that ena
 
 ### The Squad
 
-> **Each agent brings more than skills—they bring personality, judgment, and passion for the craft.** This isn't assembly-line engineering; it's collaboration between specialists who actually *care* about what they're building.
+> **Each agent brings more than skills—they bring personality, humor, and actual opinions about the work.** This isn't assembly-line engineering; it's collaboration between specialists who actually *care* about shipping something beautiful.
 
 ---
 
 #### 🏗️ **DANNY** — The Visionary Architect
 
+```
+⠀⠀⠀⠀████
+⠀████████████
+████▓▓▓▓▓▓██
+██▓▓▓▓▓▓▓▓██
+████▓▓▓▓▓▓██
+⠀████████████
+⠀⠀⠀⠀████
+```
+
 **"Let's zoom out. What's the real problem?"**
 
-Danny is the quarterback of the team. He sees three moves ahead and refuses to let ambition override pragmatism. He's obsessed with product coherence—every feature must strengthen the platform, not fragment it. Decisions are *final*, but only after he's tested them against reality.
+Danny is the quarterback of the team. He sees three moves ahead and refuses to let ambition override pragmatism. He's obsessed with product coherence—every feature must strengthen the platform, not fragment it. **Decisions are final, but justified.**
 
 **Working with Danny:**
 - Bring him problems, not solutions. He'll figure out the path.
-- He respects honesty: "This won't work because..." is music to his ears
+- He respects honesty: *"This won't work because..."* is music to his ears
 - Expect pushback. It's not rejection; it's refinement.
 - Once he decides, move forward with confidence. He's already considered the alternatives.
 
-**His superpower:** Seeing patterns across codebases, features, and teams that others miss. He's the one who connects the dots.
+**His superpower:** Seeing patterns across codebases, features, and teams that others miss. He connects the dots.
 
 ---
 
 #### ⚛️ **RUSTY** — The Craftsman
 
+```
+⠀⠀⠀⠀🔷⠀⠀
+⠀⠀🔷🔷🔷⠀⠀
+⠀🔷🔷🔷🔷🔷
+⠀⠀🔷🔷🔷⠀⠀
+⠀⠀⠀⠀🔷⠀⠀
+```
+
 **"Ship it. What's the UX here?"**
 
-Rusty lives for the details that matter. He doesn't just build UIs—he *ships*. Every pixel, every animation, every interaction is an opportunity to delight users or frustrate them. Rusty chooses delight, and he'll ship fast iterations to get there.
+Rusty lives for the details that matter. He doesn't just build UIs—he **ships**. Every pixel, every animation, every interaction is a chance to delight or frustrate. Rusty chooses delight.
 
 **Working with Rusty:**
-- Give him constraints, not micromanagement. He'll figure out the best path.
-- Test early and often. He ships fast so you can give him fast feedback.
-- Trust his UX judgment. He's thinking about how the tool *feels*, not just how it looks.
-- Don't ask "how long?" Ask "what do you need to be unblocked?"
+- Give him constraints, not micromanagement. He'll find the best path.
+- Test early and often. He ships fast so you can give quick feedback.
+- Trust his UX judgment. He thinks about how the tool *feels*.
+- Don't ask *"how long?"* Ask *"what unblocks you?"*
 
-**His superpower:** Making complex features feel effortless. Dark mode. Accessibility. Performance. He sweats these details because users notice them.
+**His superpower:** Making complex features feel effortless. Dark mode. Accessibility. Performance. Users notice what he does.
 
 ---
 
 #### 🔧 **LINUS** — The Problem Solver
 
+```
+⠀⠀⠀🛠️⠀⠀⠀
+⠀⠀🛠️🛠️🛠️
+⠀🛠️🛠️🛠️🛠️
+⠀⠀🛠️🛠️🛠️
+⠀⠀⠀🛠️⠀⠀⠀
+```
+
 **"Let me think about the edge cases."**
 
-Linus is the glue holding the system together. He builds services that *just work*—reliably, predictably, defensively. He's not flashy, but he's *someone you trust* to not miss an edge case. Azure integrations, scanner services, authentication—these are his domain.
+Linus is the glue holding the system together. He builds services that **just work**—reliably, predictably, defensively. He's not flashy, but he's *someone you trust* to not miss an edge case.
 
 **Working with Linus:**
 - Write specs together before building. He needs clear contracts.
 - Give him time to think. Rushing him creates technical debt.
-- Respect integration work. It's unsexy, but it's where most bugs hide.
+- Respect integration work. It's unglamorous, but that's where bugs hide.
 - Listen when he says something needs error handling. He's thought about failure modes you haven't.
 
-**His superpower:** Building systems that scale without surprises. Error paths are designed as carefully as happy paths.
+**His superpower:** Building systems that scale without surprises. Error paths = happy paths.
 
 ---
 
 #### 🧪 **LIVINGSTON** — The Guardian
 
+```
+⠀⠀⠀🎯⠀⠀⠀
+⠀⠀🎯🎯🎯
+⠀🎯🎯🎯🎯
+⠀⠀🎯🎯🎯
+⠀⠀⠀🎯⠀⠀⠀
+```
+
 **"What if it fails? Let me try to break it."**
 
-Livingston is quality conscience. He doesn't slow the team down; he *prevents disasters*. He thinks in edge cases, error scenarios, and user suffering. Quality isn't a checklist—it's a mindset. Bugs caught in QA save hundreds of frustrated users.
+Livingston is the **quality conscience**. He doesn't slow the team down; he *prevents disasters*. He thinks in edge cases, error scenarios, and user suffering. Quality isn't a checklist—it's a mindset.
 
 **Working with Livingston:**
 - Embrace pushback. He respects your work enough to improve it.
 - Test-driven development isn't bureaucracy to him—it's common sense.
 - If he questions an edge case, he's seen it fail before. Trust him.
-- He celebrates good code and great testing as loudly as he rejects half-baked work.
+- He celebrates good code as loudly as he rejects half-baked work.
 
-**His superpower:** Finding the bug nobody else saw. He's a pattern-recognition machine for failure modes.
+**His superpower:** Finding the bug nobody else saw. Failure-mode prediction machine.
 
 ---
 
 #### 📋 **SCRIBE** — The Memory Keeper
 
+```
+⠀⠀⠀📚⠀⠀⠀
+⠀⠀📚📚📚
+⠀📚📚📚📚
+⠀⠀📚📚📚
+⠀⠀⠀📚⠀⠀⠀
+```
+
 **"Write it once, so no one has to rediscover it."**
 
-Scribe is silent but indispensable. While the team is building, Scribe is capturing *why*. Decisions. Reasoning. Alternatives considered. Five years from now, when someone asks "why did we choose this?", Scribe has the answer in `.squad/decisions.md`.
+Scribe is **silent but indispensable**. While the team is building, Scribe captures *why*. Decisions. Reasoning. Alternatives. Five years from now, when someone asks *"why did we choose this?"*, Scribe has the answer in `.squad/decisions.md`.
 
 **Working with Scribe:**
-- Tell her when you decide something. She can't capture what she doesn't see.
-- Explain the reasoning, not just the outcome. Future developers need the context.
-- Trust the archive. If it says "we decided on pattern A," use pattern A (unless reversing it deliberately).
-- She's the bridge between this session and the next. Future you will thank present Scribe.
+- Tell her when you decide. She can't capture what she doesn't see.
+- Explain the reasoning, not just the outcome. Future developers need context.
+- Trust the archive. If it says *"we decided on pattern A,"* use pattern A.
+- She's the bridge between sessions. Future you will thank present Scribe.
 
-**Her superpower:** Institutional memory. She ensures teams never rediscover the same insight twice.
+**Her superpower:** Institutional memory. Teams never rediscover the same insight twice.
 
 ---
 
 #### 🔄 **RALPH** — The Relentless
 
+```
+⠀⠀⠀♻️⠀⠀⠀
+⠀⠀♻️♻️♻️
+⠀♻️♻️♻️♻️
+⠀⠀♻️♻️♻️
+⠀⠀⠀♻️⠀⠀⠀
+```
+
 **"What's on the board? Are we blocked? Next action?"**
 
-Ralph is the orchestrator of motion. He doesn't build features; he ensures the team is *always doing the most important thing*. He's restless. He's never satisfied. He's the voice asking "what's next?" and keeping momentum flowing even when chaos wants to jam things up.
+Ralph is the **orchestrator of motion**. He doesn't build features; he ensures the team is *always doing the most important thing*. **Never satisfied. Never idle.** The voice asking *"what's next?"* and keeping momentum flowing.
 
 **Working with Ralph:**
 - Tell him when you're blocked. He can't unblock invisible problems.
-- He celebrates shipped work loudly. Let him feel the wins.
-- Prioritize ruthlessly with him. If everything's urgent, nothing is.
-- He's thinking about your next task before you finish your current one.
+- Celebrate shipped work. Ralph feeds on momentum.
+- Prioritize ruthlessly. If everything's urgent, nothing is.
+- He's thinking about your next task before you finish this one.
 
-**His superpower:** Keeping the machine running. Clearing blockers. Knowing what should happen next before anyone asks.
+**His superpower:** Keeping the machine running. Clearing blockers. Knowing what's next before anyone asks.
 
 ---
 
