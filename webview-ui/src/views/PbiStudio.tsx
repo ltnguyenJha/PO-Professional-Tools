@@ -79,8 +79,8 @@ export function PbiStudio({
 
   // PBI type selector: 'feature' | 'bug'
   const [pbiType, setPbiType] = useState<'feature' | 'bug'>('feature');
-  // Collapsible section state — wizards start expanded, utility sections collapsed
-  const [openEditItem, setOpenEditItem] = useState(false);
+  // Collapsible section state — User Story Wizard starts expanded, others collapsed
+  const [openEditItem, setOpenEditItem] = useState(true);
   const [openFullStory, setOpenFullStory] = useState(false);
   const [openCopilotChat, setOpenCopilotChat] = useState(false);
   const [openRefineAI, setOpenRefineAI] = useState(false);
