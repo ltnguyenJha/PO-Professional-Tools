@@ -220,11 +220,30 @@ export function BulkBreakdownView({
           </label>
           <label className="field">
             Iteration
-            <input
-              value={iteration}
-              onChange={(e) => setIteration(e.target.value)}
-              placeholder="Project\\Iteration\\Sprint 1"
-            />
+            {adoSettings?.iterationPath ? (
+              <select
+                value={iteration}
+                onChange={(e) => setIteration(e.target.value)}
+              >
+                <option value="">Select iteration...</option>
+                {[
+                  adoSettings.iterationPath,
+                  ...(['Sprint 1', 'Sprint 2', 'Sprint 3', 'Sprint 4', 'Backlog'].map(
+                    (s) => `${adoSettings!.projectName}\\${s}`
+                  ))
+                ].map((iter) => (
+                  <option key={iter} value={iter}>
+                    {iter}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={iteration}
+                onChange={(e) => setIteration(e.target.value)}
+                placeholder="Project\\Iteration\\Sprint 1"
+              />
+            )}
           </label>
           <label className="field">
             Child Work Item Type

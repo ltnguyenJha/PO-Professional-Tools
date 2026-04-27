@@ -79,11 +79,12 @@ export function PbiStudio({
 
   // PBI type selector: 'feature' | 'bug'
   const [pbiType, setPbiType] = useState<'feature' | 'bug'>('feature');
-  // Collapsible section state — all start expanded
-  const [openEditItem, setOpenEditItem] = useState(true);
-  const [openFullStory, setOpenFullStory] = useState(true);
-  const [openCopilotChat, setOpenCopilotChat] = useState(true);
-  const [openRefineAI, setOpenRefineAI] = useState(true);
+  // Collapsible section state — wizards start expanded, utility sections collapsed
+  const [openEditItem, setOpenEditItem] = useState(false);
+  const [openFullStory, setOpenFullStory] = useState(false);
+  const [openCopilotChat, setOpenCopilotChat] = useState(false);
+  const [openRefineAI, setOpenRefineAI] = useState(false);
+  const [openBugRefinement, setOpenBugRefinement] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -730,12 +731,34 @@ export function PbiStudio({
                   </label>
                   <label className="field">
                     Iteration
-                    <input
-                      value={active.iteration}
-                      onChange={(e) =>
-                        setWorking({ ...active, iteration: e.target.value })
-                      }
-                    />
+                    {state.adoSettings?.iterationPath ? (
+                      <select
+                        value={active.iteration}
+                        onChange={(e) =>
+                          setWorking({ ...active, iteration: e.target.value })
+                        }
+                      >
+                        <option value="">Select iteration...</option>
+                        {[
+                          state.adoSettings.iterationPath,
+                          ...(['Sprint 1', 'Sprint 2', 'Sprint 3', 'Sprint 4', 'Backlog'].map(
+                            (s) => `${state.adoSettings!.projectName}\\${s}`
+                          ))
+                        ].map((iteration) => (
+                          <option key={iteration} value={iteration}>
+                            {iteration}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={active.iteration}
+                        onChange={(e) =>
+                          setWorking({ ...active, iteration: e.target.value })
+                        }
+                        placeholder="Configure ADO settings to use dropdown"
+                      />
+                    )}
                   </label>
                 </div>
 
@@ -849,6 +872,67 @@ export function PbiStudio({
                   onGenerate={handleBugGenerate}
                   onOpenInChat={handleBugOpenInChat}
                 />
+              )}
+
+              {pbiType === 'bug' && (
+                <article className="card">
+                  <div className="section-header" onClick={() => setOpenBugRefinement((o) => !o)}>
+                    <h3 style={{ margin: 0 }}>Bug Refinement Details</h3>
+                    <span className={`section-chevron ${openBugRefinement ? 'open' : ''}`}>▾</span>
+                  </div>
+
+                  <div className={`section-body ${openBugRefinement ? '' : 'collapsed'}`}>
+                    <p className="card-subtitle">
+                      Document the root cause, expected behavior, and actual behavior to help developers
+                      understand and fix the issue faster. These details complement the reproduction steps.
+                    </p>
+
+                    <label className="field">
+                      Root Cause Analysis (optional)
+                      <textarea
+                        rows={3}
+                        value={active.bugRootCause || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugRootCause: e.target.value })
+                        }
+                        placeholder="e.g. The loan verification API returns a 500 error when the loan number contains special characters. The backend is not sanitizing input before querying the database."
+                      />
+                    </label>
+
+                    <label className="field">
+                      Expected Behavior
+                      <textarea
+                        rows={2}
+                        value={active.bugExpectedBehavior || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugExpectedBehavior: e.target.value })
+                        }
+                        placeholder="e.g. The system accepts loan numbers with hyphens and special characters, sanitizes them, and returns a 200 response with valid verification data."
+                      />
+                    </label>
+
+                    <label className="field">
+                      Actual Behavior
+                      <textarea
+                        rows={2}
+                        value={active.bugActualBehavior || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugActualBehavior: e.target.value })
+                        }
+                        placeholder="e.g. When entering a loan number with a hyphen (e.g. 12345-67890), the system returns a 500 error with the message 'Internal Server Error' and no verification occurs."
+                      />
+                    </label>
+
+                    <ListEditor
+                      label="Reproduction Steps (detailed)"
+                      values={active.bugReproductionSteps || []}
+                      placeholder="Step 1: ..., Step 2: ..., etc."
+                      onChange={(next) =>
+                        setWorking({ ...active, bugReproductionSteps: next })
+                      }
+                    />
+                  </div>
+                </article>
               )}
 
               <article className="card">

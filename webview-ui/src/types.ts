@@ -45,6 +45,11 @@ export interface PbiDraft {
   adoWorkItemUrl?: string;
   updatedAt?: string;
   attachments?: PbiAttachment[];
+  // Bug-specific fields (optional, used when workItemType is 'Bug')
+  bugRootCause?: string;
+  bugExpectedBehavior?: string;
+  bugActualBehavior?: string;
+  bugReproductionSteps?: string[];
 }
 
 export interface AdoSettings {
