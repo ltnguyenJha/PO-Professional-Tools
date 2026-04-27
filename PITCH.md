@@ -489,6 +489,23 @@ When you contribute:
 - 📊 **Always know what's next** — Ralph keeps the backlog visible and prioritized. You never have to wonder "what should I work on?"
 - 🚀 **Move fast in parallel** — No sequential approvals. No "waiting for code review." Each agent owns their domain; you work in parallel and merge with confidence.
 
+### The Team Culture 🥃
+
+**This is a hard-working team that knows how to celebrate.**
+
+After-hours, you'll find them gathered around code reviews and shipped features with bourbon in hand:
+
+- **Danny** contemplates architecture decisions over **Pappy Van Winkle**, already thinking three moves ahead
+- **Rusty** celebrates shipped code with **Maker's Mark**, smooth like the UX he just built
+- **Linus** works through edge cases with **Four Roses Single Barrel**, respecting complexity
+- **Livingston** toasts bugs caught before production with **Wild Turkey 101**, bold and unapologetic
+- **Scribe** documents the ritual and—yes—maintains a spreadsheet of which bourbon pairs with which work type
+- **Ralph** drinks *while* monitoring the board, never truly stopping, always thinking "what's next?"
+
+**We don't ship for accolades. We ship because work that matters deserves a team that celebrates.** The bourbon isn't the point; it's the acknowledgment that building something real is worth the effort.
+
+---
+
 ### Want to Join?
 
 This is a founding moment. We're looking for:
