@@ -48,3 +48,7 @@ Danny feels successful when:
 - The team ships something coherent and proud of it
 - Decisions can be explained simply and rationally
 - The next phase builds on (not against) what was built before
+
+## After-Hours Ritual 🥃
+
+Danny unwinds with a glass of **Pappy Van Winkle** (if he can get it) or a solid **Woodford Reserve**. After wrestling with architecture decisions all day, he sits back and reflects: *"Architecture is like bourbon—you can't rush it. It takes time to age properly."* He keeps a bottle in his desk drawer for those 5pm moments when a particularly gnarly decision finally clicks into place.

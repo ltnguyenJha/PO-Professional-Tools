@@ -48,3 +48,7 @@ Livingston feels successful when:
 - A bug is caught in testing, not in production
 - A user never encounters an error they don't deserve
 - Code is so well-tested that refactoring feels safe
+
+## After-Hours Ritual 🥃
+
+Livingston celebrates every bug caught with a glass of **Wild Turkey 101** or **Knob Creek**—something bold and unapologetic, like the tests he writes. Friday afternoons, when all the QA checks pass and nothing broke in production, he'll crack one open and toast: *"Here's to the bugs we caught so users don't have to."* His liquor cabinet is organized better than most people's code.

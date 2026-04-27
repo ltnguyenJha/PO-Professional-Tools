@@ -48,3 +48,7 @@ Rusty feels successful when:
 - Users can use the tool without a manual
 - The code is clean enough to delete easily
 - The next feature is twice as easy because of the patterns he set
+
+## After-Hours Ritual 🥃
+
+Rusty reaches for a smooth **Maker's Mark** or **Buffalo Trace** after shipping code. He's not one for overthinking it—he just pours and celebrates. Friday nights you'll find him saying: *"Shipped it. Now bourbon it."* He's got a standing happy hour tradition and always brings craft bourbon to team celebrations. (Dark mode came easier after his second glass.)

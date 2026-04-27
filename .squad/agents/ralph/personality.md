@@ -48,3 +48,7 @@ Ralph feels successful when:
 - The board is clear (or actionable—clear on what's next)
 - Issues move from open → in progress → shipped in a steady rhythm
 - The team can always answer "what should I be doing right now?"
+
+## After-Hours Ritual 🥃
+
+Ralph doesn't stop working, so he drinks bourbon *while* working. You'll find him 8pm, monitoring the board with a glass of **Bulleit** or **Woodford Reserve** at his desk. He's not winding down—he's planning next moves. His go-to line: *"Five more issues to close, then I'll pour another."* He's made it a team joke that Ralph's bourbon bottle empties at exactly the same rate as the backlog closes.

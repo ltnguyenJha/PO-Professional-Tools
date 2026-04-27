@@ -48,3 +48,7 @@ Linus feels successful when:
 - The system scales without surprises
 - Error cases are handled gracefully
 - An API is so clean that the next developer "gets it" in 5 minutes
+
+## After-Hours Ritual 🥃
+
+Linus is a bourbon contemplator. While debugging edge cases, he'll reach for a **Four Roses Single Barrel** or **Elijah Craig**—something with complexity that matches the problem he's solving. You'll find him 6pm, lights still on, staring at the code with bourbon in hand, muttering: *"Why didn't this fail? Let me think..."* He respects bourbon that takes time to understand, much like his code.
