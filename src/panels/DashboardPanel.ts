@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import {
   AdoProgressPayload,
   AdoSettings,
+  BugReportInput,
   BulkBreakdownRequest,
   BulkChildInput,
   ExtensionEvent,
@@ -138,6 +139,24 @@ export class DashboardPanel {
           message.payload.draftId,
           message.payload.suggestion
         );
+        return;
+      case 'GENERATE_FROM_INVEST_WIZARD':
+        await this.handleGenerateFromInvestWizard(
+          message.payload.draftId,
+          message.payload.wizard
+        );
+        return;
+      case 'OPEN_INVEST_WIZARD_IN_CHAT':
+        await this.handleOpenInvestWizardInChat(
+          message.payload.draftId,
+          message.payload.wizard
+        );
+        return;
+      case 'GENERATE_BUG_REPORT':
+        await this.handleGenerateBugReport(message.payload);
+        return;
+      case 'OPEN_BUG_REPORT_IN_CHAT':
+        await this.handleOpenBugReportInChat(message.payload);
         return;
       case 'AI_SUGGEST_BREAKDOWN':
         await this.handleSuggestBreakdown(
@@ -640,6 +659,91 @@ export class DashboardPanel {
       payload.mode === 'newStory'
         ? 'Copilot Chat opened. Build your story; paste JSON into Apply AI Result when done.'
         : 'Copilot Chat opened with the refinement prompt. Paste JSON back in Apply AI Result.'
+    );
+  }
+
+  private async handleGenerateFromInvestWizard(
+    draftId: string,
+    wizard: import('../shared/messages').InvestWizardInput
+  ): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Generating full story from INVEST wizard answers…', busy: true }
+    });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const suggestion = await this.copilotService.generateFromInvestWizard(
+        draft,
+        wizard,
+        cts.token,
+        { linkedProjectContext }
+      );
+      await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
+      this.postToast(
+        'success',
+        'Full story generated from your INVEST answers and applied. Review the fields above, then Save or Push to ADO.'
+      );
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      cts.dispose();
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+  }
+
+  private async handleOpenInvestWizardInChat(
+    draftId: string,
+    wizard: import('../shared/messages').InvestWizardInput
+  ): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+    await this.copilotService.openInvestWizardInChat(draft, wizard, linkedProjectContext);
+    this.postToast(
+      'info',
+      'Copilot Chat opened with your INVEST wizard context. Collaborate with the agent, then paste JSON into Apply AI Result.'
+    );
+  }
+
+  private async handleGenerateBugReport(input: BugReportInput): Promise<void> {
+    this.post({
+      type: 'LOADING',
+      payload: { message: 'Generating bug report...', busy: true }
+    });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      const result = await this.copilotService.generateBugReport(input, cts.token);
+      this.post({ type: 'AI_SUGGESTION', payload: { suggestion: result } });
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      cts.dispose();
+      this.post({
+        type: 'LOADING',
+        payload: { message: '', busy: false }
+      });
+    }
+  }
+
+  private async handleOpenBugReportInChat(input: BugReportInput): Promise<void> {
+    await this.copilotService.openBugReportInChat(input);
+    this.postToast(
+      'info',
+      'Copilot Chat opened with your bug report context. Collaborate with the agent, then paste JSON into Apply AI Result.'
     );
   }
 

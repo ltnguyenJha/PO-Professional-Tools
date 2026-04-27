@@ -45,6 +45,11 @@ export interface PbiDraft {
   adoWorkItemUrl?: string;
   updatedAt?: string;
   attachments?: PbiAttachment[];
+  // Bug-specific fields (optional, used when workItemType is 'Bug')
+  bugRootCause?: string;
+  bugExpectedBehavior?: string;
+  bugActualBehavior?: string;
+  bugReproductionSteps?: string[];
 }
 
 export interface AdoSettings {
@@ -81,6 +86,27 @@ export interface AiSuggestion {
   description?: string;
   acceptanceCriteria?: string[];
   testScenarios?: string[];
+}
+
+export interface InvestWizardInput {
+  background: string;
+  why: string;
+  how: string;
+  persona: string;
+  want: string;
+  benefit: string;
+}
+
+export interface BugReportInput {
+  whereLocation: string;
+  howToReproduce: string;
+  acceptanceCriteria: string;
+  independent: boolean;
+  negotiable: boolean;
+  valuable: boolean;
+  estimable: boolean;
+  small: boolean;
+  testable: boolean;
 }
 
 export interface BulkChildInput {
@@ -175,7 +201,17 @@ export type WebviewRequest =
   | { type: 'BULK_CREATE_DRAFTS'; payload: BulkBreakdownRequest }
   | { type: 'BULK_PUSH_TO_ADO'; payload: BulkBreakdownRequest & { draftIds: string[] } }
   | { type: 'OPEN_EXTERNAL'; payload: { url: string } }
-  | { type: 'SET_THEME'; payload: { theme: ThemePreference } };
+  | { type: 'SET_THEME'; payload: { theme: ThemePreference } }
+  | {
+      type: 'GENERATE_FROM_INVEST_WIZARD';
+      payload: { draftId: string; wizard: InvestWizardInput };
+    }
+  | {
+      type: 'OPEN_INVEST_WIZARD_IN_CHAT';
+      payload: { draftId: string; wizard: InvestWizardInput };
+    }
+  | { type: 'GENERATE_BUG_REPORT'; payload: BugReportInput }
+  | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput };
 
 interface VsCodeApi {
   postMessage(message: WebviewRequest): void;

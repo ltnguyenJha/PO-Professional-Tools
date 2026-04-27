@@ -517,7 +517,7 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
-.project-card header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -544,7 +544,23 @@ button {
   color: var(--ink-soft);
 }
 
-.action-row {
+.card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card-subtitle {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.card-divider {
+  border-top: 1px dashed var(--line);
+  margin: 4px 0;
+}
+
+.section-title {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -849,8 +865,429 @@ button {
   }
 }
 
+/* ================================================================
+   User Story Wizard
+   ================================================================ */
+.wizard-card {
+  background: var(--panel);
+  border-color: var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.wizard-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Step progress rail ────────────────────────────────────────── */
+.wizard-steps {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 4px 4px;
+}
+
+.wizard-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.wizard-step-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--line-strong);
+  margin-top: 13px; /* align with circle center (28px / 2 - 1px) */
+  min-width: 16px;
+  transition: background var(--transition);
+}
+
+.wizard-step-connector.filled {
+  background: var(--accent);
+}
+
+.wizard-step-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition),
+    color var(--transition), box-shadow var(--transition);
+}
+
+.wizard-step-node:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.wizard-step-node.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wizard-step-node.done {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.wizard-step-label {
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.wizard-step-label.active {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.wizard-step-label.done {
+  color: var(--success);
+}
+
+/* ── Step body ─────────────────────────────────────────────────── */
+.wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wizard-step-caption {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wizard-question-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+/* INVEST hint — subtle, at bottom */
+.invest-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel-muted);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.invest-hint-text {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+
+/* ── User Story step — prefix inputs ───────────────────────────── */
+.wizard-story-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wizard-story-field {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.wizard-story-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wizard-story-prefix {
+  padding: 9px 12px;
+  background: var(--panel-muted);
+  border-right: 1px solid var(--line-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  min-width: 62px;
+}
+
+.wizard-story-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px 10px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  outline: none;
+  min-width: 0;
+}
+
+/* ── Story preview — blockquote style ─────────────────────────── */
+.wizard-preview {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--accent-soft);
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.wizard-preview p {
+  margin: 0;
+  color: var(--accent-ink);
+}
+
+/* ── Summary section ───────────────────────────────────────────── */
+.wizard-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── INVEST grid — impactful cells ─────────────────────────────── */
+.wizard-invest-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .wizard-invest-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.invest-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-muted);
+  text-align: center;
+  min-width: 64px;
+  animation: invest-pop 0.22s ease both;
+}
+
+@keyframes invest-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)  scale(1); }
+}
+
+.invest-cell.ok {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.invest-cell.warn {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.invest-letter {
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.invest-label {
+  font-size: 0.62rem;
+  color: inherit;
+  font-weight: 500;
+}
+
+.invest-status {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* ── Action buttons ────────────────────────────────────────────── */
+.wizard-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wizard-action-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wizard-btn-generate {
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+}
+
+[data-theme="dark"] .wizard-btn-generate {
+  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.2);
+}
+
+.wizard-btn-chat {
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1.5px solid var(--accent);
+  color: var(--accent-strong);
+  background: transparent;
+}
+
+.wizard-btn-chat:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
 .bulk-ado-banner {
   margin-bottom: 12px;
+}
+
+/* ================================================================
+   Collapsible sections
+   ================================================================ */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-chevron {
+  transition: transform var(--transition);
+  font-size: 1.1rem;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.section-chevron.open {
+  transform: rotate(0deg);
+}
+
+.section-chevron:not(.open) {
+  transform: rotate(-90deg);
+}
+
+.section-body {
+  overflow: hidden;
+  transition: max-height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-height: 9999px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-body.collapsed {
+  max-height: 0 !important;
+}
+
+/* ================================================================
+   PBI type selector (segmented pill control)
+   ================================================================ */
+.pbi-type-selector-wrap {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.pbi-type-selector {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--panel);
+  max-width: 320px;
+  width: 100%;
+}
+
+.pbi-type-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pbi-type-btn.active {
+  background: var(--accent);
+  color: #ecfeff;
+  font-weight: 600;
+}
+
+.pbi-type-btn:not(.active):hover {
+  background: var(--panel-muted);
+  color: var(--ink);
+}
+
+/* ================================================================
+   Bug report preview card
+   ================================================================ */
+.bug-preview-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.bug-preview-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+}
+
+.bug-preview-label {
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  min-width: 78px;
+  flex-shrink: 0;
 }
 
 /* ================================================================
