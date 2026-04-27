@@ -2,8 +2,12 @@
   "name": "po-professional-tools",
   "displayName": "PO Professional Tools",
   "description": "Local PO assistant for project scanning, AI-backed PBI generation, and Azure DevOps sync.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ltnguyenJha/PO-Professional-Tools.git"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -11,7 +15,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:po-tools.openDashboard"
+    "onCommand:po-tools.openDashboard",
+    "onCommand:po-tools.openPbiStudio",
+    "onCommand:po-tools.openBulkBreakdown"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -19,6 +25,14 @@
       {
         "command": "po-tools.openDashboard",
         "title": "PO Tools: Open Dashboard"
+      },
+      {
+        "command": "po-tools.openPbiStudio",
+        "title": "PO Tools: Open PBI Studio"
+      },
+      {
+        "command": "po-tools.openBulkBreakdown",
+        "title": "PO Tools: Open Bulk Breakdown"
       }
     ]
   },
@@ -29,7 +43,7 @@
     "watch": "node esbuild.js --watch",
     "watch:webview": "npm --prefix webview-ui run dev",
     "lint": "eslint src --ext .ts",
-    "package": "vsce package"
+    "package": "npx @vscode/vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",
@@ -41,6 +55,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "azure-devops-node-api": "^14.1.0"
+    "azure-devops-node-api": "^14.1.0",
+    "jsonrepair": "^3.14.0"
   }
 }

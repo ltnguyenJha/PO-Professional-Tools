@@ -9,7 +9,15 @@ export function activate(context: vscode.ExtensionContext): void {
     DashboardPanel.createOrShow(context, importService);
   });
 
-  context.subscriptions.push(openDashboard);
+  const openPbiStudio = vscode.commands.registerCommand('po-tools.openPbiStudio', () => {
+    DashboardPanel.createOrShow(context, importService);
+  });
+
+  const openBulkBreakdown = vscode.commands.registerCommand('po-tools.openBulkBreakdown', () => {
+    DashboardPanel.createOrShow(context, importService);
+  });
+
+  context.subscriptions.push(openDashboard, openPbiStudio, openBulkBreakdown);
 }
 
 export function deactivate(): void {

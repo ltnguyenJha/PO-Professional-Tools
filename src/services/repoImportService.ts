@@ -1,8 +1,24 @@
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ImportedProject, ProjectScanSummary } from '../shared/messages';
 
 const PROJECTS_KEY = 'poTools.projects';
+
+/** Skip noisy dirs when scanning for nested git repos under a workspace root. */
+const LINK_SCAN_SKIP = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  'bin',
+  'obj',
+  '__pycache__',
+  'vendor',
+  'packages'
+]);
 
 export class RepoImportService {
   public constructor(private readonly context: vscode.ExtensionContext) {}
@@ -25,7 +41,7 @@ export class RepoImportService {
       name: path.basename(folder.fsPath),
       path: folder.fsPath,
       detectedStack: await this.detectTechStack(folder),
-      lastScannedAt: new Date().toISOString()
+      lastScannedAt: undefined
     };
 
     const current = this.getProjects();
@@ -43,6 +59,108 @@ export class RepoImportService {
     return this.context.globalState.get<ImportedProject[]>(PROJECTS_KEY, []);
   }
 
+  /**
+   * Imported repos plus git repos under the VS Code workspace (roots, siblings, and one nested level).
+   * Opening a parent folder only adds one workspace root, so we scan for `.git` under each root.
+   */
+  public async getLinkTargets(): Promise<ImportedProject[]> {
+    const imported = this.getProjects();
+    const seen = new Set(imported.map((p) => p.path.toLowerCase()));
+    const result: ImportedProject[] = [...imported];
+
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      const discovered = await this.collectGitReposUnderFolder(folder.uri.fsPath, folder.name);
+      for (const proj of discovered) {
+        const key = proj.path.toLowerCase();
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        result.push(proj);
+      }
+    }
+    return result;
+  }
+
+  /** Git repo at `workspaceRoot`, immediate children with `.git`, and grandchildren (depth 2). */
+  private async collectGitReposUnderFolder(
+    workspaceRoot: string,
+    workspaceLabel: string
+  ): Promise<ImportedProject[]> {
+    const out: ImportedProject[] = [];
+    const add = (fsPath: string, name: string): void => {
+      out.push({
+        id: this.createId(fsPath),
+        name,
+        path: fsPath,
+        detectedStack: [],
+        lastScannedAt: undefined
+      });
+    };
+
+    if (await this.pathHasGit(workspaceRoot)) {
+      add(workspaceRoot, path.basename(workspaceRoot));
+    }
+
+    const depth1 = await this.readLinkScanDirs(workspaceRoot);
+    for (const d of depth1) {
+      if (await this.pathHasGit(d.fullPath)) {
+        add(d.fullPath, d.name);
+      }
+    }
+
+    for (const d of depth1) {
+      if (await this.pathHasGit(d.fullPath)) {
+        continue;
+      }
+      const depth2 = await this.readLinkScanDirs(d.fullPath);
+      for (const d2 of depth2) {
+        if (await this.pathHasGit(d2.fullPath)) {
+          add(d2.fullPath, `${d.name} / ${d2.name}`);
+        }
+      }
+    }
+
+    if (out.length === 0 && !(await this.pathHasGit(workspaceRoot))) {
+      add(workspaceRoot, workspaceLabel);
+    }
+
+    return out;
+  }
+
+  private async pathHasGit(dirPath: string): Promise<boolean> {
+    try {
+      const st = await fs.stat(path.join(dirPath, '.git'));
+      return st.isFile() || st.isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
+  private async readLinkScanDirs(
+    dirPath: string
+  ): Promise<Array<{ name: string; fullPath: string }>> {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      const out: Array<{ name: string; fullPath: string }> = [];
+      for (const ent of entries) {
+        if (!ent.isDirectory()) {
+          continue;
+        }
+        if (ent.name.startsWith('.')) {
+          continue;
+        }
+        if (LINK_SCAN_SKIP.has(ent.name)) {
+          continue;
+        }
+        out.push({ name: ent.name, fullPath: path.join(dirPath, ent.name) });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+
   public async markScanned(projectId: string, scanSummary: ProjectScanSummary): Promise<void> {
     const projects = this.getProjects();
     const updated = projects.map((project) =>
@@ -55,6 +173,17 @@ export class RepoImportService {
         : project
     );
     await this.context.globalState.update(PROJECTS_KEY, updated);
+  }
+
+  public async removeProject(projectId: string): Promise<ImportedProject | undefined> {
+    const projects = this.getProjects();
+    const removed = projects.find((p) => p.id === projectId);
+    if (!removed) {
+      return undefined;
+    }
+    const updated = projects.filter((project) => project.id !== projectId);
+    await this.context.globalState.update(PROJECTS_KEY, updated);
+    return removed;
   }
 
   private createId(rawPath: string): string {

@@ -1,20 +1,78 @@
-import { ImportedProject, PbiDraft } from '../shared/messages';
+import * as crypto from 'crypto';
+import { AdoWorkItemType, ImportedProject, PbiDraft } from '../shared/messages';
+
+/** Drafts not tied to an imported repo use this project id. */
+export const STANDALONE_PROJECT_ID = 'standalone';
 
 const PBI_KEY = 'poTools.pbiDrafts';
 
+interface GlobalStateLike {
+  get<T>(key: string, defaultValue: T): T;
+  update(key: string, value: unknown): Thenable<void>;
+}
+
 export class PbiDraftService {
-  public getAll(contextValue: { get<T>(key: string, defaultValue: T): T }): PbiDraft[] {
-    return contextValue.get<PbiDraft[]>(PBI_KEY, []);
+  public getAll(state: GlobalStateLike): PbiDraft[] {
+    return state.get<PbiDraft[]>(PBI_KEY, []);
   }
 
-  public async saveAll(
-    contextValue: { update(key: string, value: unknown): Thenable<void> },
-    drafts: PbiDraft[]
-  ): Promise<void> {
-    await contextValue.update(PBI_KEY, drafts);
+  public async saveAll(state: GlobalStateLike, drafts: PbiDraft[]): Promise<void> {
+    await state.update(PBI_KEY, drafts);
   }
 
-  public buildDrafts(project: ImportedProject): PbiDraft[] {
+  public async upsert(state: GlobalStateLike, draft: PbiDraft): Promise<PbiDraft> {
+    const next = { ...draft, updatedAt: new Date().toISOString() };
+    const existing = this.getAll(state);
+    const index = existing.findIndex((item) => item.id === draft.id);
+    const updated =
+      index >= 0
+        ? existing.map((item) => (item.id === draft.id ? next : item))
+        : [...existing, next];
+    await this.saveAll(state, updated);
+    return next;
+  }
+
+  public async deleteById(state: GlobalStateLike, draftId: string): Promise<void> {
+    const filtered = this.getAll(state).filter((draft) => draft.id !== draftId);
+    await this.saveAll(state, filtered);
+  }
+
+  public async deleteByProject(state: GlobalStateLike, projectId: string): Promise<void> {
+    const filtered = this.getAll(state).filter((draft) => draft.projectId !== projectId);
+    await this.saveAll(state, filtered);
+  }
+
+  /**
+   * Blank item for PO-authored work (no scan). Attach to a repo or standalone.
+   */
+  public createBlankDraft(options: {
+    projectId: string;
+    title?: string;
+    defaultWorkItemType?: AdoWorkItemType;
+    /** Display leaf from saved ADO iteration path when set; else date-based default. */
+    iteration?: string;
+  }): PbiDraft {
+    const title = options.title?.trim() || 'New backlog item';
+    const iteration = options.iteration?.trim() || this.defaultIteration();
+    return {
+      id: this.newId(),
+      projectId: options.projectId,
+      title,
+      description: '',
+      effortDays: 2,
+      iteration,
+      status: 'draft',
+      workItemType: options.defaultWorkItemType ?? 'Product Backlog Item',
+      acceptanceCriteria: [],
+      testScenarios: []
+    };
+  }
+
+  public buildDrafts(
+    project: ImportedProject,
+    options?: { iteration?: string }
+  ): PbiDraft[] {
+    const iteration = options?.iteration?.trim() || this.defaultIteration();
     const summary = project.scanSummary;
     if (!summary) {
       return [];
@@ -26,21 +84,29 @@ export class PbiDraftService {
     const drafts: PbiDraft[] = [];
 
     for (const route of routes) {
-      drafts.push(this.createRouteDraft(project, route));
+      drafts.push(this.createRouteDraft(project, route, iteration));
     }
 
     for (const endpoint of endpoints) {
-      drafts.push(this.createEndpointDraft(project, endpoint));
+      drafts.push(this.createEndpointDraft(project, endpoint, iteration));
     }
 
     if (drafts.length === 0) {
-      drafts.push(this.createPlatformDraft(project));
+      drafts.push(this.createPlatformDraft(project, iteration));
     }
 
     return drafts;
   }
 
-  private createRouteDraft(project: ImportedProject, route: string): PbiDraft {
+  public newId(): string {
+    return crypto.randomBytes(9).toString('base64url');
+  }
+
+  private createRouteDraft(
+    project: ImportedProject,
+    route: string,
+    iteration: string
+  ): PbiDraft {
     const effort = this.scoreEffort(route.length);
     return {
       id: this.createId(project.id, route),
@@ -48,7 +114,8 @@ export class PbiDraftService {
       title: `Improve UX flow for ${route}`,
       description: `Deliver a concise and reliable user journey for route ${route}, including clear state handling and validation boundaries.`,
       effortDays: effort,
-      iteration: this.defaultIteration(),
+      iteration,
+      status: 'draft',
       acceptanceCriteria: [
         `Given a user opens ${route}, when the page loads, then required data is visible within target response time.`,
         'Given invalid user input, when submission is attempted, then clear validation guidance is shown.',
@@ -62,7 +129,11 @@ export class PbiDraftService {
     };
   }
 
-  private createEndpointDraft(project: ImportedProject, endpoint: string): PbiDraft {
+  private createEndpointDraft(
+    project: ImportedProject,
+    endpoint: string,
+    iteration: string
+  ): PbiDraft {
     const effort = this.scoreEffort(endpoint.length + 1);
     return {
       id: this.createId(project.id, endpoint),
@@ -70,7 +141,8 @@ export class PbiDraftService {
       title: `Stabilize API contract: ${endpoint}`,
       description: `Define and enforce a dependable API behavior for ${endpoint}, including validation, error semantics, and traceability for downstream teams.`,
       effortDays: effort,
-      iteration: this.defaultIteration(),
+      iteration,
+      status: 'draft',
       acceptanceCriteria: [
         `Given valid request data to ${endpoint}, when processed, then response payload aligns with documented contract.`,
         `Given invalid or incomplete request data, when processed, then API returns a predictable and documented error structure.`,
@@ -84,14 +156,16 @@ export class PbiDraftService {
     };
   }
 
-  private createPlatformDraft(project: ImportedProject): PbiDraft {
+  private createPlatformDraft(project: ImportedProject, iteration: string): PbiDraft {
     return {
       id: this.createId(project.id, 'platform-hardening'),
       projectId: project.id,
       title: `Establish baseline quality for ${project.name}`,
-      description: 'Create an initial backlog item that improves reliability, observability, and acceptance coverage for critical user paths.',
+      description:
+        'Create an initial backlog item that improves reliability, observability, and acceptance coverage for critical user paths.',
       effortDays: 2,
-      iteration: this.defaultIteration(),
+      iteration,
+      status: 'draft',
       acceptanceCriteria: [
         'Critical user paths are documented and validated.',
         'At least one automated test scenario is mapped to each critical flow.',
