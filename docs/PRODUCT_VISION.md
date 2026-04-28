@@ -1,8 +1,14 @@
-# PO Professional Tools: Sales Pitch
+# PO Professional Tools - Not Sales Pitch - Ordered AND Ready
 
 ## Executive Summary
 
 Product Owners spend 40–60% of their week drafting PBIs manually, losing context between code and backlog, and fighting inconsistency across teams. **PO Professional Tools** is a local-first VS Code extension that slashes PBI drafting time by 60%+, bridges the gap between codebase and backlog through intelligent scanning, and delivers AI-assisted refinement with zero SaaS dependency. Built for Azure DevOps today, designed as a platform for tomorrow.
+
+### Key Points
+
+1. **Help our PO team** — Empower Product Owners to spend less time on manual drafting and more time on strategy and collaboration. One click - **Create User Store (PBI item) + Test cases + RDI**
+2. **Fully autonomous AI Agent team** — Built on a specialized squad of AI agents (Danny, Rusty, Linus, Livingston, and more) working autonomously to power intelligent PBI generation and refinement.
+3. **Have fun** — Each squad member brings unique skills and personality to the team; managing a silly AI team makes building powerful tools enjoyable and engaging.
 
 ---
 
