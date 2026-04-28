@@ -3,6 +3,9 @@
 - **Owner:** ltnguyen
 - **Project:** PO-Professional-Tools — VS Code extension for Product Owners with PBI Studio, User Story Wizard (INVEST), GitHub Copilot Agent integration
 - **Stack:** TypeScript, VS Code Extension API, Node.js, GitHub Copilot API, esbuild
+- **Key files:** `src/extension.ts`, `src/panels/DashboardPanel.ts`, `src/services/copilotService.ts`, `src/shared/messages.ts`, `build/esbuild.config.js`
+- **Architecture:** One-way message passing webview→extension via postMessage. `DashboardPanel.handleMessage()` is the routing switch. Services (CopilotService) do the AI work. Extension sends events back via `WebviewPanel.postMessage()`.
+- **Build:** `node build/esbuild.config.js` (extension bundle). TypeScript: `tsc --noEmit`.
 - **Key files:** `src/extension.ts`, `src/panels/DashboardPanel.ts`, `src/services/copilotService.ts`, `src/shared/messages.ts`, `esbuild.js`
 - **Architecture:** One-way message passing webview→extension via postMessage. `DashboardPanel.handleMessage()` is the routing switch. Services (CopilotService) do the AI work. Extension sends events back via `WebviewPanel.postMessage()`.
 - **Build:** `node esbuild.js` (extension bundle). TypeScript: `tsc --noEmit`.
@@ -42,4 +45,29 @@
 - Both agents committed together (b953dc8): full build passed, 47 modules, 18.90KB CSS, 215KB JS, zero errors
 - Bug report workflow complete: UX → message send → service handling → AI generation → result display
 - Repo context improves LM accuracy; model fallback chain ensures org compatibility
+
+### Project Reorganization: Build Config Migration (2026-04-28)
+
+Completed full project directory reorganization with file migrations and build configuration updates. 
+
+**Directories Created:** `build/vscode/`, `deploy/`, `dev/`
+
+**Files Moved (git mv — history preserved):**
+- `esbuild.js` → `build/esbuild.config.js`
+- `.vscodeignore` → `build/vscode/.vscodeignore`
+- `BUG_SECTION_IMPLEMENTATION.md` → `dev/BUG_IMPLEMENTATION_NOTES.md`
+- `docs/PLAN.md` → `dev/PROJECT_PLAN.md`
+
+**Configuration Updates:**
+- `package.json`: Updated build scripts from `"node esbuild.js"` to `"node build/esbuild.config.js"` and watch script
+- `.gitignore`: Added `build/releases/` for VSIX packaging
+- Squad docs: Updated charter.md and history.md with new build paths
+
+**Verification:**
+- ✅ Build passes: `npm run build:extension` successful
+- ✅ Paths verified: esbuild.config.js uses project-relative paths (src/, dist/)
+- ✅ No broken references: All build commands functional
+- ✅ Git history preserved via `git mv`
+
+**Lasting Pattern:** When moving build artifacts, coordinate with package.json updates first (blocker), use git mv to preserve history, then verify full build + packaging cycle (npm run build && npm run package).
 

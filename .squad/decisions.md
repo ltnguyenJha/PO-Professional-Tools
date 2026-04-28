@@ -77,6 +77,36 @@ Extended CopilotService with workspace-aware generation and bug report event flo
 
 **Rationale:** Bug reports are not tied to drafts (draft-centric events don't fit); generic LOADING/AI_SUGGESTION events allow report flow without draftId. Workspace context makes LM generations more accurate. Three-pass model fallback ensures org compatibility.
 
+### Project Reorganization Completion (2026-04-28)
+
+**Authors:** Danny (Lead), Linus (Backend Dev), Rusty (Frontend Dev), Livingston (Tester)  
+**Status:** Completed
+
+Completed comprehensive project restructuring with four-layer organization:
+- **docs/** — End-user documentation (QUICK_START, FEATURES_ROADMAP, CONTRIBUTING, PRODUCT_VISION)
+- **dev/** — Developer documentation (DEVELOPMENT_GUIDE, ARCHITECTURE, PROJECT_PLAN, BUG_IMPLEMENTATION_NOTES)
+- **deploy/** — Deployment & release processes (DEPLOYMENT guide)
+- **build/** — Build tooling & VS Code packaging (esbuild.config.js, vscode/ subdirectory)
+
+**Key Decisions Implemented:**
+1. `.vscodeignore` remains at repo root (standard VSCE convention)
+2. `PITCH.md` → `docs/PRODUCT_VISION.md` (external stakeholder-facing strategy)
+3. Build scripts updated: `package.json` references `build/esbuild.config.js`
+4. All file moves preserved via `git mv` (history preserved)
+
+**Verification Complete:**
+- ✅ Build passes: `npm run build:extension` successful
+- ✅ TypeScript checks pass
+- ✅ README updated with audience navigation (PO users, developers, stakeholders)
+- ✅ All documentation files created and verified
+- ✅ No broken references; build config paths verified
+
+**Outcome:** Reorganized repo structure is live and ready for production use. Navigation clearly targets three audiences (end users, developers, ops). Git history preserved. Root-level README now quick-start focused with links to detailed guides.
+
+**Rationale:** Layered structure reduces root clutter, improves discoverability for each audience, and aligns with enterprise repo organization patterns. Preserves git history via `git mv`. Comprehensive documentation supports Phase 7 (Packaging) and long-term maintainability.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

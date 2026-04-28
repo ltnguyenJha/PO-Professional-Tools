@@ -11,6 +11,23 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+## Learnings
+
+<!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Project Reorganization: Decision-Driven Architecture Review (2026-04-28)
+
+Completed comprehensive analysis and approval of project restructuring (docs/, dev/, deploy/, build/). Key decisions:
+
+**Decision 1: `.vscodeignore` Location** — Standard practice keeps `.vscodeignore` at repo root (VSCE/packaging tools expect this). Risk of moving to `build/vscode/` outweighs organizational benefit. Stayed at root.
+
+**Decision 2: `PITCH.md` Placement** — Clarified audience: external stakeholders (investors, partners, leadership). Moved to `docs/PRODUCT_VISION.md` for discoverability and strategic context.
+
+**Implementation Safety** — Identified build script path references as blocker; required `package.json` update from `"node esbuild.js"` to `"node build/esbuild.config.js"` before file moves.
+
+**Outcome:** Led team through four-agent coordination (Linus: migrations, Rusty: docs, Livingston: verification, Coordinator: process). All verification checks passed. Reorganized structure now live.
+
+**Lasting Pattern:** Architecture decisions benefit from cross-team input (lead + backend + frontend + QA + coordinator). Document decision points with "Decision Needed" signals to unblock implementation. Use git mv to preserve history during refactors.
 ### Strategic Framing: Platform Play Over Point Solution (2026-04-25)
 
 **Pitch Positioning** — Framed PO Professional Tools as a platform, not a one-off ADO integration. Azure DevOps is the wedge; Monday.com, ClickUp, Jira, and custom connectors are the expansion strategy. This positioning matters for recruiting engineers and securing org buy-in.
