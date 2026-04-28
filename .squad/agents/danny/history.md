@@ -28,6 +28,29 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 **Outcome:** Led team through four-agent coordination (Linus: migrations, Rusty: docs, Livingston: verification, Coordinator: process). All verification checks passed. Reorganized structure now live.
 
 **Lasting Pattern:** Architecture decisions benefit from cross-team input (lead + backend + frontend + QA + coordinator). Document decision points with "Decision Needed" signals to unblock implementation. Use git mv to preserve history during refactors.
+### Local Dev Setup Diagnosis (2026-04-28)
+
+**Problem:** Both `node_modules` directories were completely absent — root and `webview-ui/`. This is the #1 blocker for any fresh clone or new dev environment.
+
+**Root cause:** `node_modules` is correctly `.gitignore`'d; devs must run installs manually after cloning.
+
+**What was fixed:**
+- `npm install` at project root → 147 packages installed (esbuild, TypeScript, azure-devops-node-api, etc.)
+- `npm install` at `webview-ui/` → 72 packages installed (React, Vite, TypeScript)
+- `npm run build` → ✅ SUCCESS: `dist/extension.js` (2.7MB), `webview-ui/dist/` (index.html + JS + CSS)
+
+**Known non-blocking warning:** Vite CSS minifier emits `css-syntax-error` warning on `font-size: 0.85rem` (line 743 of bundled CSS). Build still succeeds and outputs correctly. Pre-existing, non-blocking.
+
+**Confirmed working structure:**
+- `build/esbuild.config.js` — valid, targets `src/extension.ts` → `dist/extension.js`
+- `tsconfig.json` — valid (ES2022, commonjs, strict)
+- `src/extension.ts` — valid entry point (registers 3 commands via DashboardPanel)
+- `webview-ui/package.json` — React + Vite stack, `vite build` script correct
+
+**Manual step required:** After build, open repo in VS Code and press **F5** to launch Extension Development Host.
+
+**Audit warnings:** 3 vulnerabilities (1 moderate, 2 high) in both installs. Non-blocking for dev but should be addressed before production packaging (`npm audit fix`).
+
 ### Strategic Framing: Platform Play Over Point Solution (2026-04-25)
 
 **Pitch Positioning** — Framed PO Professional Tools as a platform, not a one-off ADO integration. Azure DevOps is the wedge; Monday.com, ClickUp, Jira, and custom connectors are the expansion strategy. This positioning matters for recruiting engineers and securing org buy-in.
@@ -39,3 +62,7 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 **Local-First as Differentiator** — No SaaS friction, no data export concerns, no procurement delays. Runs on already-licensed tools (VS Code, GitHub Copilot, Azure DevOps). This is defensible against cloud-first competitors in enterprise/government/compliance-heavy orgs.
 
 **Extensibility Roadmap** — Phase 1 (ADO, shipped) → Phase 2 (multi-platform, 6 months) → Phase 3 (plugin SDK, 12 months) → Phase 4 (team collaboration, 18 months). Clear signal that this is a long-term platform investment, not a prototype.
+
+### Postinstall Hook Implementation (2026-04-28)
+
+**Cross-Agent Update:** Linus implemented postinstall script based on local setup diagnosis. Recommendation was to add `"postinstall": "npm --prefix webview-ui install"` to root `package.json` scripts — this eliminates the two-step manual install friction. All new devs and CI/CD now require single `npm install` command instead of remembering to manually install webview-ui dependencies.

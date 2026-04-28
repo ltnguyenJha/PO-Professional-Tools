@@ -107,6 +107,30 @@ Completed comprehensive project restructuring with four-layer organization:
 
 ---
 
+### Local Dev Setup — Postinstall Hook (2026-04-28)
+
+**Author:** Danny (Lead) & Linus (Backend Dev)  
+**Status:** Implemented
+
+**Problem:** Fresh clones lack `node_modules` at root and `webview-ui/`. Developers must manually run two separate installs, creating onboarding friction.
+
+**Decision:** Add `"postinstall": "npm --prefix webview-ui install"` to root `package.json` scripts section.
+
+**Rationale:**
+- ✅ Developers now run single `npm install` at root; webview-ui dependencies install automatically via npm lifecycle hook
+- ✅ CI/CD pipelines pick this up without script changes
+- ✅ Consistent with existing `build:webview` / `watch:webview` (`--prefix` style)
+- ✅ Standard npm pattern; zero new tooling required
+
+**Verification:**
+- ✅ Clean build produces `dist/extension.js` (2.7MB)
+- ✅ `postinstall` script confirmed in package.json
+- ✅ No impact on existing build, test, or dist outputs
+
+**Outcome:** Eliminated #1 onboarding friction point. New devs and CI/CD now require single `npm install` instead of manual two-step setup.
+
+---
+
 ## Conflict Resolution Protocol
 
 ### Feature Branch Wins Policy (2026-04-28)

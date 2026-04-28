@@ -163,7 +163,7 @@ export function App(): JSX.Element {
         return { title: 'PBI Studio', subtitle: 'Edit drafts. Refine with Copilot. Push to ADO.' };
       case 'bulk':
         return {
-          title: 'Bulk Breakdown',
+          title: 'Feature Creation',
           subtitle: 'Split a big feature into many prefixed child items.'
         };
       case 'settings':

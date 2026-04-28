@@ -75,3 +75,7 @@ Completed full project directory reorganization with file migrations and build c
 
 Git conflict resolution using `git checkout --theirs` for feature-first merge strategy. Applied to PR #19 Squad-Team branch when 4 conflicts arose during main rebase. Feature branch represents the desired state; resolved by keeping feature branch versions on all conflicts, achieving mergeable_state: clean.
 
+### postinstall Pattern for Monorepo Subdirectory (2026-04-28)
+
+Use `"postinstall": "npm --prefix webview-ui install"` in the root `package.json` to automatically install webview-ui dependencies whenever someone runs `npm install` at the root. The `--prefix` flag is already the project's established style (used in `build:webview` and `watch:webview`). npm automatically runs the `postinstall` lifecycle hook after every `npm install` invocation, so this ensures the webview workspace is always ready without manual steps.
+

@@ -124,3 +124,20 @@
 - **Maintainability**: Future UI updates can reference spacing tokens instead of hardcoding values — reduces CSS bloat and inconsistency
 - **Professional Polish**: Focus states and touch targets meet WCAG 2.1 AA standards
 
+### 2026-04-29 — "Bulk Breakdown" Renamed to "Feature Creation" (Issue #21)
+
+**User-visible text changes:**
+- Updated sidebar navigation label: `Sidebar.tsx` line 15 — "Bulk Breakdown" → "Feature Creation"
+- Updated page title: `App.tsx` line 166 — "Bulk Breakdown" → "Feature Creation"
+- Updated dashboard link text: `DashboardView.tsx` line 76 — "Bulk Breakdown" → "Feature Creation"
+
+**What was NOT changed:**
+- Component names (`BulkBreakdownView`), file names, CSS class names, TypeScript types — these are internal identifiers, not user-facing text
+- ViewId type remains `'bulk'` — routing identifiers are implementation details
+
+**Verification:**
+- Grep search confirmed zero remaining "Bulk Breakdown" user-visible strings
+- Three "Feature Creation" strings now present in sidebar nav, page header, and dashboard quick-start
+
+**Rationale:** Aligns with product vision roadmap (Epics → Features → User Stories). "Feature Creation" better communicates the tool's purpose in the overall hierarchy.
+
