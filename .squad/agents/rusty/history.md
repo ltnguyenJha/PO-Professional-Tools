@@ -83,3 +83,44 @@
 - Wizard components control their own expand/collapse state internally — PbiStudio section state controls the surrounding utility card sections only
 - This pattern keeps wizard behavior decoupled from the parent view's collapsible card UX
 
+### 2026-04-28 — UI Refactoring: Spacing, Accessibility, and Design System (Issue #3)
+
+**Design System Tokens:**
+- Added comprehensive spacing scale: `--space-xs` (4px) through `--space-3xl` (32px)
+- Introduced `--focus-ring` token (`0 0 0 3px var(--accent-soft)`) for consistent focus states
+- Added `--transition-fast` (120ms) variant for quick UI interactions
+- Replaced 100+ hardcoded spacing values with design tokens throughout styles.css
+
+**Accessibility Enhancements:**
+- Added `:focus-visible` pseudo-class to all interactive elements (buttons, inputs, nav items, wizard steps)
+- Enhanced ARIA labels:
+  - Navigation: `aria-label="Navigate to {view}"` on all nav items
+  - Theme toggle: `aria-label="Switch to {theme} theme"`
+  - List editor: `role="group"`, `aria-label` on inputs and remove buttons
+  - Topbar: `role="banner"`, `role="toolbar"` on actions, `role="doc-subtitle"` on subtitle
+- Touch target compliance: Ensured min-height 44px for buttons (36px for small buttons)
+- Keyboard navigation: All focus states now visible with 2px outline + 2px offset
+
+**Component Consistency:**
+- Standardized button sizing: `min-height: 36px` (default), `32px` (small), `44px` (wizard actions)
+- Unified input/select height: `min-height: 38px` for better usability
+- Consistent gap spacing across all flexbox/grid layouts using spacing tokens
+- Improved chip styling: added `font-weight: 500` for better readability
+
+**Build & Verification:**
+- Clean build: 47 modules, 20.81KB CSS, 218.40KB JS (from 18.90KB CSS — slight increase due to new tokens and focus states)
+- Zero TypeScript errors (verified both root and webview-ui)
+- All existing patterns preserved — no breaking changes
+
+**Key Patterns Established:**
+1. **Spacing Scale Hierarchy**: Use `--space-xs` for tight internal gaps (4px), `--space-sm` for list items (8px), `--space-md` for cards/sections (12px), `--space-lg` for view-level spacing (16px), up to `--space-3xl` for large sections
+2. **Focus State Standard**: Always use `:focus-visible` (not `:focus`) with `outline: 2px solid var(--accent); outline-offset: 2px` to avoid mouse-click focus rings
+3. **Touch Target Minimum**: All buttons should have `min-height` of at least 36px (44px for primary actions)
+4. **ARIA Best Practice**: Add descriptive `aria-label` to icon-only buttons, use semantic role attributes, provide context for screen readers
+
+**Why These Changes Matter:**
+- **Consistency**: Spacing is now predictable across all views — designers and developers have a shared vocabulary
+- **Accessibility**: Users with screen readers, keyboard-only navigation, and motor disabilities can now use the UI effectively
+- **Maintainability**: Future UI updates can reference spacing tokens instead of hardcoding values — reduces CSS bloat and inconsistency
+- **Professional Polish**: Focus states and touch targets meet WCAG 2.1 AA standards
+
