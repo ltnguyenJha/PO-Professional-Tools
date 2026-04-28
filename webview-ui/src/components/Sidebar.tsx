@@ -25,9 +25,9 @@ interface Props {
 
 export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JSX.Element {
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" role="navigation" aria-label="Main navigation">
       <div className="brand">
-        <div className="brand-mark">PO</div>
+        <div className="brand-mark" aria-hidden="true">PO</div>
         <div className="brand-text">
           <h1>PO Pro Tools</h1>
           <span>Jack Henry Edition</span>
@@ -40,9 +40,10 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
             key={entry.id}
             className="nav-item"
             aria-current={active === entry.id ? 'page' : undefined}
+            aria-label={`Navigate to ${entry.label}`}
             onClick={() => onNavigate(entry.id)}
           >
-            <span className="nav-icon" aria-hidden>
+            <span className="nav-icon" aria-hidden="true">
               {entry.icon}
             </span>
             <span>{entry.label}</span>
@@ -51,11 +52,12 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
       </nav>
 
       <div className="nav-footer">
-        <div className="theme-toggle" role="group" aria-label="Theme">
+        <div className="theme-toggle" role="group" aria-label="Theme selection">
           {(['light', 'dark', 'auto'] as const).map((option) => (
             <button
               key={option}
               aria-pressed={theme === option}
+              aria-label={`Switch to ${option} theme`}
               onClick={() => onThemeChange(option)}
             >
               {option === 'auto' ? 'Auto' : option === 'light' ? 'Light' : 'Dark'}

@@ -21,23 +21,29 @@ export function ListEditor({ label, values, placeholder, onChange }: Props): JSX
   };
 
   return (
-    <div className="list-editor">
+    <div className="list-editor" role="group" aria-label={label}>
       <span className="hint">{label}</span>
-      {values.length === 0 && <div className="hint">No items yet. Click "Add" to start.</div>}
+      {values.length === 0 && <div className="hint" role="status">No items yet. Click "Add" to start.</div>}
       {values.map((value, index) => (
         <div key={index} className="list-editor-row">
           <input
             value={value}
             placeholder={placeholder}
+            aria-label={`${label} item ${index + 1}`}
             onChange={(event) => update(index, event.target.value)}
           />
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => remove(index)}>
+          <button 
+            type="button" 
+            className="btn btn-ghost btn-sm" 
+            onClick={() => remove(index)}
+            aria-label={`Remove ${label} item ${index + 1}`}
+          >
             Remove
           </button>
         </div>
       ))}
       <div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={add}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={add} aria-label={`Add new ${label} item`}>
           + Add item
         </button>
       </div>
