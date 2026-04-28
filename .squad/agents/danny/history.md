@@ -39,3 +39,10 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 **Local-First as Differentiator** — No SaaS friction, no data export concerns, no procurement delays. Runs on already-licensed tools (VS Code, GitHub Copilot, Azure DevOps). This is defensible against cloud-first competitors in enterprise/government/compliance-heavy orgs.
 
 **Extensibility Roadmap** — Phase 1 (ADO, shipped) → Phase 2 (multi-platform, 6 months) → Phase 3 (plugin SDK, 12 months) → Phase 4 (team collaboration, 18 months). Clear signal that this is a long-term platform investment, not a prototype.
+
+### Node.js / Vite Compatibility Diagnosis (2026-04-28)
+
+Diagnosed root cause of webview-ui build failure and documented comprehensive decision. Found: Node 14.17.5 (EOL) incompatible with Vite 6.4.2 (requires Node 18+) and plugin-react 4.7.0 (requires Node 14.18+). Built compatibility matrix, assessed risk, and recommended Node 20 LTS upgrade as primary path with clear implementation steps and verification procedure.
+
+**Cross-team coordination:** Recommended Node upgrade while Linus implemented parallel downgrade workaround. Both paths now documented in decisions.md for strategic review.
+

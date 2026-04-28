@@ -75,3 +75,10 @@ Completed full project directory reorganization with file migrations and build c
 
 Git conflict resolution using `git checkout --theirs` for feature-first merge strategy. Applied to PR #19 Squad-Team branch when 4 conflicts arose during main rebase. Feature branch represents the desired state; resolved by keeping feature branch versions on all conflicts, achieving mergeable_state: clean.
 
+### Vite Downgrade for Node 14 Compatibility (2026-04-28)
+
+Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vite 6.4.2 → 3.2.11 and @vitejs/plugin-react 4.7.0 → 2.2.0 in webview-ui/package.json. Root cause: Vite 6 requires Node 18+ (uses `||=` logical assignment), plugin-react 4 requires Node 14.18+, but machine runs Node 14.17.5.
+
+**Execution:** Updated package.json, ran npm install, verified full `npm run build` passes (52 modules, 211.50 KiB JS, zero errors). Vite 3.2.11 is stable, widely used, and compatible with Node 12.2+. Non-breaking change; vite.config.ts and React 18 require no adjustments.
+
+**Cross-team coordination:** Danny recommended parallel Node upgrade path (Node 20 LTS). Both paths documented in decisions.md — downgrade provides immediate relief; upgrade is strategic longer-term path when Node environment can be updated.

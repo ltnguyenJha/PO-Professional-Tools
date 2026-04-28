@@ -107,6 +107,62 @@ Completed comprehensive project restructuring with four-layer organization:
 
 ---
 
+### Node.js Version Upgrade (2026-04-28)
+
+**Author:** Danny (Lead)  
+**Status:** Recommended  
+**Severity:** High — blocks webview-ui builds
+
+**Finding:** Root cause of build failure `SyntaxError: Unexpected token '||='`:
+1. Current Node.js: 14.17.5 (LTS ended April 2023)
+2. Current Vite: 6.4.2 requires Node 18.0.0+
+3. Current @vitejs/plugin-react: 4.7.0 requires Node 14.18.0+
+4. Logical assignment operators (`||=`) supported only in Node 14.18+
+
+Trapped in narrow gap: can't run Vite 6 (requires Node 18+), can't run plugin-react 4 (requires Node 14.18+).
+
+**Compatibility Matrix:**
+| Package | Version | Requires |
+|---------|---------|----------|
+| Node.js | 14.17.5 | — |
+| Vite | 6.4.2 | Node 18+ |
+| @vitejs/plugin-react | 4.7.0 | Node 14.18.0+ |
+| React | 18.3.1 | Node 12+ |
+
+**Recommendation:** Upgrade Node.js to 20.x LTS (stable, widely adopted, supported until April 2026). No package.json changes needed; all dependencies support Node 18+. Verifies builds: `npm run build` and `cd webview-ui && npm run build`.
+
+**Rationale:** Node 14 is EOL; no security patches. Node 20 includes significant performance improvements and is the current LTS baseline. Team compatibility ensures modern, well-maintained tool versions (Vite 6, React 18, TS 5.7). Risk: Low — routine infra change; no code changes needed.
+
+---
+
+### Vite Downgrade for Node 14.17.5 Compatibility (2026-04-28)
+
+**Author:** Linus (Backend Dev)  
+**Status:** Implemented ✅  
+
+**Problem:** Build failed with `SyntaxError: Unexpected token '||='` on Node 14.17.5 because:
+- Vite 6.4.2 requires Node 18+ (uses `||=` logical assignment operator)
+- @vitejs/plugin-react 4.4.1 requires Vite 4.2+, which needs Node 14.18+
+- Machine running Node 14.17.5 (older than required minimum)
+
+**Solution:** Downgraded to Node 14.17.5-compatible versions in `webview-ui/package.json`:
+- **Vite:** `^6.1.0` → `^3.2.11` (last 3.x release, supports Node 12.2+)
+- **@vitejs/plugin-react:** `^4.4.1` → `^2.2.0` (compatible with Vite 3)
+
+**Verification:**
+- ✅ Updated `webview-ui/package.json` devDependencies
+- ✅ Ran `npm install` — successfully installed Vite 3.2.11 and plugin-react 2.2.0
+- ✅ Tested `npm run build:webview` — passes (52 modules, 211.50 KiB JS output)
+- ✅ Tested full `npm run build` — passes (extension + webview)
+
+Vite version: 3.2.11 ✓ | Plugin version: 2.2.0 ✓ | Build output: 211.50 KiB JS | Exit code: 0
+
+**Notes:** vite.config.ts requires no changes; compatible with Vite 3. React 18 (requires Node 14.0+) unchanged. TypeScript 5.7.3 unchanged. Non-breaking CSS minifier warnings (cosmetic). Build now works on Node 14.17.5 without Node version upgrade.
+
+**Recommendation:** Accept this change. Vite 3 is stable and widely used. Project now builds on Node 14.17.x without requiring user environment changes. When Node 18+ adoption is required in future, revisit Vite 6 upgrade.
+
+---
+
 ## Conflict Resolution Protocol
 
 ### Feature Branch Wins Policy (2026-04-28)
