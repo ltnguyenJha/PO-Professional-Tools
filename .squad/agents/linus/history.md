@@ -71,3 +71,7 @@ Completed full project directory reorganization with file migrations and build c
 
 **Lasting Pattern:** When moving build artifacts, coordinate with package.json updates first (blocker), use git mv to preserve history, then verify full build + packaging cycle (npm run build && npm run package).
 
+### Git Conflict Resolution Strategy (2026-04-28)
+
+Git conflict resolution using `git checkout --theirs` for feature-first merge strategy. Applied to PR #19 Squad-Team branch when 4 conflicts arose during main rebase. Feature branch represents the desired state; resolved by keeping feature branch versions on all conflicts, achieving mergeable_state: clean.
+

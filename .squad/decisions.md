@@ -107,6 +107,21 @@ Completed comprehensive project restructuring with four-layer organization:
 
 ---
 
+## Conflict Resolution Protocol
+
+### Feature Branch Wins Policy (2026-04-28)
+
+**By:** ltnguyen (via Copilot)  
+**Status:** Captured  
+
+**Directive:** When merge conflicts occur on feature branch PRs, always resolve by keeping the version from the feature branch (not main).
+
+**Why:** Feature branch has the latest changes and intent from the current work. Main branch is stale. In case of doubt, the feature branch represents the desired state.
+
+**Application:** All agents should follow this when resolving merge conflicts during PR preparation or rebase cycles.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
