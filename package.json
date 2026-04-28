@@ -38,9 +38,9 @@
   },
   "scripts": {
     "build": "npm run build:extension && npm run build:webview",
-    "build:extension": "node esbuild.js",
+    "build:extension": "node build/esbuild.config.js",
     "build:webview": "npm --prefix webview-ui run build",
-    "watch": "node esbuild.js --watch",
+    "watch": "node build/esbuild.config.js --watch",
     "watch:webview": "npm --prefix webview-ui run dev",
     "lint": "eslint src --ext .ts",
     "package": "npx @vscode/vsce package"

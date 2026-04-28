@@ -15,7 +15,7 @@
 - `DashboardPanel.ts` — message router between webview and services
 - `CopilotService.ts` — all AI model calls and Copilot Chat integrations
 - Shared message types: `src/shared/messages.ts`
-- Extension build: `esbuild.js`
+- Extension build: `build/esbuild.config.js`
 
 ## How I Work
 
@@ -44,7 +44,7 @@
 
 Use `TEAM_ROOT` from spawn prompt. Read `.squad/decisions.md` before starting.
 
-When adding new `WebviewRequest` types: update BOTH `src/shared/messages.ts` AND `webview-ui/src/types.ts`. Build verification: `node esbuild.js && tsc --noEmit` in repo root.
+When adding new `WebviewRequest` types: update BOTH `src/shared/messages.ts` AND `webview-ui/src/types.ts`. Build verification: `node build/esbuild.config.js && tsc --noEmit` in repo root.
 
 ## Voice
 
