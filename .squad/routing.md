@@ -39,3 +39,31 @@ How to decide who handles what.
 5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
 6. **Anticipate downstream work.** If a feature is being built, spawn Livingston to write test cases from requirements simultaneously.
 7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Danny handles all `squad` (base label) triage.
+
+## Branch & PR Workflow (Enforced)
+
+**🚫 No direct pushes to `main` branch. All work must go through feature branches and pull requests.**
+
+1. **Feature branches required**: All development uses feature branches following naming convention:
+   - `feature/{brief-description}` — new features
+   - `fix/{brief-description}` — bug fixes
+   - `refactor/{brief-description}` — refactoring
+   - `squad/{issue-number}-{slug}` — issue-based work
+
+2. **Pull Request mandatory**: Every feature branch must have a PR before merge to main:
+   - PR title must reference issue number if applicable (e.g., `Fix #42: Resolve auth timeout`)
+   - PR description must explain the change
+   - At minimum one code review required (typically Danny for architectural review)
+
+3. **PR Best Practices**:
+   - Commit messages follow: `{type}: {description}` (e.g., `feat: add OAuth support`)
+   - All tests must pass before merge (Livingston verifies)
+   - Build must succeed (validated in CI/CD)
+   - No merge commits — squash or rebase before merging
+
+4. **Main branch protection**:
+   - GitHub branch protection rules should enforce: require PR review, require status checks to pass
+   - Deletions of main branch not allowed
+   - Force pushes to main not allowed
+
+5. **Merge authority**: Only Danny (Lead) or approved maintainers may merge PRs to main

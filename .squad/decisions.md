@@ -151,3 +151,55 @@ Completed comprehensive project restructuring with four-layer organization:
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+---
+
+## Development & Pull Request Standards (2026-04-28)
+
+**By:** ltnguyen (via Copilot)  
+**Status:** Adopted
+
+**Policy: No Direct Pushes to Main — Feature Branch Workflow Mandatory**
+
+All development must follow a strict branch protection model:
+
+### 1. Feature Branch Requirement
+- **No direct commits to `main`.** All work uses feature branches.
+- **Naming convention:**
+  - `feature/{description}` — new features
+  - `fix/{description}` — bug fixes  
+  - `refactor/{description}` — refactoring
+  - `squad/{issue-number}-{slug}` — issue-based team work
+
+### 2. Pull Request Mandatory
+- Every feature branch must have a PR before merge to main
+- PR title must reference issue if applicable: `Fix #42: Resolve auth timeout`
+- PR description explains the change in business terms
+- Minimum one code review required (Danny for architectural review)
+
+### 3. PR Best Practices
+- **Commit messages:** Follow `{type}: {description}` format (e.g., `feat: add OAuth support`, `fix: prevent null reference`)
+- **All tests passing:** Livingston verifies test suite before merge
+- **Build success:** CI/CD checks must pass (validated before merge)
+- **No merge commits:** Squash or rebase before final merge to keep history clean
+- **Code quality:** Follow existing patterns in codebase; Livingston checks edge cases
+
+### 4. Main Branch Protection (GitHub Settings)
+- Require pull request reviews before merge
+- Require status checks to pass (build, tests, linting)
+- Protect from accidental deletion
+- Disallow force pushes to main
+- Dismiss stale PR approvals on new pushes
+
+### 5. Merge Authority
+- Only Danny (Lead) or designated maintainers may merge PRs to main
+- Merge after: PR approved + all checks pass + tests verified
+
+### 6. Issue Tracking
+- Every PR should reference an issue: `Fixes #N` or `Resolves #N`
+- Ralph monitors backlog and assignment status
+- Danny triages new issues and assigns to appropriate team members
+
+**Rationale:** Enforcing feature branches + PRs protects main branch integrity, ensures code review before production changes, maintains audit trail of all changes, and enables rollback capability. This is standard practice in professional software teams and enterprise development.
+
+---
