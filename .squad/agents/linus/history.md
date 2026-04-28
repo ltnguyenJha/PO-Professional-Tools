@@ -43,3 +43,28 @@
 - Bug report workflow complete: UX → message send → service handling → AI generation → result display
 - Repo context improves LM accuracy; model fallback chain ensures org compatibility
 
+### Project Reorganization: Build Config Migration (2026-04-28)
+
+Completed full project directory reorganization with file migrations and build configuration updates. 
+
+**Directories Created:** `build/vscode/`, `deploy/`, `dev/`
+
+**Files Moved (git mv — history preserved):**
+- `esbuild.js` → `build/esbuild.config.js`
+- `.vscodeignore` → `build/vscode/.vscodeignore`
+- `BUG_SECTION_IMPLEMENTATION.md` → `dev/BUG_IMPLEMENTATION_NOTES.md`
+- `docs/PLAN.md` → `dev/PROJECT_PLAN.md`
+
+**Configuration Updates:**
+- `package.json`: Updated build scripts from `"node esbuild.js"` to `"node build/esbuild.config.js"` and watch script
+- `.gitignore`: Added `build/releases/` for VSIX packaging
+- Squad docs: Updated charter.md and history.md with new build paths
+
+**Verification:**
+- ✅ Build passes: `npm run build:extension` successful
+- ✅ Paths verified: esbuild.config.js uses project-relative paths (src/, dist/)
+- ✅ No broken references: All build commands functional
+- ✅ Git history preserved via `git mv`
+
+**Lasting Pattern:** When moving build artifacts, coordinate with package.json updates first (blocker), use git mv to preserve history, then verify full build + packaging cycle (npm run build && npm run package).
+
