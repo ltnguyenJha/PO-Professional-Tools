@@ -814,6 +814,13 @@ export class CopilotService {
         `HOW (user flow / interaction):`,
         wizard.how.trim(),
         '',
+        ...(wizard.businessRulesAndAssumptions?.trim() 
+          ? [
+              `BUSINESS RULES & ASSUMPTIONS:`,
+              wizard.businessRulesAndAssumptions.trim(),
+              ''
+            ]
+          : []),
         `USER STORY:`,
         userStory,
         '',
@@ -899,6 +906,13 @@ export class CopilotService {
       'HOW (user flow / interaction):',
       wizard.how.trim(),
       '',
+      ...(wizard.businessRulesAndAssumptions?.trim()
+        ? [
+            'BUSINESS RULES & ASSUMPTIONS:',
+            wizard.businessRulesAndAssumptions.trim(),
+            ''
+          ]
+        : []),
       'USER STORY:',
       userStory,
       '',
