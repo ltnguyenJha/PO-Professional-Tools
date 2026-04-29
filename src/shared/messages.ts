@@ -48,6 +48,17 @@ export interface PbiDraft {
   updatedAt?: string;
   /** Pending uploads on next Push / Update in ADO; cleared after successful sync. */
   attachments?: PbiAttachment[];
+  // Bug-specific fields (optional, used when workItemType is 'Bug')
+  bugRootCause?: string;
+  bugExpectedBehavior?: string;
+  bugActualBehavior?: string;
+  bugReproductionSteps?: string[];
+  // Technical considerations (optional)
+  technicalConsiderations?: TechnicalConsiderations;
+  // User story statement (optional)
+  userStoryStatement?: string;
+  // Business rules and assumptions (optional)
+  businessRulesAndAssumptions?: string;
 }
 
 export interface AdoSettings {
@@ -85,6 +96,14 @@ export interface AiSuggestion {
   acceptanceCriteria?: string[];
   testScenarios?: string[];
   investSummary?: string;
+  userStoryStatement?: string;
+  businessRulesAndAssumptions?: string;
+}
+
+export interface TechnicalConsiderations {
+  technicalDetails: string;
+  scopedFiles: string[];
+  architectureNotes: string;
 }
 
 export interface BugReportInput {
@@ -109,6 +128,7 @@ export interface InvestWizardInput {
   persona: string;
   want: string;
   benefit: string;
+  businessRulesAndAssumptions?: string;
 }
 
 export interface BulkChildInput {
@@ -163,6 +183,7 @@ export type WebviewRequest =
     }
   | { type: 'REFINE_PBI_WITH_AI'; payload: { draftId: string; instruction?: string } }
   | { type: 'GENERATE_FULL_STORY_AI'; payload: { draftId: string; seedText?: string } }
+  | { type: 'GENERATE_TECHNICAL_CONSIDERATIONS'; payload: { draftId: string } }
   | {
       type: 'OPEN_IN_COPILOT_CHAT';
       payload: {
@@ -189,7 +210,10 @@ export type WebviewRequest =
       payload: { draftId: string; wizard: InvestWizardInput };
     }
   | { type: 'GENERATE_BUG_REPORT'; payload: BugReportInput }
-  | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput };
+  | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput }
+  | { type: 'WIZARD_DRAFT_LOAD'; payload: { draftId: string } }
+  | { type: 'WIZARD_STEP_CHANGE'; payload: { draftId: string; targetStep: number } }
+  | { type: 'WIZARD_DRAFT_SAVE'; payload: { draftId: string; partialDraft: Partial<PbiDraft>; currentStep: number } };
 
 export type AdoProgressScope = 'single' | 'bulk' | 'project';
 
@@ -211,4 +235,6 @@ export type ExtensionEvent =
   | { type: 'AI_BREAKDOWN_READY'; payload: { prefix: string; children: BulkChildInput[] } }
   | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } }
   | { type: 'LOADING'; payload: { message: string; busy: boolean } }
-  | { type: 'AI_SUGGESTION'; payload: { suggestion: AiSuggestion } };
+  | { type: 'AI_SUGGESTION'; payload: { suggestion: AiSuggestion } }
+  | { type: 'WIZARD_DRAFT_LOADED'; payload: { draft: PbiDraft; currentStep: number } }
+  | { type: 'WIZARD_STEP_CHANGED'; payload: { currentStep: number; draft: PbiDraft } };

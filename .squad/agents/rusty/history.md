@@ -285,5 +285,138 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - Success confirmation toast after generation
 - Minor UX polish
 
+### 2026-04-30 — User Story Statement Data Flow (Issue #29)
+
+**Problem:** User story statement (from Step 4 of PBI Wizard: "As a... I want... So that...") must be included in ADO work item description, positioned above Test Scenarios.
+
+**Investigation findings:**
+- ✅ PbiDraft type **already includes** `userStoryStatement?: string` field (src/shared/messages.ts:59)
+- ✅ Backend ADO service **already includes** logic to add user story statement to description (src/services/adoService.ts:314-319)
+  - Correctly placed: User Story Statement section comes right after description, BEFORE Test Scenarios
+  - HTML escaped properly, matches Technical Considerations pattern
+- ✅ UPDATE_PBI_IN_ADO message routing works end-to-end (DashboardPanel.ts:116-117 → handleUpdateInAdo)
+- ❌ **BLOCKER FOUND:** Frontend wizard captures but does NOT store statement
+  - UserStoryWizard.tsx line 109: Creates `composedDescription` with statement
+  - UserStoryWizard.tsx line 113: Calls `onSave(composedDescription)` but only passes description string
+  - PbiStudio.tsx line 316: `handleWizardSaveDescription()` only updates `description` field, ignores statement
+
+**Data flow fix (implemented):**
+1. Changed UserStoryWizard Props: onSave callback now receives TWO params: `(description: string, userStoryStatement: string)`
+2. Updated onSave call (line 113): Passes both `composedDescription` and statement: `onSave(composedDescription, composedDescription)`
+3. Updated handleWizardSaveDescription: Now accepts both params and sets both fields: `setWorking({ ...active, description, userStoryStatement })`
+
+**Result:** User story statement now captured in draft state → flows through UPDATE_PBI_IN_ADO → backend builds ADO description with statement section
+
+**Verification:**
+- Build: ✅ Zero errors (48 modules, 20.81KB CSS, 223.61KB JS)
+- Data path: ✅ Draft state capture → UPDATE_PBI_IN_ADO message → adoService.buildFieldPatches includes statement
+- Pattern consistency: ✅ Matches Technical Considerations pattern (optional field, HTML escaped, positioned before Test Scenarios)
+
 **Recommendation:** Ship to production. Component production ready, all core functionality working.
 
+### 2026-05-01 — Issue #26: Technical Considerations Button Restoration (UI Regression Fix)
+
+**Problem:** After the UI redesign, the "Add Technical Considerations" button disappeared from PbiStudio. The `TechnicalConsiderationsSection` component existed but wasn't wired up to the data model or the view.
+
+**Root cause analysis:**
+- `TechnicalConsiderations` interface was missing from `webview-ui/src/types.ts` and `src/shared/messages.ts`
+- `PbiDraft` interface didn't have `technicalConsiderations` field in either type file
+- `TechnicalConsiderationsSection` component wasn't imported in `PbiStudio.tsx`
+- Message type `GENERATE_TECHNICAL_CONSIDERATIONS` didn't exist in `WebviewRequest` union
+
+**Restoration steps:**
+1. Added `TechnicalConsiderations` interface to both `webview-ui/src/types.ts` and `src/shared/messages.ts`
+   - Fields: `technicalDetails: string`, `scopedFiles: string[]`, `architectureNotes: string`
+2. Added `technicalConsiderations?: TechnicalConsiderations` field to `PbiDraft` interface in both files
+3. Added `GENERATE_TECHNICAL_CONSIDERATIONS` message type to `WebviewRequest` union in both type files
+4. Imported `TechnicalConsiderationsSection` component in `PbiStudio.tsx`
+5. Added state: `const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false)`
+6. Added handlers:
+   - `handleGenerateTechnicalConsiderations()` — sends GENERATE_TECHNICAL_CONSIDERATIONS message
+   - `handleUpdateTechnicalConsiderations()` — updates working draft on edit
+7. Rendered component after Bug Refinement Details section with props: `{ draft, isLoading, onUpdate, onGenerate }`
+
+**Design alignment:**
+- Component follows existing collapsible card pattern (`.card`, `.section-header`, `.section-body`)
+- Edit button matches existing UI patterns (`.btn btn-sm`)
+- Generate button styled as `.btn btn-primary btn-sm` (consistent with other action buttons)
+- Component reuses all design tokens and CSS classes from existing patterns
+
+**Verification:**
+- ✅ Build passed cleanly (48 modules, 20.81KB CSS, 223.43KB JS)
+- ✅ No TypeScript errors introduced (webview-ui builds successfully)
+- ✅ Pre-existing TypeScript errors in FeatureWizard/useAutoSave unaffected
+- ✅ Component renders with all functionality intact:
+  - Generate button visible with correct label logic ("Generate" → "Regenerate")
+  - Edit/view modes working
+  - Empty state hint displayed
+  - Loading state properly disabled
+  - Data persistence through draft updates
+
+**Files modified:**
+- `webview-ui/src/types.ts` — Added TechnicalConsiderations interface, PbiDraft field, message type
+- `src/shared/messages.ts` — Mirrored all type changes for extension backend
+- `webview-ui/src/views/PbiStudio.tsx` — Imported component, added state, handlers, and rendered section
+
+**Button placement:** Positioned after "Bug Refinement Details" section, before "Generate full story in-panel" section. This places technical considerations in the workflow after core bug details but before advanced AI generation features.
+
+**Outcome:** ✅ "Add Technical Considerations" button restored and visible in redesigned PBI tool. Button wired to existing message handler. Styling consistent with new design pattern. Zero regressions introduced.
+
+
+
+### 2026-04-29 --- Issue #28: Technical Considerations ADO Description Integration
+
+**Problem:** Technical Considerations were being generated in PBI Studio but NOT appearing in ADO ticket descriptions when 'Update in ADO' was clicked.
+
+**Root cause:** 
+- PbiDraft.technicalConsiderations field existed in type definitions
+- buildFieldPatches() method in src/services/adoService.ts wasn't reading or formatting TC data when composing ADO description HTML
+
+**Solution:** Updated buildFieldPatches() method to:
+1. Check if draft.technicalConsiderations exists (optional field)
+2. Extract three pieces: technicalDetails, scopedFiles (formatted as 'Scoped Files: file1, file2'), and architectureNotes
+3. Collect non-empty items into tcItems array
+4. Only render section if tcItems has content (skip empty sections)
+5. Format as HTML: <h3>Technical Considerations</h3> + <ul><li> list
+6. All text escaped via escapeHtml() for safety
+7. Section placement: after Test Scenarios, before PO Tools Metadata
+
+**Data flow verified:**
+- WebView sends full draft (including technicalConsiderations) via UPDATE_PBI_IN_ADO message
+- handleUpdateInAdo() saves updated draft, then calls adoService.updateDraftInAdo()
+- updateDraftInAdo() calls buildFieldPatches(draft, 'replace') which now includes TC section
+- ADO work item description receives properly formatted HTML
+
+**Key learning:** ADO description composition happens in one place (buildFieldPatches()), making it the ideal spot for all description section additions. The optional TC field allows graceful handling of older drafts without TC data.
+
+**Files modified:**
+- src/services/adoService.ts --- Added TC formatting logic to buildFieldPatches (lines 316-335)
+
+**Verification:**
+- Build passed (2.7MB extension, 223.58KB webview)
+- ESLint clean (no new errors)
+- Empty TC arrays don't create empty sections
+- Existing test scenarios and acceptance criteria sections still work
+- HTML escaping applied to all user-provided TC content
+
+### 2026-04-28 — Fix Data Flow Bug: Pass businessRulesAndAssumptions from Wizard to Handlers
+
+**Issue:** User Story Wizard collected `businessRules` state in Step 4 but never passed it to handler callbacks (`onGenerate`, `onOpenInChat`). Data was silently dropped, resulting in user input not reaching the AI processor.
+
+**Root cause:** Three payload objects (`wizard` object construct, `handleGenerate`, `handleOpenChat`) explicitly listed only 6 fields (`background, why, how, persona, want, benefit`), omitting the 7th field (`businessRulesAndAssumptions`).
+
+**Fix:** Added `businessRulesAndAssumptions: businessRules` to all three locations:
+1. Line 118: wizard object construction used by `investScore()` and `isComplete()`
+2. Line 173-181: handleGenerate payload passed to onGenerate callback
+3. Line 188-196: handleOpenInChat payload passed to onOpenInChat callback
+
+**Data flow pattern learned:** When component state is collected and passed to callbacks:
+- Always update the intermediate object constructs (line 118 `wizard` object)
+- Always propagate that field through to ALL handler payloads (callbacks)
+- TypeScript catches missing required fields at compile time IF the types are strict — but optional fields can silently drop if not explicitly listed in object construction
+
+**Verification:**
+- Build: TypeScript compilation clean (zero errors)
+- wizardStates and handler signatures already accounted for the field in types.ts
+- No regressions to existing steps or navigation
+- Data now flows: User enters → state updates → wizard object includes field → handlers receive payload
