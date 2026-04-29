@@ -308,7 +308,7 @@ export class AdoService {
       .map((item) => `<li>${this.escapeHtml(item)}</li>`)
       .join('')}</ul>`;
 
-    const descriptionParts = [`<p>${this.escapeHtml(draft.description)}</p>`];
+    const descriptionParts = [this.formatDescriptionAsHtml(draft.description)];
     if (draft.testScenarios.length > 0) {
       descriptionParts.push('<h3>Test Scenarios</h3>', testScenariosHtml);
     }
@@ -345,6 +345,19 @@ export class AdoService {
     entries.push({ op, path: '/fields/System.IterationPath', value: iterationPath });
 
     return entries;
+  }
+
+  /** Converts plain-text description to ADO-compatible HTML.
+   *  Blank lines become paragraph breaks; single newlines become <br>. */
+  private formatDescriptionAsHtml(description: string): string {
+    const trimmed = description.trim();
+    if (!trimmed) {
+      return '<p></p>';
+    }
+    return trimmed
+      .split(/\n{2,}/)
+      .map((para) => `<p>${this.escapeHtml(para.trim()).replace(/\n/g, '<br>')}</p>`)
+      .join('');
   }
 
   private escapeHtml(value: string): string {

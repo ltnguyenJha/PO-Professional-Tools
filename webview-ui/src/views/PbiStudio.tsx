@@ -74,6 +74,9 @@ export function PbiStudio({
   });
   const lastClipboardApplyHash = useRef<string>('');
   const fileAttachInputRef = useRef<HTMLInputElement>(null);
+  /** Tracks the latest "As a…, I want…, so that…" sentence from the User Story Wizard.
+   *  Updated synchronously (no re-render cycle) so it is always current when Push/Update fires. */
+  const wizardStoryRef = useRef<string>('');
   /** Extra context for in-panel full-story generation (optional; falls back to Description). */
   const [fullStorySeed, setFullStorySeed] = useState('');
 
@@ -150,6 +153,7 @@ export function PbiStudio({
     setPastedAi('');
     setFullStorySeed('');
     lastClipboardApplyHash.current = '';
+    wizardStoryRef.current = '';
   }, [activeId, pbiDrafts, linkTargets]);
 
   // Reset pbi type selector to 'feature' whenever the selected draft changes
@@ -289,13 +293,19 @@ export function PbiStudio({
 
   const pushOne = (): void => {
     if (active) {
-      send({ type: 'PUSH_PBI_TO_ADO', payload: { draftId: active.id, draft: active } });
+      // Use the wizard story as fallback when description is empty — checked synchronously
+      // via ref to avoid any async useEffect race condition.
+      const effectiveDesc = active.description.trim() || wizardStoryRef.current;
+      const draft = effectiveDesc !== active.description ? { ...active, description: effectiveDesc } : active;
+      send({ type: 'PUSH_PBI_TO_ADO', payload: { draftId: draft.id, draft } });
     }
   };
 
   const updateInAdo = (): void => {
     if (active) {
-      send({ type: 'UPDATE_PBI_IN_ADO', payload: { draftId: active.id, draft: active } });
+      const effectiveDesc = active.description.trim() || wizardStoryRef.current;
+      const draft = effectiveDesc !== active.description ? { ...active, description: effectiveDesc } : active;
+      send({ type: 'UPDATE_PBI_IN_ADO', payload: { draftId: draft.id, draft } });
     }
   };
 
@@ -866,9 +876,11 @@ export function PbiStudio({
                   onGenerate={handleWizardGenerate}
                   onOpenInChat={handleWizardOpenInChat}
                   onUserStoryChange={(story) => {
-                    if (active && !active.description.trim()) {
-                      setWorking({ ...active, description: story });
-                    }
+                    wizardStoryRef.current = story;
+                    setWorking((prev) => {
+                      if (!prev || prev.description.trim()) return prev;
+                      return { ...prev, description: story };
+                    });
                   }}
                 />
               ) : (
