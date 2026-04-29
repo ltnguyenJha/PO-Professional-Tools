@@ -309,9 +309,48 @@ export class AdoService {
       .join('')}</ul>`;
 
     const descriptionParts = [`<p>${this.escapeHtml(draft.description)}</p>`];
+    
+    // Add User Story Statement section if present
+    if (draft.userStoryStatement) {
+      descriptionParts.push(
+        '<h3>User Story Statement</h3>',
+        `<p>${this.escapeHtml(draft.userStoryStatement)}</p>`
+      );
+    }
+    
+    // Add Business Rules and Assumptions section (immediately after user story)
+    const businessRules = draft.businessRulesAndAssumptions?.trim() || '';
+    const businessRulesValue = businessRules.length > 0 ? businessRules : 'NA';
+    descriptionParts.push(
+      '<h3>Business Rules and Assumptions</h3>',
+      `<p>${this.escapeHtml(businessRulesValue)}</p>`
+    );
+    
     if (draft.testScenarios.length > 0) {
       descriptionParts.push('<h3>Test Scenarios</h3>', testScenariosHtml);
     }
+    
+    // Add Technical Considerations section if present
+    if (draft.technicalConsiderations) {
+      const tcItems: string[] = [];
+      if (draft.technicalConsiderations.technicalDetails) {
+        tcItems.push(draft.technicalConsiderations.technicalDetails);
+      }
+      if (draft.technicalConsiderations.scopedFiles && draft.technicalConsiderations.scopedFiles.length > 0) {
+        tcItems.push(`Scoped Files: ${draft.technicalConsiderations.scopedFiles.join(', ')}`);
+      }
+      if (draft.technicalConsiderations.architectureNotes) {
+        tcItems.push(draft.technicalConsiderations.architectureNotes);
+      }
+      
+      if (tcItems.length > 0) {
+        const tcHtml = `<ul>${tcItems
+          .map((item) => `<li>${this.escapeHtml(item)}</li>`)
+          .join('')}</ul>`;
+        descriptionParts.push('<h3>Technical Considerations</h3>', tcHtml);
+      }
+    }
+    
     descriptionParts.push(
       '<h3>PO Tools Metadata</h3>',
       `<p>Project Id: ${this.escapeHtml(draft.projectId)}</p>`

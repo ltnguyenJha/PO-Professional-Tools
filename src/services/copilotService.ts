@@ -67,11 +67,15 @@ const FULL_STORY_SYSTEM_PROMPT = [
   'You are a senior Product Owner and business analyst writing Azure DevOps backlog items.',
   'Output must be valid JSON only (no markdown fences, no commentary before or after).',
   '',
-  'Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
+  'Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[], "userStoryStatement"?: string, "businessRulesAndAssumptions"?: string }',
   '',
   'TITLE: Action-oriented, under 120 characters.',
   '',
   'DESCRIPTION: 2–4 short paragraphs. User value first; scope and boundaries clear.',
+  '',
+  'USER STORY STATEMENT (optional): If the INVEST wizard provided a structured story, reflect the core user value back in 1-2 sentences.',
+  '',
+  'BUSINESS RULES & ASSUMPTIONS (optional): If provided in the INVEST input, include critical constraints, preconditions, or domain rules that bound this work.',
   '',
   'ACCEPTANCE CRITERIA (quality bar):',
   '- Exactly 4 to 7 items.',
@@ -588,6 +592,12 @@ export class CopilotService {
         .filter((item: unknown): item is string => typeof item === 'string')
         .map((item: string) => item.trim())
         .filter((item: string) => item.length > 0);
+    }
+    if (typeof parsed.userStoryStatement === 'string' && parsed.userStoryStatement.trim().length > 0) {
+      suggestion.userStoryStatement = parsed.userStoryStatement.trim();
+    }
+    if (typeof parsed.businessRulesAndAssumptions === 'string' && parsed.businessRulesAndAssumptions.trim().length > 0) {
+      suggestion.businessRulesAndAssumptions = parsed.businessRulesAndAssumptions.trim();
     }
     return suggestion;
   }

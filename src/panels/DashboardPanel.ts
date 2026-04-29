@@ -131,6 +131,9 @@ export class DashboardPanel {
       case 'GENERATE_FULL_STORY_AI':
         await this.handleGenerateFullStory(message.payload.draftId, message.payload.seedText);
         return;
+      case 'GENERATE_TECHNICAL_CONSIDERATIONS':
+        await this.handleGenerateTechnicalConsiderations(message.payload.draftId);
+        return;
       case 'OPEN_IN_COPILOT_CHAT':
         await this.handleOpenInChat(message.payload);
         return;
@@ -178,6 +181,19 @@ export class DashboardPanel {
       case 'SET_THEME':
         await this.settingsService.setTheme(message.payload.theme);
         await this.postState();
+        return;
+      case 'WIZARD_DRAFT_LOAD':
+        await this.handleWizardDraftLoad(message.payload.draftId);
+        return;
+      case 'WIZARD_STEP_CHANGE':
+        await this.handleWizardStepChange(message.payload.draftId, message.payload.targetStep);
+        return;
+      case 'WIZARD_DRAFT_SAVE':
+        await this.handleWizardDraftSave(
+          message.payload.draftId,
+          message.payload.partialDraft,
+          message.payload.currentStep
+        );
         return;
       default:
         return;
@@ -638,6 +654,43 @@ export class DashboardPanel {
     }
   }
 
+  private async handleGenerateTechnicalConsiderations(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Scanning codebase & generating technical considerations...', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const considerations = await this.copilotService.generateTechnicalConsiderations(
+        draft,
+        token,
+        { linkedProjectContext }
+      );
+      const updated: PbiDraft = {
+        ...draft,
+        technicalConsiderations: considerations,
+        updatedAt: new Date().toISOString()
+      };
+      await this.draftService.upsert(this.context.globalState, updated);
+      this.postToast('success', 'Technical considerations generated and saved.');
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+    await this.postState();
+  }
+
   private async handleOpenInChat(payload: {
     draftId: string;
     mode?: 'refine' | 'newStory';
@@ -754,6 +807,8 @@ export class DashboardPanel {
       description?: string;
       acceptanceCriteria?: string[];
       testScenarios?: string[];
+      userStoryStatement?: string;
+      businessRulesAndAssumptions?: string;
     },
     options?: { skipToast?: boolean }
   ): Promise<void> {
@@ -767,7 +822,9 @@ export class DashboardPanel {
       title: suggestion.title?.trim() ? suggestion.title.trim() : draft.title,
       description: suggestion.description ?? draft.description,
       acceptanceCriteria: suggestion.acceptanceCriteria ?? draft.acceptanceCriteria,
-      testScenarios: suggestion.testScenarios ?? draft.testScenarios
+      testScenarios: suggestion.testScenarios ?? draft.testScenarios,
+      userStoryStatement: suggestion.userStoryStatement ?? draft.userStoryStatement,
+      businessRulesAndAssumptions: suggestion.businessRulesAndAssumptions ?? draft.businessRulesAndAssumptions
     };
     await this.draftService.upsert(this.context.globalState, updated);
     if (!options?.skipToast) {
@@ -973,6 +1030,65 @@ export class DashboardPanel {
       );
     }
     await this.postState();
+  }
+
+  private async handleWizardDraftLoad(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    const currentStep = this.getWizardStep(draftId);
+    this.post({
+      type: 'WIZARD_DRAFT_LOADED',
+      payload: { draft, currentStep }
+    });
+  }
+
+  private async handleWizardStepChange(draftId: string, targetStep: number): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.setWizardStep(draftId, targetStep);
+    this.post({
+      type: 'WIZARD_STEP_CHANGED',
+      payload: { currentStep: targetStep, draft }
+    });
+  }
+
+  private async handleWizardDraftSave(
+    draftId: string,
+    partialDraft: Partial<PbiDraft>,
+    currentStep: number
+  ): Promise<void> {
+    const existingDraft = this.findDraft(draftId);
+    if (!existingDraft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    const mergedDraft = { ...existingDraft, ...partialDraft };
+    await this.draftService.upsert(this.context.globalState, mergedDraft);
+    this.setWizardStep(draftId, currentStep);
+    await this.postState();
+  }
+
+  private getWizardStep(draftId: string): number {
+    const wizardState = this.context.globalState.get<Record<string, number>>(
+      'poTools.wizardSteps',
+      {}
+    );
+    return wizardState[draftId] ?? 0;
+  }
+
+  private setWizardStep(draftId: string, step: number): void {
+    const wizardState = this.context.globalState.get<Record<string, number>>(
+      'poTools.wizardSteps',
+      {}
+    );
+    wizardState[draftId] = step;
+    void this.context.globalState.update('poTools.wizardSteps', wizardState);
   }
 
   private async requireAdoContext(): Promise<{ settings: AdoSettings; pat: string } | null> {

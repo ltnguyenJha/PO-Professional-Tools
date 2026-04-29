@@ -6,7 +6,7 @@ interface Props {
   aiBusy: boolean;
   onGenerate: (wizard: InvestWizardInput) => void;
   onOpenInChat: (wizard: InvestWizardInput) => void;
-  onSave?: (description: string, userStoryStatement: string) => void;
+  onSave?: (description: string, userStoryStatement: string, businessRulesAndAssumptions?: string) => void;
 }
 
 const STEPS = [
@@ -131,7 +131,7 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
 
   const saveDescription = (): void => {
     if (complete && onSave) {
-      onSave(composedDescription, composedDescription);
+      onSave(composedDescription, composedDescription, businessRules.trim() || undefined);
     }
   };
 
