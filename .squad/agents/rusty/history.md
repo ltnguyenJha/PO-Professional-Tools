@@ -141,3 +141,149 @@
 
 **Rationale:** Aligns with product vision roadmap (Epics → Features → User Stories). "Feature Creation" better communicates the tool's purpose in the overall hierarchy.
 
+### 2026-04-29 — Technical Considerations Section Component Design (Issue #20)
+
+**PBI Studio section patterns observed:**
+- Collapsible sections use `.card` + `.section-header` (click to toggle) + `.section-body` (smooth max-height 220ms transition, max-height 9999px open / 0 collapsed)
+- Header layout: `display: flex; justify-content: space-between; align-items: center`. Action buttons inside a nested `<div onClick={e => e.stopPropagation()}>` to prevent accidental collapse
+- Chevron indicator: `.section-chevron` rotates 90° (0° when open, -90° when collapsed) via CSS transform + var(--transition)
+- Edit/view toggle pattern: Single "Edit" button that becomes "Done", swaps rendering mode entirely
+- Textarea fields inherit `.field textarea` (min-height 90px, border-strong 1px, padding 9px 12px, focus-visible accent + focus-ring)
+- Hints use `.hint` class (small muted text, secondary semantic meaning)
+- Card body content uses `display: flex; flex-direction: column; gap: var(--space-md)` — 12px gaps between logical sections
+
+**Design decision for editable fields:**
+- Three independent textarea fields (not a single monolithic text block) to separate concerns: technical details, code scope, architecture guidance
+- Edit mode renders textareas with bold labels + subtle hints underneath each label (explaining what goes in that field)
+- View mode renders three separate `<div>` blocks with `<h4>` headings + formatted text (monospace for code paths, regular for prose)
+- Empty state shows hint: "No technical considerations yet. Click Edit to add, or generate with AI."
+- Loading state shows spinner + text during AI generation
+
+**Component API structure:**
+```
+TechnicalConsiderationsSection(props) {
+  props: { draft, isLoading?, onUpdate? }
+  state: { isOpen, isEditing }
+  data: { keyDetails, codeAreas, architectureNotes } — nested on draft.technicalDetails
+  callbacks: onUpdate(updatedDraft) when field changes, onUpdate(draft) sent to PbiStudio on Save
+}
+```
+
+**CSS styling approach:**
+- Reuses all existing design tokens (--accent, --accent-ink, --ink-muted, --space-md, --transition, var(--mono) for monospace)
+- No new CSS classes needed — component uses existing patterns: `.card`, `.section-header`, `.section-body`, `.btn btn-sm`, `.field textarea`, `.hint`
+- Loading spinner animation: future enhancement (can use simple CSS spinner or loading bar pattern already in codebase)
+- Monospace code paths use `font-family: var(--mono)` (already defined in styles.css)
+- All text blocks inherit `line-height: 1.5` for readability
+
+**Integration contract:**
+- Data stored on PbiDraft under optional `technicalDetails?: { keyDetails, codeAreas, architectureNotes }`
+- Backend (Linus) will implement `GENERATE_TECH_CONSIDERATIONS` message type → AI generates all three fields → posts `AI_SUGGESTION` event with technicalDetails
+- Frontend merges suggestion into working draft; PO can edit/refine before Save
+- No new styling required — component fits seamlessly into existing PBI Studio card architecture
+
+### 2026-04-30 — Data Model Validation: Technical Considerations (Issue #20 Follow-up)
+
+**Validation findings:**
+- ✅ Component exists and implements three-field structure (keyDetails, codeAreas, architectureNotes)
+- ✅ Message types exist (`GENERATE_TECHNICAL_CONSIDERATIONS`, `TECHNICAL_CONSIDERATIONS_READY`)
+- ❌ **Data model mismatch:** Backend uses `TechnicalConsiderations { technicalDetails, scopedFiles[], architectureNotes }` vs Component expects `{ keyDetails, codeAreas, architectureNotes }`
+- ❌ **Missing PbiDraft field:** Neither type file defines `technicalConsiderations` on PbiDraft interface
+- ❌ **Not integrated:** Component not imported or rendered in PbiStudio.tsx
+- ❌ **Wrong field access:** Component references `(draft as any).technicalDetails` which doesn't exist
+
+**Required fixes (coordinated with Linus):**
+1. Add `technicalConsiderations?: { technicalDetails, scopedFiles[], architectureNotes }` to PbiDraft in both type files
+2. Align field names between backend and frontend (backend names recommended)
+3. Update component to match agreed schema: `technicalDetails` (string), `scopedFiles` (string[]), `architectureNotes` (string)
+4. Integrate component into PbiStudio after test scenarios section
+5. Handle `TECHNICAL_CONSIDERATIONS_READY` event in App.tsx
+
+**Placement confirmed:** After test scenarios, before utility sections (Generate Full Story, etc.)
+
+**Validation report:** `.squad/decisions/inbox/rusty-datamodel-validation.md`
+
+### 2026-04-30 — Component Integration Complete: scopedFiles[] Array Support
+
+**Integration tasks completed:**
+- Component now accepts `scopedFiles` as string[] (matching backend schema exactly)
+- Updated data model in `webview-ui/src/types.ts`: Added `TechnicalConsiderations` interface and `technicalConsiderations` field on `PbiDraft`
+- Component wired into PbiStudio.tsx after test scenarios section with proper props flow
+- Added `TECHNICAL_CONSIDERATIONS_READY` event handler in App.tsx to update state
+- View mode renders scopedFiles as bullet list with monospace font (optimal readability for file paths)
+- Edit mode accepts multi-line or comma-separated file path input, converts to string[] array automatically
+- Build passes with no TypeScript errors (48 modules, 20.81KB CSS, 223.23KB JS)
+
+**Files modified:**
+- `webview-ui/src/types.ts` — TechnicalConsiderations interface, PbiDraft field, ExtensionEvent type
+- `webview-ui/src/components/TechnicalConsiderationsSection.tsx` — Array handling, field alignment
+- `webview-ui/src/views/PbiStudio.tsx` — Import and placement
+- `webview-ui/src/App.tsx` — Event handler for TECHNICAL_CONSIDERATIONS_READY
+
+**Data flow verified:** Backend → TECHNICAL_CONSIDERATIONS_READY event → App updates state → Component renders scopedFiles array → User edits → Save → Backend receives updated array
+
+**Schema alignment confirmed:** Frontend `TechnicalConsiderations` interface now exactly mirrors `src/shared/messages.ts` backend schema (technicalDetails: string, scopedFiles: string[], architectureNotes: string)
+
+**Integration summary:** `.squad/decisions/inbox/rusty-integration.md`
+
+
+## 2026-04-28 17:04 - P0 Bug Fix: Generate Button
+
+Added Generate Technical Considerations button to TechnicalConsiderationsSection component. Wired button to trigger AI generation via GENERATE_TECHNICAL_CONSIDERATIONS message. Implemented loading state (disabled button, 'Generating...' text). Button shows 'Generate' initially, 'Regenerate' after data exists. Integrated with existing PbiStudio refinement flow. Build passes with no errors. Decision documented in .squad/decisions/inbox/rusty-generate-button-fix.md.
+
+## 2026-04-28 Final - Issue #20 Completion: Component Production Ready
+
+**Status:** ✅ PRODUCTION READY
+
+Issue #20 implementation for TechnicalConsiderationsSection component is complete and production ready. All P0 requirements met.
+
+**Deliverables Completed:**
+1. ✅ **Generate Button** — Added to section header
+   - Triggers GENERATE_TECHNICAL_CONSIDERATIONS message
+   - Loading state: button disabled, "Generating..." text shown
+   - Button label logic: "Generate" → "Regenerate" when data exists
+   - Fully integrated with existing PbiStudio refinement flow
+
+2. ✅ **Data Model Alignment** — Component uses backend contract
+   - `TechnicalConsiderations` interface: technicalDetails, scopedFiles[], architectureNotes
+   - Frontend receives and renders scopedFiles as array
+   - Edit mode: line/comma-separated input → array parsing
+   - View mode: bullet list with monospace paths
+
+3. ✅ **UI Integration** — Component seamlessly integrated
+   - Positioned after test scenarios in PbiStudio
+   - Collapsible card with edit/view modes
+   - Loading state and event handling working
+   - Reuses existing design tokens and patterns
+
+4. ✅ **Event Handling** — App.tsx processes generation responses
+   - TECHNICAL_CONSIDERATIONS_READY event updates draft state
+   - All three fields populated correctly
+   - Save flow sends updated data to backend
+
+**Build Status:** ✅ Clean compilation (48 modules, 20.81KB CSS, 223.23KB JS)
+
+**Test Results:** All PbiStudio integration scenarios passing
+- Generate button appears and functions
+- Loading state shows during generation
+- Button label changes to "Regenerate" when data exists
+- Event handler updates draft correctly
+- View/edit modes work as expected
+- No regressions in existing functionality
+
+**Quality Metrics:**
+- [x] All P0 requirements met
+- [x] Zero TypeScript errors
+- [x] Build passes
+- [x] Component fully functional
+- [x] Data model aligned with backend
+- [x] Event flow working end-to-end
+- [x] No regressions detected
+
+**Non-Blocking P1 Issues (Phase 8):**
+- Section header keyboard accessibility (div → button)
+- Success confirmation toast after generation
+- Minor UX polish
+
+**Recommendation:** Ship to production. Component production ready, all core functionality working.
+
