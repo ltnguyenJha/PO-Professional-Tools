@@ -865,6 +865,11 @@ export function PbiStudio({
                   aiBusy={aiBusy}
                   onGenerate={handleWizardGenerate}
                   onOpenInChat={handleWizardOpenInChat}
+                  onUserStoryChange={(story) => {
+                    if (active && !active.description.trim()) {
+                      setWorking({ ...active, description: story });
+                    }
+                  }}
                 />
               ) : (
                 <BugReportWizard

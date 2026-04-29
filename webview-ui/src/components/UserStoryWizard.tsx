@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { InvestWizardInput } from '../types';
 
 interface Props {
@@ -6,6 +6,9 @@ interface Props {
   aiBusy: boolean;
   onGenerate: (wizard: InvestWizardInput) => void;
   onOpenInChat: (wizard: InvestWizardInput) => void;
+  /** Called whenever the "As a…, I want…, so that…" sentence is complete so the parent can
+   *  pre-populate the description field before an AI generation or ADO push. */
+  onUserStoryChange?: (story: string) => void;
 }
 
 const STEPS = [
@@ -91,7 +94,7 @@ function isComplete(wizard: Partial<InvestWizardInput>): wizard is InvestWizardI
   );
 }
 
-export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenInChat }: Props): JSX.Element {
+export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenInChat, onUserStoryChange }: Props): JSX.Element {
   const [step, setStep] = useState(0);
   const [background, setBackground] = useState('');
   const [why, setWhy] = useState('');
@@ -104,6 +107,14 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
   const wizard: Partial<InvestWizardInput> = { background, why, how, persona, want, benefit };
   const score = investScore(wizard);
   const complete = isComplete(wizard);
+
+  // Propagate the user story sentence to the parent so it can pre-fill the description
+  // field when it is currently blank — ensuring it reaches ADO even without AI generation.
+  useEffect(() => {
+    if (persona.trim() && want.trim() && benefit.trim()) {
+      onUserStoryChange?.(`As a ${persona.trim()}, I want ${want.trim()}, so that ${benefit.trim()}.`);
+    }
+  }, [persona, want, benefit, onUserStoryChange]);
 
   const currentStep = STEPS[step]!;
 
