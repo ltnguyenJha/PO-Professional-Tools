@@ -48,6 +48,10 @@ export interface PbiDraft {
   updatedAt?: string;
   /** Pending uploads on next Push / Update in ADO; cleared after successful sync. */
   attachments?: PbiAttachment[];
+  /** The "As a <persona>, I want <want>, so that <benefit>." sentence from the INVEST wizard.
+   *  Stored separately so AI generation cannot overwrite it.
+   *  Rendered as a dedicated "User Story" section in ADO above Test Scenarios. */
+  userStory?: string;
 }
 
 export interface AdoSettings {

@@ -50,6 +50,10 @@ export interface PbiDraft {
   bugExpectedBehavior?: string;
   bugActualBehavior?: string;
   bugReproductionSteps?: string[];
+  /** The "As a <persona>, I want <want>, so that <benefit>." sentence from the INVEST wizard.
+   *  Stored separately so AI generation cannot overwrite it.
+   *  Rendered as a dedicated "User Story" section in ADO above Test Scenarios. */
+  userStory?: string;
 }
 
 export interface AdoSettings {

@@ -309,6 +309,9 @@ export class AdoService {
       .join('')}</ul>`;
 
     const descriptionParts = [`<p>${this.escapeHtml(draft.description)}</p>`];
+    if (draft.userStory) {
+      descriptionParts.push('<h3>User Story</h3>', `<p>${this.escapeHtml(draft.userStory)}</p>`);
+    }
     if (draft.testScenarios.length > 0) {
       descriptionParts.push('<h3>Test Scenarios</h3>', testScenariosHtml);
     }
