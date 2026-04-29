@@ -5,7 +5,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BugReportInput, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft } from '../shared/messages';
+import { AiSuggestion, BugReportInput, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -28,6 +28,15 @@ const FULL_STORY_JSON_BRIDGE = [
   '- Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
   '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided: technical, testable, fintech-appropriate.',
   '- Do not create files under reports/.',
+  '---'
+].join('\n');
+
+const TECHNICAL_CONSIDERATIONS_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "technicalDetails": string, "scopedFiles": string[], "architectureNotes": string }',
+  '- Use LINKED PROJECT CONTEXT to ground recommendations in actual codebase structure.',
+  '- Do not speculate; reference real modules, routes, APIs, or database objects.',
   '---'
 ].join('\n');
 
@@ -75,6 +84,29 @@ const FULL_STORY_SYSTEM_PROMPT = [
   '- Same rule: no raw " inside JSON string values; paraphrase if needed.',
   '',
   'Never output invalid JSON.'
+].join('\n');
+
+const TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT = [
+  'You are a senior backend architect and technical lead reviewing a Product Owner backlog item.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "technicalDetails": string, "scopedFiles": string[], "architectureNotes": string }',
+  '',
+  'TECHNICAL DETAILS: 2–3 sentences identifying the key technical concerns, module dependencies, or implementation patterns required.',
+  'Reference actual codebase elements when LINKED PROJECT CONTEXT is provided.',
+  '',
+  'SCOPED FILES: Array of 1–5 file paths or module names that this work item will likely touch.',
+  'Use real paths from the linked project; be specific (e.g., "src/services/paymentProcessor.ts" not "backend").',
+  '',
+  'ARCHITECTURE NOTES: 1–2 sentences on data flow, external dependencies (APIs, databases), or design patterns.',
+  'Highlight any risks, side effects, or cross-team dependencies.',
+  '',
+  'RULES:',
+  '- Do not add features or scope creep; analyze the PBI as stated.',
+  '- Reference LINKED PROJECT CONTEXT when available; never speculate about code structure.',
+  '- Keep notes actionable for dev teams (not generic architecture philosophy).',
+  '- NEVER use Mermaid, flowchart, diagram syntax, or markdown code fences (```) in any field. Output must be plain text only.',
+  '- Never output invalid JSON.'
 ].join('\n');
 
 export class CopilotService {
@@ -263,9 +295,56 @@ export class CopilotService {
   }
 
   /**
-   * Produces a single .mmd attachment from backlog text for Azure DevOps (Push / Update).
-   * Returns undefined if the model fails or output is not valid Mermaid.
+   * Generates technical considerations (architecture, file scope, implementation notes) for a PBI.
+   * Grounds analysis in linked project context when available.
    */
+  public async generateTechnicalConsiderations(
+    draft: PbiDraft,
+    token: vscode.CancellationToken,
+    options?: { linkedProjectContext?: string }
+  ): Promise<TechnicalConsiderations> {
+    const model = await this.pickModel();
+
+    const systemBlock = [
+      TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT,
+      '',
+      TECHNICAL_CONSIDERATIONS_JSON_BRIDGE
+    ].join('\n');
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (use to ground technical recommendations):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userPrompt =
+      linkedPart +
+      [
+        'Analyze this backlog item for technical considerations:',
+        '',
+        `Title: ${draft.title}`,
+        `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+        `Effort (days): ${draft.effortDays}`,
+        '',
+        'PRODUCT OWNER DESCRIPTION:',
+        draft.description?.trim() ? draft.description.trim() : '(empty)',
+        '',
+        'Acceptance criteria:',
+        ...(draft.acceptanceCriteria.length > 0
+          ? draft.acceptanceCriteria.map((item, i) => `${i + 1}. ${item}`)
+          : ['(none)']),
+        '',
+        'Return JSON with keys: technicalDetails, scopedFiles, architectureNotes.'
+      ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    return this.technicalConsiderationsFromParsed(parsed);
+  }
   public async tryGenerateMermaidAttachment(
     draft: PbiDraft,
     token: vscode.CancellationToken
@@ -511,6 +590,33 @@ export class CopilotService {
         .filter((item: string) => item.length > 0);
     }
     return suggestion;
+  }
+
+  private technicalConsiderationsFromParsed(parsed: Record<string, unknown>): TechnicalConsiderations {
+    const rawTechnicalDetails =
+      typeof parsed.technicalDetails === 'string' ? parsed.technicalDetails.trim() : '';
+    const rawArchitectureNotes =
+      typeof parsed.architectureNotes === 'string' ? parsed.architectureNotes.trim() : '';
+    const scopedFiles = this.toStringArray(parsed.scopedFiles) || [];
+
+    // Strip markdown code fences (defensive post-processing)
+    const technicalDetails = this.stripCodeFences(rawTechnicalDetails);
+    const architectureNotes = this.stripCodeFences(rawArchitectureNotes);
+
+    if (!technicalDetails && !architectureNotes) {
+      throw new Error('AI response missing required fields. Try again with more context.');
+    }
+
+    return {
+      technicalDetails,
+      scopedFiles,
+      architectureNotes
+    };
+  }
+
+  private stripCodeFences(text: string): string {
+    // Remove markdown code fences like ```mermaid...``` or ```...```
+    return text.replace(/^```[\w]*\n?/gm, '').replace(/\n?```$/gm, '').trim();
   }
 
   private async openChatWithPrompt(prompt: string): Promise<void> {
