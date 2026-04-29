@@ -69,7 +69,9 @@ export class DashboardPanel {
         try {
           await this.handleMessage(message);
         } catch (error) {
+          console.error('[PO Tools] handleMessage error:', error);
           const text = error instanceof Error ? error.message : 'Unexpected error';
+          console.error(`[PO Tools] Error handling message of type ${message.type}: ${text}`);
           this.postToast('error', text);
         }
       },
@@ -345,7 +347,13 @@ export class DashboardPanel {
       });
       const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
       await this.applyPushResult(result.created, result.errors);
-    } finally {
+    } 
+    catch (error) { 
+      console.error('[PO Tools] handlePushSingle error:', error);
+      const messageText = error instanceof Error ? error.message : String(error);
+      this.postToast('error', `Push failed: ${messageText}`);
+    }
+    finally {
       this.postAdoProgress({ busy: false, message: '', scope: 'single' });
     }
   }

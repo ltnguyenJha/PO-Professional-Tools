@@ -329,6 +329,19 @@ export function PbiStudio({
     send({ type: 'OPEN_BUG_REPORT_IN_CHAT', payload: input });
   };
 
+  // Stable callback so UserStoryWizard's useEffect doesn't re-fire on every render.
+  // Always writes the completed "As a…, I want…, so that…" sentence to the description
+  // field — the guard was previously "only if empty", which silently skipped all
+  // generated drafts that already had a description. Reference equality prevents the
+  // setWorking → re-render → useEffect → setWorking loop.
+  const handleUserStoryChange = useCallback((story: string): void => {
+    wizardStoryRef.current = story;
+    setWorking((prev) => {
+      if (!prev || prev.description === story) return prev;
+      return { ...prev, description: story };
+    });
+  }, []);
+
   const onPickAttachments = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const files = e.target.files;
     if (!files?.length || !active) {
@@ -875,13 +888,7 @@ export function PbiStudio({
                   aiBusy={aiBusy}
                   onGenerate={handleWizardGenerate}
                   onOpenInChat={handleWizardOpenInChat}
-                  onUserStoryChange={(story) => {
-                    wizardStoryRef.current = story;
-                    setWorking((prev) => {
-                      if (!prev || prev.description.trim()) return prev;
-                      return { ...prev, description: story };
-                    });
-                  }}
+                  onUserStoryChange={handleUserStoryChange}
                 />
               ) : (
                 <BugReportWizard
