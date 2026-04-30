@@ -13,7 +13,7 @@ import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
-import { UserStoryWizard } from '../components/UserStoryWizard';
+import { FeatureWizard } from '../components/FeatureWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
 import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
@@ -884,6 +884,7 @@ export function PbiStudio({
               </article>
 
               <div className="pbi-type-selector-wrap">
+                <span className="pbi-type-label">PBI Type</span>
                 <div className="pbi-type-selector">
                   <button
                     type="button"
@@ -903,13 +904,9 @@ export function PbiStudio({
               </div>
 
               {pbiType === 'feature' ? (
-                <UserStoryWizard
+                <FeatureWizard
                   key={`feature-${active.id}`}
                   draftId={active.id}
-                  aiBusy={aiBusy}
-                  onGenerate={handleWizardGenerate}
-                  onOpenInChat={handleWizardOpenInChat}
-                  onSave={handleWizardSaveDescription}
                 />
               ) : (
                 <BugReportWizard
