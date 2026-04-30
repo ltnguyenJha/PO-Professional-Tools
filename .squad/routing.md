@@ -39,6 +39,17 @@ How to decide who handles what.
 5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
 6. **Anticipate downstream work.** If a feature is being built, spawn Livingston to write test cases from requirements simultaneously.
 7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Danny handles all `squad` (base label) triage.
+8. **Git workflow enforcement** — Before spawning ANY agent for work that involves file changes, remind them to check branch (`.squad/git-workflow.md`). All work uses feature branches, never `main`.
+
+## Pre-Spawn Checklist
+
+Before spawning agents for development work:
+
+1. **Verify feature branch**: Ensure the current branch is NOT `main`
+   - If on `main`: Agent MUST run `pwsh .squad/scripts/ensure-feature-branch.ps1` first
+   - See `.squad/git-workflow.md` for complete policy
+2. **Read decisions**: Agent should read `.squad/decisions.md` for context
+3. **Set TEAM_ROOT**: Pass team root path in spawn prompt
 
 ## Branch & PR Workflow (Enforced)
 

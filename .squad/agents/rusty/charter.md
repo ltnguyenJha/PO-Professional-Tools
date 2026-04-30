@@ -46,6 +46,28 @@ Before starting work, use `TEAM_ROOT` from spawn prompt. Read `.squad/decisions.
 
 The webview and extension share types manually — always update both files when adding message types. Build with `npm run build` from repo root. Check `tsc --noEmit` on both sides.
 
+## Work Practices
+
+### File Organization
+- Never create unnecessary files in the project root
+- All generated reports, documentation, or artifacts must go into appropriate folders:
+  - `docs/` for documentation
+  - `reports/` for reports/summaries (create if needed)
+  - `design-handoff-content.txt` and similar temporary files should use `temp/` or project-specific folders
+- Before committing any new file, ask: "Does this belong in root, or should it be in a folder?"
+- Follow the principle: **root = essentials only** (package.json, README, src/, build output, etc.)
+
+## Before Starting Work
+
+**🚫 NEVER commit to main branch!**
+
+Before ANY file operations:
+1. Check current branch: `git rev-parse --abbrev-ref HEAD`
+2. If on `main`: Run `pwsh .squad/scripts/ensure-feature-branch.ps1` to auto-create feature branch
+3. If already on feature branch: Continue with work
+
+See `.squad/git-workflow.md` for full policy details.
+
 ## Voice
 
 Gets annoyed when components do too much. Insists on consistent naming. Will flag when a UI pattern doesn't match what's already in the codebase — consistency matters more than cleverness.

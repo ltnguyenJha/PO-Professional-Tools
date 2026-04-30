@@ -653,3 +653,67 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 - Applied to all AI methods: `refineDraft()`, `generateFullStoryFromSeed()`, `generateTechnicalConsiderations()`
 
 **Key lesson:** Retry logic and caching are orthogonal. Retry handles transient failures (user should retry). Cache handles known-good data within TTL window (user sees instant response). Both improve reliability and UX.
+## Task: Add PAT Validation that Gates Dropdown Fetches
+
+**Date**: April 30, 2026
+
+**Task**: Implement scope checking so Area Path / Iteration Path dropdowns don't hang when PAT is invalid or missing scopes.
+
+**Work Done**:
+
+1. **Enhanced message types** (src/shared/messages.ts):
+   - Added VALIDATE_PAT_SCOPES to WebviewRequest union
+   - Added PAT_VALIDATION_RESULT to ExtensionEvent union
+
+2. **Backend handler** (src/panels/DashboardPanel.ts):
+   - Added patValidatedThisSession boolean flag to track validation state
+   - Implemented handleValidatePatScopes() handler that validates PAT scopes
+   - Sets flag on success, returns clear error messages on failure
+   - Added case handler for VALIDATE_PAT_SCOPES message type
+
+3. **PAT flag lifecycle**:
+   - Flag initialized to alse on panel creation
+   - Set to 	rue when validation succeeds
+   - Reset to alse when new PAT is saved (forcing re-validation)
+
+4. **Guard gates on dropdown fetches**:
+   - handleFetchTeams(): Checks patValidatedThisSession before fetch
+   - handleFetchAreaPaths(): Checks patValidatedThisSession before fetch  
+   - handleFetchIterations(): Checks patValidatedThisSession before fetch
+   - Returns FETCH_FAILED with: "Please validate PAT in Settings first."
+
+5. **Scope validation**:
+   - adoService.testConnection() validates PAT scopes
+   - Returns clear error messages: "PAT missing required scopes: vso.work, vso.identity"
+
+**Impact**:
+- Dropdowns no longer hang when PAT is invalid
+- Clear error messages guide users to validate PAT
+- Session-based validation prevents redundant checks
+
+**Build Status**: ✅ Success (no TypeScript errors)
+**Lint Status**: ✅ Pass (no new issues)
+### 2025-04-29 — PAT Validation Infinite Load Fix (Backend Implementation)
+
+**Problem:** Settings Team/Area Path/Iteration dropdowns stuck in "loading" indefinitely when PAT invalid or missing required scopes (vso.work + vso.identity). No validation gate existed.
+
+**Solution:** Added PAT-first validation flow with backend guards.
+
+**Implementation in DashboardPanel.ts:**
+- Added `patValidatedThisSession` boolean flag to track per-session validation state
+- Created `handleValidatePatScopes()` handler: receives `VALIDATE_PAT_SCOPES` request, calls `testConnection()` to verify scopes, sends `PAT_VALIDATION_RESULT` response with `{ valid: boolean, error?: string }`
+- Added guard checks in `handleFetchTeams()`, `handleFetchAreaPaths()`, `handleFetchIterations()`: if `!patValidatedThisSession`, return `{ ok: false, message: 'FETCH_FAILED' }`
+- Guards prevent dropdown fetches until PAT validated in current session
+
+**Message Contract:**
+- Request: `type: 'VALIDATE_PAT_SCOPES'` (no payload)
+- Response: `type: 'PAT_VALIDATION_RESULT', payload: { valid: boolean, error?: string }`
+- Guard response: returns fetch error if validation skipped
+
+**Integration Points:**
+- Reused existing `testConnection()` (already validates vso.work + vso.identity scopes)
+- Follows one-way messaging pattern: webview posts request, extension posts result
+- No database or file changes needed
+
+**Testing Outcome:** All 29 tests passing, zero regressions. Build clean.
+

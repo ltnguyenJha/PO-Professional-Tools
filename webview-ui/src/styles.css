@@ -438,8 +438,9 @@ button {
 
 .field-row {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  row-gap: 24px;
 }
 
 .chip {
@@ -738,8 +739,6 @@ button {
   background: var(--success-soft);
   border-radius: var(--radius);
   color: var(--success);
-  font-size: 0.85rem;
-}
   font-size: 0.85rem;
 }
 
@@ -1356,4 +1355,209 @@ button {
   .studio-list {
     max-height: 320px;
   }
+}
+
+/* ================================================================
+   Settings Section Redesign - Professional & Delightful
+   ================================================================ */
+.settings-section {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-2xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 2px solid var(--line);
+}
+
+.settings-section-title {
+  margin: 0 0 var(--space-xs) 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.settings-section-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.status-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.status-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Validation Status Banners */
+.validation-status-container {
+  margin-bottom: var(--space-2xl);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 100px;
+    transform: translateY(0);
+  }
+}
+
+.validation-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-size: 0.88rem;
+  font-weight: 500;
+  border: 1px solid;
+  transition: all var(--transition);
+}
+
+.validation-banner-info {
+  background: var(--info-soft);
+  color: var(--info);
+  border-color: var(--info);
+}
+
+.validation-banner-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.validation-banner-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.validation-icon {
+  font-size: 1.2rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Field Label */
+.field-label {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.88rem;
+  margin-bottom: var(--space-xs);
+  display: block;
+}
+
+/* Field Hint */
+.field-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  margin-top: var(--space-xs);
+}
+
+/* Smooth Input with Micro-interactions */
+.smooth-input {
+  transition: 
+    border-color var(--transition), 
+    box-shadow var(--transition),
+    transform var(--transition-fast);
+}
+
+.smooth-input:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+}
+
+.smooth-input:focus {
+  transform: translateY(-1px);
+}
+
+/* Button Success State */
+.btn-success {
+  background: var(--success) !important;
+  border-color: var(--success) !important;
+  color: white !important;
+  animation: successPulse 0.4s ease-out;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Enhanced Hover States */
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Dropdown Fade In */
+.field select {
+  animation: fadeIn 0.2s ease-out;
 }

@@ -48,6 +48,7 @@ export class DashboardPanel {
   }
 
   private readonly disposables: vscode.Disposable[] = [];
+  private patValidatedThisSession: boolean = false;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -124,6 +125,18 @@ export class DashboardPanel {
         return;
       case 'TEST_ADO_CONNECTION':
         await this.handleTestConnection(message.payload);
+        return;
+       case 'VALIDATE_PAT_SCOPES':
+         await this.handleValidatePatScopes();
+         return;
+      case 'FETCH_ADO_TEAMS':
+        await this.handleFetchTeams();
+        return;
+      case 'FETCH_ADO_AREA_PATHS':
+        await this.handleFetchAreaPaths(message.payload?.team);
+        return;
+      case 'FETCH_ADO_ITERATIONS':
+        await this.handleFetchIterations(message.payload?.team);
         return;
       case 'REFINE_PBI_WITH_AI':
         await this.handleRefine(message.payload.draftId, message.payload.instruction);
@@ -511,11 +524,14 @@ export class DashboardPanel {
     const adoSettings: AdoSettings = {
       orgUrl: rest.orgUrl,
       projectName: rest.projectName,
+      team: rest.team || undefined,
       areaPath: rest.areaPath || undefined,
       iterationPath: rest.iterationPath || undefined,
       defaultWorkItemType: rest.defaultWorkItemType || 'Product Backlog Item'
     };
     await this.settingsService.saveAdoSettings(adoSettings);
+    await this.clearAdoCache();
+    this.patValidatedThisSession = false;
     this.postToast('success', 'Azure DevOps settings saved.');
     await this.postState();
   }
@@ -569,6 +585,39 @@ export class DashboardPanel {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.post({ type: 'ADO_CONNECTION_RESULT', payload: { ok: false, message } });
       this.postToast('error', `Connection failed: ${message}`);
+    }
+  }
+
+  private async handleValidatePatScopes(): Promise<void> {
+    const settings = this.settingsService.getAdoSettings();
+    if (!settings || !settings.orgUrl || !settings.projectName) {
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: false, error: 'Azure DevOps settings are incomplete.' }
+      });
+      return;
+    }
+    const pat = await this.secretStorage.getAdoPat();
+    if (!pat) {
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: false, error: 'PAT missing. Save your PAT in Settings first.' }
+      });
+      return;
+    }
+
+    try {
+      await this.adoService.testConnection(settings, pat);
+      this.patValidatedThisSession = true;
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: true }
+      });
+      this.postToast('success', 'PAT scopes validated.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'PAT_VALIDATION_RESULT', payload: { valid: false, error: message } });
+      this.postToast('error', `PAT validation failed: ${message}`);
     }
   }
 
@@ -1138,6 +1187,137 @@ export class DashboardPanel {
     this.post({ type: 'TOAST', payload: { level, message } });
   }
 
+  private async handleFetchTeams(): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'teams', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'teams', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.teams');
+      if (cached) {
+        this.post({ type: 'ADO_TEAMS_RESULT', payload: cached });
+        return;
+      }
+
+      const teams = await this.adoService.fetchTeams(ctx.settings, ctx.pat);
+      await this.setCachedData('ado.cache.teams', teams);
+      this.post({ type: 'ADO_TEAMS_RESULT', payload: teams });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'teams', error: message } });
+    }
+  }
+
+  private async handleFetchAreaPaths(teamId?: string): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'areas', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'areas', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.areas');
+      if (cached) {
+        this.post({ type: 'ADO_AREA_PATHS_RESULT', payload: cached });
+        return;
+      }
+
+      const areas = await this.adoService.fetchAreaPaths(ctx.settings, ctx.pat, teamId);
+      await this.setCachedData('ado.cache.areas', areas);
+      this.post({ type: 'ADO_AREA_PATHS_RESULT', payload: areas });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'areas', error: message } });
+    }
+  }
+
+  private async handleFetchIterations(teamId?: string): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'iterations', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'iterations', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.iterations');
+      if (cached) {
+        this.post({ type: 'ADO_ITERATIONS_RESULT', payload: cached });
+        return;
+      }
+
+      const iterations = await this.adoService.fetchIterations(ctx.settings, ctx.pat, teamId);
+      await this.setCachedData('ado.cache.iterations', iterations);
+      this.post({ type: 'ADO_ITERATIONS_RESULT', payload: iterations });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'iterations', error: message } });
+    }
+  }
+
+  private async getCachedData(key: string): Promise<string[] | null> {
+    const cached = this.context.globalState.get<{ data: string[]; fetchedAt: number }>(key);
+    if (!cached) {
+      return null;
+    }
+
+    const age = Date.now() - cached.fetchedAt;
+    const thirtyMinutes = 30 * 60 * 1000;
+    
+    if (age < thirtyMinutes) {
+      return cached.data;
+    }
+
+    return null;
+  }
+
+  private async setCachedData(key: string, data: string[]): Promise<void> {
+    await this.context.globalState.update(key, {
+      data,
+      fetchedAt: Date.now()
+    });
+  }
+
+  public async clearAdoCache(): Promise<void> {
+    await this.context.globalState.update('ado.cache.teams', undefined);
+    await this.context.globalState.update('ado.cache.areas', undefined);
+    await this.context.globalState.update('ado.cache.iterations', undefined);
+  }
+
   private post(event: ExtensionEvent): void {
     this.panel.webview.postMessage(event);
   }
@@ -1177,8 +1357,10 @@ export class DashboardPanel {
 type BulkSaveInput = {
   orgUrl: string;
   projectName: string;
+  team?: string;
   areaPath?: string;
   iterationPath?: string;
   defaultWorkItemType?: AdoSettings['defaultWorkItemType'];
   pat?: string;
 };
+

@@ -12,6 +12,133 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-30 — Settings Layout Restructure: Top Sticky Save Button
+
+**Problem solved:**
+- Save Settings button was duplicated in both Azure DevOps Connection and Team & Defaults sections.
+- Default Work Item Type was crowded in a 3-column row with Team and Iteration Path.
+- User had to scroll to find Save buttons, and it was unclear which button saved which settings.
+
+**Solution implemented:**
+
+**1. Single Sticky Save Button at Top:**
+- Moved Save Settings button to top of Settings view (above both cards).
+- Made it sticky with `position: 'sticky'`, `top: 0`, `zIndex: 100`.
+- Button applies to ALL settings (both Azure DevOps Connection and Team & Defaults).
+- Added visual feedback:
+  - Disabled when no unsaved changes (`disabled={savingSettings || !hasUnsavedChanges}`).
+  - Shows "You have unsaved changes" hint when `hasUnsavedChanges` is true.
+  - Shows success chip "Settings saved successfully" after save.
+- Removed all other Save Settings buttons from individual cards.
+
+**2. Default Work Item Type Gets Own Row:**
+- Moved Default Work Item Type dropdown to its own row (full width).
+- Team and Iteration Path remain in first row (2 columns).
+- New layout in Team & Defaults section:
+  - Row 1: Team + Iteration Path (2 columns)
+  - Row 2: Default Work Item Type (full width with `gridColumn: '1 / -1'`)
+- Added `marginTop: '16px'` to separate the rows visually.
+
+**3. Test Connection Button Stays in Azure DevOps Connection:**
+- Kept Test Connection button in Azure DevOps Connection section's action row.
+- Only removed Save Settings button from that section.
+- Test Connection is specific to connection validation, so it stays with connection fields.
+
+**4. Removed Sticky Footer:**
+- Deleted the conditional sticky footer that previously appeared at bottom with Save/Test buttons.
+- All save/test functionality now clearly organized: Save at top, Test in connection section.
+
+**Key pattern:**
+- **Top-level sticky save pattern** works well for multi-section forms where all sections share the same save action.
+- Clearer UX: one obvious "Save Settings" button always visible, no hunting through sections.
+- State tracking (`hasUnsavedChanges`) prevents accidental saves and provides clear feedback.
+
+### 2026-04-29 — Smart Dropdown Positioning & Sticky Footer Pattern
+
+**Problem solved:**
+- SearchableDropdown dropdowns positioned absolutely below input using `top: 'calc(100% + 4px)'`.
+- When dropdowns near bottom of viewport (Settings page), they extended off-screen, overlapping lower content or requiring scroll.
+- Save Settings button was hidden inside Azure DevOps Connection section — when Team & Defaults section expanded, button was out of sight if connection section collapsed.
+- No dirty state tracking — unclear when settings needed saving.
+
+**Solution implemented:**
+
+**1. Smart Dropdown Positioning (SearchableDropdown.tsx):**
+- Added `dropdownAbove` state tracked with `useState<boolean>(false)`.
+- On `isOpen` change (useEffect), measure available space:
+  - `const rect = inputRef.current.getBoundingClientRect()`
+  - `const spaceBelow = window.innerHeight - rect.bottom`
+  - `const spaceAbove = rect.top`
+  - If `spaceBelow < 150 && spaceAbove > spaceBelow`, flip dropdown upward.
+- Applied conditional positioning to dropdown containers:
+  - `...(dropdownAbove ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' })`
+- This pattern applies to both the options list AND the "No matches found" message.
+- **Key insight:** 150px threshold ensures dropdown has room for at least 3-4 options before flipping.
+
+**2. SearchableDropdown for Work Item Type (SettingsView.tsx):**
+- Converted Default Work Item Type from hardcoded `<select>` to `SearchableDropdown`.
+- Passed `WORK_ITEM_TYPES` constant (imported from `../types.ts`) as options array.
+- Set `loading={false}` and `disabled={false}` since this is static data (no API fetch needed).
+- Now all three dropdowns (Team, Iteration Path, Work Item Type) use consistent component patterns.
+- Smart positioning from Task 1 applies automatically.
+
+**3. Sticky Footer with Dirty State (SettingsView.tsx):**
+- Added `hasUnsavedChanges` state tracked with `useState<boolean>(false)`.
+- Added `useEffect` to detect form changes by comparing current form values to loaded `adoSettings`:
+  - Compares `orgUrl`, `projectName`, `team`, `iterationPath`, `defaultWorkItemType`, and whether `pat` field has new input.
+  - Sets `hasUnsavedChanges` whenever any field differs from saved settings.
+- Moved Save Settings and Test Connection buttons to a sticky footer:
+  - `position: 'sticky'`, `bottom: 0`, `zIndex: 100`.
+  - Uses `boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)'` for elevation (shadow above, not below).
+  - Footer only renders when `hasUnsavedChanges || saveSuccess` — appears on edit, persists briefly after save.
+- Updated `save()` function to call `setHasUnsavedChanges(false)` after successful save.
+- **Key UX pattern:** Sticky footer ensures save button is always accessible, even when scrolling or sections collapsed.
+
+**State management pattern (reusable):**
+- "Dirty state" pattern: Track whether form differs from last saved state, show persistent action bar when changes exist.
+- Clean state on successful save + brief success feedback (3s timeout).
+- Sticky footer with conditional rendering (`hasUnsavedChanges || saveSuccess`) keeps UI clean when no action needed.
+
+**CSS strategy:**
+- Inline styles for sticky footer (`position: 'sticky'`, `bottom: 0`) — no new CSS classes needed.
+- Used existing VS Code CSS variables (`--panel`, `--line-strong`) for consistent theming.
+- Top border + shadow creates elevation effect: `borderTop: '1px solid var(--line-strong)'` + `boxShadow`.
+
+**WORK_ITEM_TYPES constant location:**
+- Defined in `webview-ui/src/types.ts` (lines 15-22) as `AdoWorkItemType[]`.
+- Imported directly in SettingsView: `import { WORK_ITEM_TYPES } from '../types'`.
+- No need to duplicate or create separate constant file.
+
+### 2026-01-XX — Settings PAT Validation Gate Pattern
+
+**Problem solved:**
+- Team/Area Path/Iteration dropdowns were stuck in "loading" indefinitely when PAT was invalid or missing required scopes.
+- Root cause: Dropdown fetches were triggered immediately on project/team changes without first validating PAT scopes.
+- If PAT validation failed silently, user would see spinners forever with no error feedback.
+
+**Solution implemented:**
+- Added `PatValidationState` interface: `{ validated: boolean; validating: boolean; error?: string }` tracked separately from dropdown state.
+- Auto-trigger `VALIDATE_PAT_SCOPES` on component mount (if `hasAdoPat` is true) and after every settings save.
+- Gate all dropdown fetches on `patValidationState.validated`:
+  - Teams fetch only if `form.projectName.trim() && hasAdoPat && patValidationState.validated`
+  - Area paths / iterations only if `form.team?.trim() && hasAdoPat && patValidationState.validated`
+- Dropdowns remain **visually present but disabled** until validation passes (don't hide them) — UX rule: always show the UI, just disable interactivity.
+- Added validation status indicator above dropdowns: "Validating PAT scopes..." → "✅ PAT valid" or "⚠️ PAT validation failed: {error}".
+- When user edits PAT field, clear validation state (`validated: false`) to force re-validation on save.
+- Show contextual helper text in Team dropdown: "PAT validation pending. Click Save to validate."
+
+**Key messaging types added:**
+- `type: 'VALIDATE_PAT_SCOPES'` (WebviewRequest) — request validation from extension.
+- `type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string }` (ExtensionEvent) — response from extension.
+
+**CSS strategy:**
+- Used simple flexbox layout for validation banners: `display: 'flex'; alignItems: 'center'; gap: 8px` with emoji indicators (⏳ ✅ ⚠️).
+- No new CSS classes — inline styles sufficient for banner styling. Uses existing VS Code CSS variables for colors.
+
+**State management pattern (reusable):**
+- Separate "validation" state from "data" state — prevents race conditions and allows clear UI feedback about why operations are blocked.
+- Auto-validation on mount + auto-validation on save creates a "validate early, validate often" flow.
+
 ### 2026-01-01 — Wizard UX Refresh
 
 **Design decisions:**
@@ -303,6 +430,40 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 **Data flow fix (implemented):**
 1. Changed UserStoryWizard Props: onSave callback now receives TWO params: `(description: string, userStoryStatement: string)`
 2. Updated onSave call (line 113): Passes both `composedDescription` and statement: `onSave(composedDescription, composedDescription)`
+
+### 2026-04-29 — Compact One-Row Layout for Settings "Team & Defaults" Section
+
+**Problem:**
+- Team & Defaults section had multiple fields (Team, Iteration Path, Default Work Item Type) displayed in multi-row format
+- Each field took full width with `gridColumn: '1 / -1'`, causing unnecessary vertical space usage
+- Request to compact into a single logical row with inline fields
+
+**Solution implemented:**
+1. Removed all `<div style={{ gridColumn: '1 / -1' }}>` wrappers from Team and Iteration Path dropdowns
+2. Simplified helper text to be more concise:
+   - Team dropdown: "Save project and PAT first" (from "Save your project name and PAT first")
+   - Team dropdown: Auto-fetch text removed when validated (cleaner UI)
+   - Iteration Path: "Search iteration" (from "Search or select iteration")
+   - Iteration Path: Auto-fetch text removed when ready (cleaner UI)
+3. All three fields now sit in the same `.field-row` container, which uses `grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))` (existing CSS)
+4. Fields automatically flow horizontally on larger screens, stack responsively on narrow viewports
+
+**Responsive behavior:**
+- CSS `auto-fit` grid pattern already handles responsive behavior
+- Fields maintain 220px minimum width, stack gracefully when viewport is too narrow
+- No new media queries needed — existing `.field-row` pattern handles it
+
+**Verification:**
+- Build passed: 50 modules, 23.58KB CSS, 234.26KB JS
+- Lint passed with zero errors (only pre-existing warnings in other files)
+- All dropdowns function normally (validation, loading states, error handling intact)
+- State management preserved (no changes to handlers or effects)
+- Collapsible header animations still smooth
+
+**Key pattern reused:**
+- `.field-row` with `repeat(auto-fit, minmax(220px, 1fr))` is the standard responsive grid pattern for settings fields
+- Remove `gridColumn: '1 / -1'` wrapper to allow fields to flow naturally in the grid
+- Shorten helper text for compact layouts — show only essential context, omit redundant explanations
 3. Updated handleWizardSaveDescription: Now accepts both params and sets both fields: `setWorking({ ...active, description, userStoryStatement })`
 
 **Result:** User story statement now captured in draft state → flows through UPDATE_PBI_IN_ADO → backend builds ADO description with statement section
@@ -526,3 +687,471 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - Non-breaking: component APIs untouched, visual appearance normalized but not redesigned
 
 **Pattern value:** Separating presentation tokens from implementation reduces cognitive load on future developers. "How much space?" becomes a decision about scale, not pixel values. "How do we show focus?" is now defined once, applied everywhere.
+### 2025-04-29 — PAT Validation Infinite Load Fix (Frontend UX & State Management)
+
+**Problem:** Settings dropdowns hung indefinitely showing "loading" spinners when PAT invalid or missing required scopes. No early validation feedback to user.
+
+**Solution:** Implemented PAT-first validation state with auto-validation on mount and gated dropdown fetches.
+
+**Implementation in SettingsView.tsx:**
+- Added `PatValidationState` interface: `{ validated: boolean; validating: boolean; error?: string }` tracked separately from dropdown state
+- Auto-trigger `VALIDATE_PAT_SCOPES` on component mount (if `hasAdoPat` is true) and after every settings save
+- Gate all dropdown fetches on `patValidationState.validated`:
+  - Teams fetch only if: `form.projectName.trim() && hasAdoPat && patValidationState.validated`
+  - Area paths / iterations only if: `form.team?.trim() && hasAdoPat && patValidationState.validated`
+- Dropdowns remain visually present but disabled until validation passes (UX rule: always show UI, just disable interactivity)
+- Added validation status banner: "⏳ Validating PAT scopes..." → "✅ PAT valid" or "⚠️ PAT validation failed: {error}"
+- When user edits PAT field, clear validation state (`validated: false`) to force re-validation on save
+- Fixed critical bug: removed global `dropdownsDisabled` flag that was blocking entire UI
+
+**Key UX Decisions:**
+- Auto-validation on mount means credentials are checked immediately; failures shown before user attempts operations
+- Validation banner provides clear feedback (no silent failures)
+- Dropdowns remain enabled but grayed out during validation (not hidden) — improves perceived responsiveness
+- Edit-clears-validation pattern ensures stale validation state never causes missed updates
+
+**Testing Outcome:** 29/29 tests pass. Type mismatch bug found during integration and fixed (frontend/backend both now use `{ valid, error }`).
+
+
+
+### 2025-04-29 — Settings UI Enhancement: Searchable Dropdown, Collapsibles, Appearance Removal
+
+**Task:** Enhance Settings UI with three specific changes:
+1. Make Iteration Path dropdown searchable (type-to-filter)
+2. Add collapsible sections for Azure DevOps Connection and Team & Defaults
+3. Remove Appearance section (theme selector)
+
+**Implementation:**
+
+**1. SearchableDropdown Component:**
+- Created new SearchableDropdown.tsx component (234 lines) with full keyboard navigation support
+- Features: type-to-filter, arrow keys to navigate filtered options, Enter to select, Escape to close
+- Reuses existing DropdownWithFallback pattern: same props interface (except search-specific behavior)
+- State management: searchTerm, isOpen, highlightedIndex tracked separately from value
+- Click-outside detection via useEffect + mousedown listener on document
+- Dropdown portal-style rendering: position absolute, z-index 1000, max-height with scroll
+- Highlight pattern: keyboard navigation changes highlightedIndex, mouse hover syncs it via onMouseEnter
+- No matches found state when filter returns empty array
+- Visual feedback: down arrow rotates 180 degrees when open (consistent with existing section chevrons)
+
+**2. Collapsible Sections:**
+- Applied existing .section-header / .section-body / .section-chevron pattern from PbiStudio
+- Added openConnection and openDefaults state (both default true — all sections open on load)
+- Status badge moved inside header (flex layout with gap 12px) to keep UX clean when collapsed
+- No new CSS required — reused existing max-height transition pattern (9999px to 0)
+- Both sections start expanded for ease of use (UX decision: do not hide critical settings behind collapsed state)
+
+**3. Appearance Section Removal:**
+- Removed entire Appearance section (theme selector with light/dark/auto tabs)
+- Removed theme and onThemeChange props from SettingsView component
+- Updated App.tsx to remove theme-related props from SettingsView render
+- Theme management now handled globally at App level only (cleaner separation of concerns)
+
+**Key UX Decisions:**
+- Searchable dropdown only on Iteration Path (Team dropdown remains standard) — Iteration paths are often deeply nested and harder to navigate in standard dropdown
+- Both collapsible sections default to open state — Settings is a configuration view, not a dense dashboard; hiding fields behind collapsed sections adds friction
+- Removed unused ThemePreference import from SettingsView (cleanup)
+
+**CSS Patterns Used:**
+- accent-soft for dropdown highlight background (hover + keyboard navigation)
+- shadow-md for dropdown popup elevation
+- line-strong for dropdown borders and item separators
+- transition for chevron rotation animation
+
+**Build & Lint:**
+- Build succeeded: 50 modules transformed, 23.58 KB CSS, 234.47 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No type errors, no breaking changes to message flow or state management
+
+**Testing Notes:**
+- SearchableDropdown handles empty options gracefully (shows No matches when search returns nothing)
+- Dropdown closes on click-outside, Enter, or Escape (standard combobox UX)
+- Collapsibles animate smoothly via existing CSS transition (220ms cubic-bezier)
+- PAT validation, Team fetch, Iteration fetch all preserved — no message flow changes
+
+### 2026-04-29 — SearchableDropdown Multi-Row Visibility Fix
+
+**Problem solved:**
+- SearchableDropdown component only showed ~6-7 rows in its dropdown list, while user expected ~10 rows (similar to native <select> dropdown behavior)
+- Root cause: maxHeight was set to 240px, but with padding (8px top + 8px bottom) and typical line-height (~1.5), each option row requires ~37px (8 + 14*1.5 + 8), resulting in only 6.5 visible rows
+
+**Solution implemented:**
+- Increased maxHeight from 240px to 380px in SearchableDropdown.tsx (line 178)
+- Calculation: 10 rows * 37px per row = 370px (rounded up to 380px for safety)
+- This ensures ~10 options are visible in the dropdown list before scrolling, matching user expectations for multi-row visibility
+
+**Key insights:**
+- Custom dropdown height calculations must account for full option height including padding, font size, and line-height — not just text height
+- Native <select> elements naturally show multiple options when opened; custom dropdowns need explicit height values to match this UX
+- When comparing custom dropdowns to native ones, "multi-row" refers to the number of visible options in the popup list, not the input field itself
+
+**Design consistency:**
+- All three dropdowns in Settings "Team & Defaults" section now have consistent visual behavior:
+  - Team dropdown (DropdownWithFallback): uses native <select>, shows multiple options on open
+  - Iteration Path dropdown (SearchableDropdown): custom dropdown, now shows ~10 options on open
+  - Default Work Item Type dropdown: uses native <select>, shows multiple options on open
+- Users see a consistent multi-row selection experience across all dropdown types
+
+**Build & lint:**
+- Build succeeded: 50 modules transformed, 23.58 KB CSS, 234.26 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No breaking changes to search/filter functionality, keyboard navigation, or state management
+
+### 2026-04-29 — Reverted to Native Select for All Team & Defaults Dropdowns
+
+**Problem solved:**
+- SearchableDropdown component was causing blocking issues in Team & Defaults section
+- Iteration Path and Default Work Item Type dropdowns were getting blocked by the section card boundaries
+- Custom dropdown positioning (absolute/fixed) caused viewport overflow and z-index conflicts
+- Save button was in sticky footer but users reported it wasn't visible/accessible
+
+**Root cause analysis:**
+- SearchableDropdown uses custom absolute positioning which can be blocked by parent containers with overflow constraints
+- Card sections with box-shadow and z-index created stacking context issues
+- Custom dropdowns require careful manual positioning math to avoid viewport clipping
+- Native <select> elements handle all of this automatically via browser-native rendering
+
+**Solution implemented:**
+- Reverted Iteration Path from SearchableDropdown to DropdownWithFallback (native <select>)
+- Reverted Default Work Item Type from SearchableDropdown to DropdownWithFallback (native <select>)
+- Removed unused SearchableDropdown import from SettingsView.tsx
+- All three dropdowns now use DropdownWithFallback: Team, Iteration Path, Default Work Item Type
+
+**Key learnings:**
+- **When custom dropdowns are blocked by parent containers, native <select> is the safer choice**
+- Native <select> elements automatically handle:
+  - Viewport positioning (never get clipped or blocked)
+  - Z-index stacking (browser manages the dropdown layer)
+  - Scroll handling (dropdown stays visible even if parent scrolls)
+  - Keyboard navigation (built into browser)
+- Custom dropdowns (SearchableDropdown) are best reserved for cases where:
+  - Search/filter functionality is truly needed (e.g., 100+ options)
+  - Parent container has explicit height constraints and won't clip the dropdown
+  - You have full control over z-index and positioning context
+- For most standard form dropdowns with <50 options, native <select> provides better UX out of the box
+
+**UX impact:**
+- All three dropdowns now behave identically (native <select> via DropdownWithFallback)
+- No more blocking issues — dropdowns render above all content automatically
+- Consistent keyboard navigation (arrow keys, Enter, Escape all work the same)
+- Save button remains in sticky footer with proper z-index (100) — always visible when changes exist
+
+**Design consistency:**
+- Team dropdown: DropdownWithFallback ✓
+- Iteration Path dropdown: DropdownWithFallback ✓ (reverted from SearchableDropdown)
+- Default Work Item Type dropdown: DropdownWithFallback ✓ (reverted from SearchableDropdown)
+
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.58 KB CSS, 231.92 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No breaking changes to state management or message flow
+
+## 2026-04-29 23:15:15 - Settings View UI Fixes
+
+**Issue 1: Iteration Path Dropdown Overlap**
+- Problem: Iteration Path dropdown was overlapping with Default Work Item Type field
+- Root Cause: .field-row CSS used gap: var(--space-md) (12px) which wasn't enough vertical spacing
+- Solution: Updated .field-row CSS to use gap: var(--space-lg) (16px) and added explicit ow-gap: 24px
+- File Changed: webview-ui/src/styles.css line 439-443
+
+**Issue 2: Save Button Not Visible in Team & Defaults**
+- Problem: Save Settings button only appeared in sticky footer when hasUnsavedChanges || saveSuccess, making it invisible when section first opened
+- Root Cause: No action button inside Team & Defaults section body
+- Solution: Added ction-row with Save Settings button inside Team & Defaults section body (after field-row, before section-body close)
+- File Changed: webview-ui/src/views/SettingsView.tsx lines 445-453
+- The sticky footer still exists and provides additional save access when scrolled
+
+**Key Learnings:**
+1. When using grid layouts with dropdowns/selects that have helper text, ensure adequate row-gap to prevent content overlap
+2. Critical action buttons (like Save) should be visible within their context section, not just in sticky footers
+3. Helper text and error messages in form fields need vertical space consideration in grid layouts
+4. Always test both initial view state and changed state for button visibility
+
+**Build Status:** ✅ Successful (no errors, only pre-existing warnings)
+
+## 2026-04-29 23:25:34 - Conditional Save Button Rendering
+
+**Task:** Hide Save Settings button when no unsaved changes exist (dirty state tracking)
+
+**Implementation:**
+- SettingsView already had hasUnsavedChanges state tracking all form fields
+- Changed save button rendering from always-visible-but-disabled to conditionally rendered
+- Button now only shows when: hasUnsavedChanges === true OR saveSuccess === true
+- The saveSuccess condition ensures button stays visible during success feedback animation
+
+**Key Pattern:**
+`jsx
+{(hasUnsavedChanges || saveSuccess) && (
+  <div style={{ ... }}>
+    <button disabled={savingSettings}>...</button>
+  </div>
+)}
+`
+
+**Why this works:**
+- Dirty state tracking was already comprehensive (tracks orgUrl, projectName, team, iterationPath, defaultWorkItemType, and PAT changes)
+- useEffect on lines 85-100 compares current form state against saved adoSettings
+- isDirty resets to false after successful save (line 209)
+- No additional state needed — leveraged existing hasUnsavedChanges boolean
+
+**UX Impact:**
+- Cleaner UI when no changes exist — no disabled button taking up space
+- Button appears as soon as ANY field is modified
+- Success feedback still displays briefly before button disappears
+- Sticky positioning maintained when button is visible
+
+**Files Changed:**
+- webview-ui/src/views/SettingsView.tsx: Wrapped save button container in conditional render
+
+**Build Status:** ✅ Passed (build succeeded, lint passed with 0 new warnings)
+
+**Key Learning:**
+When implementing conditional rendering for action buttons, check if dirty state tracking already exists before adding new state. The SettingsView had robust form change detection — all that was needed was switching from disabled={!hasUnsavedChanges} to conditional rendering.
+
+
+## 2026-04-29 23:31:43 - Settings UI Enhancements: Searchable Iterations + Relocated Save Button
+
+**Task:** Improve Settings page UX with search functionality for Iteration Path dropdown and better Save button positioning
+
+**Implementation:**
+
+1. **Searchable Iteration Path Dropdown**
+   - Replaced DropdownWithFallback with SearchableDropdown component for Iteration Path field
+   - SearchableDropdown already exists in codebase with full search/filter capabilities
+   - Real-time filtering as user types, keyboard navigation (arrow keys, Enter, Escape)
+   - Shows "No matches found" message when search yields no results
+   - Maintains all existing props: loading state, error handling, disabled state, helper text
+   
+2. **Save Button Relocation**
+   - Moved from sticky top position (lines 249-278) to after Team & Defaults card (line 476+)
+   - Changed from sticky overlay to inline card-styled container
+   - New styling: padding, border, rounded corners, flex layout with gap
+   - Maintains conditional rendering (only shows when hasUnsavedChanges || saveSuccess)
+   - All existing functionality preserved: saving state, success feedback, unsaved changes indicator
+
+**Key Pattern Recognition:**
+- SearchableDropdown already available — no need to build custom solution
+- DropdownWithFallback used for Team field (static, smaller list) 
+- SearchableDropdown better for Iteration Path (dynamic, potentially large list)
+- Consistent with existing component usage patterns
+
+**UX Improvements:**
+- Large iteration lists now filterable — significantly faster navigation
+- Save button positioned with context of fields it affects
+- Reduced visual clutter at page top
+- Better visual hierarchy: Connection → Team & Defaults → Save
+
+**Files Changed:**
+- webview-ui/src/views/SettingsView.tsx
+  - Added SearchableDropdown import (line 12)
+  - Removed sticky save button from top (lines 249-278 deleted)
+  - Changed Iteration Path to SearchableDropdown (line 441)
+  - Added inline save button after Team & Defaults section (lines 477-497)
+
+**Build Status:** ✅ Build succeeded, lint passed with 0 new warnings (11 pre-existing warnings unrelated to changes)
+
+**Key Learnings:**
+1. Always check existing components before building new features — SearchableDropdown already had everything needed
+2. Form action buttons should live near the fields they control, not floating at the top
+3. SearchableDropdown vs DropdownWithFallback: use SearchableDropdown for large, dynamic lists where users benefit from filtering
+4. When moving UI elements, maintain all existing functionality (conditional rendering, states, feedback)
+
+### 2026-04-30 — Iteration Path Dropdown Clipping and Selection Fix
+
+**Problem solved:**
+- Iteration Path dropdown list was being clipped/blocked by the Team & Defaults card border
+- Dropdown selection behavior didn't react correctly when picking items
+- Unlike Team and Default Work Item Type dropdowns which worked perfectly
+
+**Root cause:**
+- Iteration Path used SearchableDropdown component with custom dropdown rendering
+- SearchableDropdown uses `position: absolute` with `zIndex: 1000` for the options list
+- Absolute positioning was being clipped by parent card's overflow or border styling
+- Team and Default Work Item Type used DropdownWithFallback with native `<select>` elements that don't get clipped
+
+**Solution implemented:**
+- Replaced SearchableDropdown with DropdownWithFallback for Iteration Path dropdown
+- Now matches Team dropdown implementation exactly (native `<select>` element)
+- Removed unused SearchableDropdown import from SettingsView.tsx
+- Native select resolves both clipping issue and selection behavior problems
+
+**Lesson learned:**
+- Native HTML elements (`<select>`) are more reliable for standard dropdowns than custom absolute-positioned overlays
+- Custom dropdowns with absolute positioning can cause clipping issues within card/container boundaries
+- When multiple dropdowns in the same context work differently, consistency matters — prefer the simpler, native approach
+- SearchableDropdown still has value for complex search scenarios, but standard dropdowns should use native elements
+
+### 2026-04-30 00:24:23 — Native Select with Search Capability (Hybrid Approach)
+
+**Problem solved:**
+- Iteration Path dropdown needed search functionality for long iteration lists
+- Previous attempts with SearchableDropdown caused clipping and blocking issues
+- Native <select> elements work reliably but lack search/filter capability
+
+**Solution implemented:**
+- Enhanced DropdownWithFallback component with optional 'searchable' prop
+- When searchable={true}, renders a search input field ABOVE the native <select>
+- Search filters options in real-time using case-insensitive substring matching
+- Clear button (✕) appears when search term is non-empty
+- Native select still renders below — no clipping issues
+
+**Implementation details:**
+1. Added 'searchable?: boolean' prop to DropdownWithFallback (default: false)
+2. Added searchTerm state to track user input
+3. Added filteredOptions computed value that filters based on searchTerm
+4. Search input positioned above select with marginBottom: 8
+5. Clear button positioned absolutely inside search input (right: 8, top: 50%)
+6. Placeholder text: "Search {label}..." (e.g., "Search iteration path...")
+7. Updated SettingsView to pass searchable={true} to Iteration Path and Default Work Item Type
+
+**Key advantages:**
+- Maintains native <select> reliability (no clipping, no z-index issues)
+- Provides search/filter UX for large option lists
+- Search input is separate from select — doesn't interfere with browser's native dropdown
+- Consistent behavior across all dropdowns while adding search where needed
+
+**UX pattern:**
+- Type in search input → options filter in real-time
+- Select still shows all filtered options in native browser dropdown
+- Clear button resets filter, showing all options again
+- Search input disabled when dropdown is disabled or loading
+
+**Files changed:**
+- webview-ui/src/components/DropdownWithFallback.tsx
+  - Added searchable prop to interface
+  - Added searchTerm state
+  - Added handleSearchChange and clearSearch handlers
+  - Added filteredOptions computed value
+  - Added search input JSX (lines 86-119) conditionally rendered when searchable={true}
+  - Changed options.map to filteredOptions.map (line 129)
+- webview-ui/src/views/SettingsView.tsx
+  - Added searchable={true} to Iteration Path DropdownWithFallback (line 418)
+  - Added searchable={true} to Default Work Item Type DropdownWithFallback (line 437)
+
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.60 KB CSS, 232.29 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Hybrid approach: native elements + search input = best of both worlds
+2. Filtering options before rendering in native select is simpler than custom dropdown positioning
+3. Search input ABOVE select (not replacing it) avoids all clipping/blocking issues
+4. Case-insensitive substring matching (.toLowerCase().includes()) is sufficient for most dropdown searches
+5. Clear button UX: only show when search term exists, position absolutely inside input
+6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
+
+**Design decision:**
+This hybrid approach solves the search requirement without reintroducing the clipping issues that plagued SearchableDropdown. The search input + native select pattern is reusable for any dropdown that needs filtering while maintaining reliability.
+
+### 2026-04-30 — Searchable Dropdown: Reverted to Custom Component
+
+**Problem solved:**
+- User requested built-in searchable dropdown (not separate search field above select)
+- Previous implementation added search input ABOVE native select — not integrated
+- User wanted typing directly in dropdown to filter (like custom dropdown behavior)
+
+**Solution implemented:**
+
+**1. Reverted DropdownWithFallback:**
+- Removed searchable prop
+- Removed searchTerm state and search input JSX
+- Went back to simple native select rendering
+- Kept fallback text input functionality intact
+
+**2. Updated SettingsView to use SearchableDropdown:**
+- Imported SearchableDropdown component (already existed in codebase)
+- Replaced DropdownWithFallback with SearchableDropdown for:
+  - Iteration Path
+  - Default Work Item Type
+- Kept same props interface (label, value, options, loading, error, disabled, placeholder, helperText, onChange)
+
+**3. SearchableDropdown features:**
+- Custom dropdown with input field that doubles as search and display
+- Click to open dropdown list (max-height: 380px, scrollable)
+- Type to filter options in real-time
+- Keyboard navigation (ArrowUp, ArrowDown, Enter, Escape)
+- Dropdown positioned with z-index: 1000 to prevent clipping
+- Auto-detects available space and flips dropdown upward if needed (dropdownAbove state)
+- Shows "No matches found" when search yields no results
+
+**4. Clipping prevention:**
+- SearchableDropdown uses position: absolute with z-index: 1000
+- Dropdown positioned outside normal flow (top: calc(100% + 4px) or bottom: calc(100% + 4px))
+- Auto-detection of space: if less than 150px below and more space above, flip upward
+- Works within Team & Defaults card without clipping issues
+
+**Key advantages over separate search input:**
+- Search is part of the dropdown interaction (type in input → dropdown filters)
+- Matches typical searchable dropdown UX pattern
+- Input field serves dual purpose: display selected value + search when open
+- Keyboard navigation built-in
+- No separate search field cluttering the UI
+
+**UX pattern:**
+1. Click or focus input → dropdown opens with all options
+2. Type → options filter in real-time
+3. Arrow keys navigate filtered list (highlighted item has accent-soft background)
+4. Enter selects highlighted option, closes dropdown
+5. Click outside closes dropdown and resets search
+6. Escape closes dropdown and resets search
+
+**Files changed:**
+- webview-ui/src/components/DropdownWithFallback.tsx
+  - Removed searchable prop from interface
+  - Removed searchTerm state and related handlers
+  - Removed search input JSX (lines 86-119 in previous version)
+  - Back to simple native select + fallback text input
+- webview-ui/src/views/SettingsView.tsx
+  - Added import: SearchableDropdown
+  - Replaced DropdownWithFallback with SearchableDropdown for Iteration Path (line 410)
+  - Replaced DropdownWithFallback with SearchableDropdown for Default Work Item Type (line 431)
+  - Removed searchable={true} props
+
+**Build & lint:**
+- Build succeeded: 50 modules transformed, 23.60 KB CSS, 235.15 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Custom searchable dropdown vs native select + search input: trade-offs
+   - Custom: integrated UX, single input field, keyboard navigation
+   - Hybrid: simpler, native reliability, but separate search field
+2. User preference matters: "built-in to dropdown" means search IS the dropdown input
+3. SearchableDropdown already existed in codebase — reuse before reinventing
+4. Clipping prevention: z-index: 1000 + position: absolute + space detection (dropdownAbove)
+5. Component reuse: SearchableDropdown and DropdownWithFallback serve different use cases
+   - SearchableDropdown: for large option lists needing filter (Iteration Path, Work Item Type)
+   - DropdownWithFallback: for simpler dropdowns where native select suffices (Team)
+
+**Design decision:**
+SearchableDropdown provides better UX for long lists (iterations, work item types) where filtering is essential. DropdownWithFallback remains for simpler dropdowns where native select is sufficient. The two components serve complementary roles rather than one replacing the other.
+
+## Learnings
+
+**Date:** 2025-01-29
+**Task:** Revert Default Work Item Type dropdown from SearchableDropdown back to DropdownWithFallback
+
+**Context:**
+User requested to revert Default Work Item Type back to native select while keeping Iteration Path as SearchableDropdown. This reverses the previous decision to use SearchableDropdown for both fields.
+
+**Changes made:**
+- Updated SettingsView.tsx line 431: Changed Default Work Item Type from SearchableDropdown to DropdownWithFallback
+- Iteration Path remains SearchableDropdown (line 411)
+- Both components coexist, serving different use cases
+
+**Rationale:**
+- Default Work Item Type has only 9 options (WORK_ITEM_TYPES array): Feature, Epic, User Story, Bug, Task, Product Backlog Item, Issue, Test Case, Impediment
+- With such a small list, native select is sufficient and simpler
+- Iteration Path has potentially hundreds of iterations across sprints/releases, so search is essential
+- Component selection should match data size: SearchableDropdown for large lists, DropdownWithFallback for small ones
+
+**Key learning:**
+Choose dropdown component based on option list size:
+- **Small lists (< 20 items):** Use DropdownWithFallback (native select) - simpler, familiar, no search needed
+- **Large lists (20+ items):** Use SearchableDropdown - filtering essential for usability
+
+This is about matching tool to use case, not preferring one component over the other. The previous decision applied SearchableDropdown universally without considering list size.
+
+**Build & lint:**
+- Build succeeded: 50 modules, 235.15 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings
+
