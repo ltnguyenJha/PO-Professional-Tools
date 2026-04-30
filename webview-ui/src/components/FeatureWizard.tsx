@@ -5,13 +5,14 @@ import { WizardStep3Story } from './WizardStep3Story';
 import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
-import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
+import { WizardStep5TestCases } from './WizardStep5TestCases';
+import { WizardStep6Summary } from './WizardStep6Summary';
 
 interface Props {
   draftId: string;
 }
 
-type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Technical Details' | 'Test Cases' | 'Summary';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -24,7 +25,7 @@ export function FeatureWizard({ draftId }: Props) {
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
 
-  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Technical Details', 'Test Cases', 'Summary'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -45,7 +46,7 @@ export function FeatureWizard({ draftId }: Props) {
       const message = event.data;
       if (message.type === 'AI_PROGRESS') {
         const nowBusy = message.payload.busy;
-        if (wasGeneratingRef.current && !nowBusy && currentStep === 0) {
+        if (wasGeneratingRef.current && !nowBusy) {
           // Generation just finished — reload draft
           vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
         }
@@ -77,7 +78,7 @@ export function FeatureWizard({ draftId }: Props) {
       if (message.type === 'WIZARD_DRAFT_LOADED') {
         const { draft: loadedDraft, currentStep: savedStep } = message.payload;
         setDraft(loadedDraft);
-        setCurrentStep(savedStep || 0);
+        setCurrentStep(Math.min(savedStep || 0, steps.length - 1));
         setLoading(false);
       }
     };
@@ -145,6 +146,13 @@ export function FeatureWizard({ draftId }: Props) {
   const handleGenerateTechnicalConsiderations = () => {
     vscode.postMessage({
       type: 'GENERATE_TECHNICAL_CONSIDERATIONS',
+      payload: { draftId },
+    });
+  };
+
+  const handleFinish = () => {
+    vscode.postMessage({
+      type: 'WIZARD_COMPLETE',
       payload: { draftId },
     });
   };
@@ -221,7 +229,6 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerateAI={handleGenerateFeatureDefinition}
           />
         )}
         {currentStep === 2 && (
@@ -238,16 +245,22 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
+            onGenerate={handleGenerateTechnicalConsiderations}
           />
         )}
         {currentStep === 4 && (
-          <WizardStep6TechnicalConsiderations
+          <WizardStep5TestCases
             draft={draft}
-            isLoading={aiGenerating}
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerate={handleGenerateTechnicalConsiderations}
+          />
+        )}
+        {currentStep === 5 && (
+          <WizardStep6Summary
+            draft={draft}
+            onBack={(prev) => handleStepChange(prev)}
+            onFinish={handleFinish}
           />
         )}
       </div>
