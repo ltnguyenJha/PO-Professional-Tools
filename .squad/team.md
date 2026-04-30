@@ -16,6 +16,7 @@
 | Rusty | Frontend Dev | .squad/agents/rusty/charter.md | 🟢 Active (Issue #20 integration complete) |
 | Linus | Backend Dev | .squad/agents/linus/charter.md | 🟢 Active (Issue #20 backend complete) |
 | Livingston | Tester | .squad/agents/livingston/charter.md | 🟡 Testing (Issue #20 test matrix prepared) |
+| Tess | UX Designer | .squad/agents/tess/charter.md | 🟢 Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 🟢 Active |
 | Ralph | Work Monitor | — | 🔄 Monitor |
 
