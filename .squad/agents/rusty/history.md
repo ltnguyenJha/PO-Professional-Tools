@@ -955,3 +955,90 @@ When implementing conditional rendering for action buttons, check if dirty state
 2. Form action buttons should live near the fields they control, not floating at the top
 3. SearchableDropdown vs DropdownWithFallback: use SearchableDropdown for large, dynamic lists where users benefit from filtering
 4. When moving UI elements, maintain all existing functionality (conditional rendering, states, feedback)
+
+### 2026-04-30 — Iteration Path Dropdown Clipping and Selection Fix
+
+**Problem solved:**
+- Iteration Path dropdown list was being clipped/blocked by the Team & Defaults card border
+- Dropdown selection behavior didn't react correctly when picking items
+- Unlike Team and Default Work Item Type dropdowns which worked perfectly
+
+**Root cause:**
+- Iteration Path used SearchableDropdown component with custom dropdown rendering
+- SearchableDropdown uses `position: absolute` with `zIndex: 1000` for the options list
+- Absolute positioning was being clipped by parent card's overflow or border styling
+- Team and Default Work Item Type used DropdownWithFallback with native `<select>` elements that don't get clipped
+
+**Solution implemented:**
+- Replaced SearchableDropdown with DropdownWithFallback for Iteration Path dropdown
+- Now matches Team dropdown implementation exactly (native `<select>` element)
+- Removed unused SearchableDropdown import from SettingsView.tsx
+- Native select resolves both clipping issue and selection behavior problems
+
+**Lesson learned:**
+- Native HTML elements (`<select>`) are more reliable for standard dropdowns than custom absolute-positioned overlays
+- Custom dropdowns with absolute positioning can cause clipping issues within card/container boundaries
+- When multiple dropdowns in the same context work differently, consistency matters — prefer the simpler, native approach
+- SearchableDropdown still has value for complex search scenarios, but standard dropdowns should use native elements
+
+### 2026-04-30 00:24:23 — Native Select with Search Capability (Hybrid Approach)
+
+**Problem solved:**
+- Iteration Path dropdown needed search functionality for long iteration lists
+- Previous attempts with SearchableDropdown caused clipping and blocking issues
+- Native <select> elements work reliably but lack search/filter capability
+
+**Solution implemented:**
+- Enhanced DropdownWithFallback component with optional 'searchable' prop
+- When searchable={true}, renders a search input field ABOVE the native <select>
+- Search filters options in real-time using case-insensitive substring matching
+- Clear button (✕) appears when search term is non-empty
+- Native select still renders below — no clipping issues
+
+**Implementation details:**
+1. Added 'searchable?: boolean' prop to DropdownWithFallback (default: false)
+2. Added searchTerm state to track user input
+3. Added filteredOptions computed value that filters based on searchTerm
+4. Search input positioned above select with marginBottom: 8
+5. Clear button positioned absolutely inside search input (right: 8, top: 50%)
+6. Placeholder text: "Search {label}..." (e.g., "Search iteration path...")
+7. Updated SettingsView to pass searchable={true} to Iteration Path and Default Work Item Type
+
+**Key advantages:**
+- Maintains native <select> reliability (no clipping, no z-index issues)
+- Provides search/filter UX for large option lists
+- Search input is separate from select — doesn't interfere with browser's native dropdown
+- Consistent behavior across all dropdowns while adding search where needed
+
+**UX pattern:**
+- Type in search input → options filter in real-time
+- Select still shows all filtered options in native browser dropdown
+- Clear button resets filter, showing all options again
+- Search input disabled when dropdown is disabled or loading
+
+**Files changed:**
+- webview-ui/src/components/DropdownWithFallback.tsx
+  - Added searchable prop to interface
+  - Added searchTerm state
+  - Added handleSearchChange and clearSearch handlers
+  - Added filteredOptions computed value
+  - Added search input JSX (lines 86-119) conditionally rendered when searchable={true}
+  - Changed options.map to filteredOptions.map (line 129)
+- webview-ui/src/views/SettingsView.tsx
+  - Added searchable={true} to Iteration Path DropdownWithFallback (line 418)
+  - Added searchable={true} to Default Work Item Type DropdownWithFallback (line 437)
+
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.60 KB CSS, 232.29 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Hybrid approach: native elements + search input = best of both worlds
+2. Filtering options before rendering in native select is simpler than custom dropdown positioning
+3. Search input ABOVE select (not replacing it) avoids all clipping/blocking issues
+4. Case-insensitive substring matching (.toLowerCase().includes()) is sufficient for most dropdown searches
+5. Clear button UX: only show when search term exists, position absolutely inside input
+6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
+
+**Design decision:**
+This hybrid approach solves the search requirement without reintroducing the clipping issues that plagued SearchableDropdown. The search input + native select pattern is reusable for any dropdown that needs filtering while maintaining reliability.

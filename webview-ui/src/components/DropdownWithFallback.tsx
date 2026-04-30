@@ -9,6 +9,7 @@ interface Props {
   disabled?: boolean;
   placeholder?: string;
   helperText?: string;
+  searchable?: boolean;
   onChange: (value: string) => void;
   onFallback?: (value: string) => void;
 }
@@ -22,10 +23,12 @@ export function DropdownWithFallback({
   disabled,
   placeholder,
   helperText,
+  searchable = false,
   onChange,
   onFallback
 }: Props): JSX.Element {
   const [useFallback, setUseFallback] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleSelectChange = (newValue: string): void => {
     onChange(newValue);
@@ -43,6 +46,20 @@ export function DropdownWithFallback({
       onChange(newValue);
     }
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = (): void => {
+    setSearchTerm('');
+  };
+
+  const filteredOptions = searchable && searchTerm
+    ? options.filter((opt) =>
+        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : options;
 
   const showFallback = useFallback || (error && !loading);
 
@@ -66,6 +83,40 @@ export function DropdownWithFallback({
         </>
       ) : (
         <>
+          {searchable && (
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                disabled={disabled || loading}
+                style={{ paddingRight: searchTerm ? 32 : undefined }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--ink-muted)',
+                    fontSize: '1rem',
+                    padding: '0 4px',
+                    lineHeight: 1
+                  }}
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ position: 'relative' }}>
             <select
               value={value}
@@ -75,7 +126,7 @@ export function DropdownWithFallback({
               <option value="">
                 {loading ? 'Loading...' : placeholder || `Select ${label.toLowerCase()}`}
               </option>
-              {options.map((opt) => (
+              {filteredOptions.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>

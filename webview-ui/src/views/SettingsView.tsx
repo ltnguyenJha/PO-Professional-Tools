@@ -415,6 +415,7 @@ export function SettingsView({
             error={dropdownState.iterationsError}
             disabled={!form.team?.trim()}
             placeholder="Select iteration"
+            searchable={true}
             helperText={
               !form.team?.trim() 
                 ? 'Select team first' 
@@ -434,6 +435,7 @@ export function SettingsView({
               loading={false}
               disabled={false}
               placeholder="Select work item type"
+              searchable={true}
               helperText="Used when creating new work items"
               onChange={(value) =>
                 setForm({ ...form, defaultWorkItemType: value as AdoWorkItemType })
