@@ -216,7 +216,7 @@ export function FeatureWizard({ draftId }: Props) {
             onOpenInChat={handleOpenInChat}
           />
         )}
-        {currentStep === 3 && draft.workItemType === 'Feature' && (
+        {currentStep === 3 && (
           <WizardStepFeatureDefinition
             draft={draft}
             onNext={(next) => handleStepChange(next)}

@@ -1328,6 +1328,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-bottom: var(--space-md);
 }
 
 .pbi-type-label {
