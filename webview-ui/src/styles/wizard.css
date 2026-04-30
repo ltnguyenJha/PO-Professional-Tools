@@ -101,9 +101,9 @@
 .wizard-step {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-3);
   background: var(--color-neutral-200);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border-radius: var(--radius-5);
   border: 1px solid var(--color-neutral-300);
   box-shadow: var(--shadow-sm);
