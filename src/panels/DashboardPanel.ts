@@ -52,6 +52,7 @@ export class DashboardPanel {
   private readonly disposables: vscode.Disposable[] = [];
   private patValidatedThisSession: boolean = false;
   private readonly rdiDraftService: RdiDraftService = new RdiDraftService();
+  private readonly acGenerationInFlight = new Set<string>();
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -1230,40 +1231,52 @@ export class DashboardPanel {
     await this.postState();
 
     // Auto-generate Gherkin acceptance criteria in the background when
-    // the user saves the story step and no AC exists yet
-    const hasStory = mergedDraft.description?.trim() || mergedDraft.title?.trim();
+    // the user saves the Feature Definition step and no AC exists yet.
+    // Step 1 (Feature Definition) is preferred over step 0 because it provides
+    // featureUserStoryStatement + featureWhy — richer, unambiguous context for AC.
+    const storyStatement = mergedDraft.featureUserStoryStatement?.trim() ?? '';
+    const descriptionWords = (mergedDraft.description?.trim() ?? '').split(/\s+/).filter(Boolean);
+    const hasContent = storyStatement.length > 0 || descriptionWords.length >= 8;
     const hasNoAc = !mergedDraft.acceptanceCriteria?.length;
-    if (currentStep === 0 && hasStory && hasNoAc) {
+    if (currentStep === 1 && hasContent && hasNoAc) {
       void this.handleGenerateAcceptanceCriteria(draftId);
     }
   }
 
   private async handleGenerateAcceptanceCriteria(draftId: string): Promise<void> {
+    if (this.acGenerationInFlight.has(draftId)) {
+      return;
+    }
+    this.acGenerationInFlight.add(draftId);
+
     const draft = this.findDraft(draftId);
-    if (!draft) return;
+    if (!draft) {
+      this.acGenerationInFlight.delete(draftId);
+      return;
+    }
     this.post({
       type: 'AI_PROGRESS',
       payload: { draftId, message: 'Generating acceptance criteria in Gherkin format...', busy: true }
     });
     const token = new vscode.CancellationTokenSource().token;
     try {
-      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
-      const suggestion = await this.copilotService.generateFullStoryFromSeed(
-        draft,
-        undefined,
-        token,
-        { linkedProjectContext }
-      );
-      // Only apply AC and test scenarios — preserve everything the PO wrote manually
-      if (suggestion.acceptanceCriteria?.length || suggestion.testScenarios?.length) {
+      const result = await this.copilotService.generateAcceptanceCriteria(draft, token);
+
+      // Re-read the latest draft before writing to detect concurrent manual edits
+      const latestDraft = this.findDraft(draftId);
+      if (!latestDraft || latestDraft.acceptanceCriteria?.length) {
+        return; // Draft deleted or user already added AC manually — don't overwrite
+      }
+
+      if (result.acceptanceCriteria.length || result.testScenarios.length) {
         const updated: PbiDraft = {
-          ...draft,
-          acceptanceCriteria: suggestion.acceptanceCriteria?.length
-            ? suggestion.acceptanceCriteria
-            : draft.acceptanceCriteria,
-          testScenarios: suggestion.testScenarios?.length
-            ? suggestion.testScenarios
-            : draft.testScenarios,
+          ...latestDraft,
+          acceptanceCriteria: result.acceptanceCriteria.length
+            ? result.acceptanceCriteria
+            : latestDraft.acceptanceCriteria,
+          testScenarios: result.testScenarios.length
+            ? result.testScenarios
+            : latestDraft.testScenarios,
           updatedAt: new Date().toISOString()
         };
         await this.draftService.upsert(this.context.globalState, updated);
@@ -1272,6 +1285,7 @@ export class DashboardPanel {
     } catch {
       // Silent failure — AC generation is best-effort; don't surface errors to the user
     } finally {
+      this.acGenerationInFlight.delete(draftId);
       this.post({
         type: 'AI_PROGRESS',
         payload: { draftId, message: '', busy: false }
