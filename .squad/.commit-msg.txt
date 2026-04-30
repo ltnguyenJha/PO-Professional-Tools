@@ -1,6 +1,0 @@
-fix: downgrade vite to 3.2.11 for Node 14 compatibility
-
-Vite 6 requires Node 18+. Machine runs Node 14.17.5 (EOL).
-Temporary fix until Node 20 upgrade.
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
