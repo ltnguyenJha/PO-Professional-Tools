@@ -1155,3 +1155,87 @@ This is about matching tool to use case, not preferring one component over the o
 - Build succeeded: 50 modules, 235.15 KB JS
 - Lint passed: 0 errors, 11 pre-existing warnings
 
+### 2026-04-30 — Feature Definition Wizard Step Component
+
+**Problem solved:**
+- Issue #38 required adding a Feature Definition section to the Feature creation wizard
+- Needed 4 context question fields: Why, User Flow, Business Rules, User Story Statement
+- Component needed to integrate seamlessly with existing wizard pattern
+
+**Solution implemented:**
+
+**1. Created WizardStepFeatureDefinition.tsx component:**
+- 4 textarea fields with optional indicators and help text:
+  - "Why does this matter?" (200–500 char guidance, optional)
+  - "Describe the user flow" (step-by-step user journey, optional)
+  - "What are the business rules and assumptions?" (constraints, conditions, optional)
+  - "User story statement (As a... I want... so that...)" (core user story, optional)
+- Uses existing form patterns from WizardStep3p5BusinessRules.tsx
+- Consistent styling: .wizard-field, .wizard-field-label, .wizard-field-textarea classes
+- Auto-focus on first field when step loads (useRef pattern)
+- Blur-triggered debounced save (500ms delay)
+- Keyboard shortcut: Ctrl+Enter to proceed to next step
+- All fields optional — allows partial completion without blocking progress
+
+**2. Integrated into FeatureWizard.tsx:**
+- Added import for WizardStepFeatureDefinition component
+- Added 'Feature Definition' to StepName type union
+- Updated steps array: now 7 steps with Feature Definition at position 3
+- Added conditional rendering: only shown when workItemType === 'Feature' (mirrors Bug-specific step logic)
+- Updated step numbering: Feature Definition → Step 4, Business Rules → Step 5, Details → Step 6, Technical Considerations → Step 7
+- Proper navigation wiring: prev/next step handlers automatically adjusted
+
+**3. Type safety verification:**
+- Checked PbiDraft interface in types.ts — fields already present:
+  - featureWhy?: string
+  - featureUserFlow?: string
+  - featureBusinessRules?: string
+  - featureUserStoryStatement?: string
+- No additional type extensions needed — backend work (Linus) already prepared the model
+
+**4. Styling & CSS:**
+- Used existing wizard.css styles (Phase 5 — Polish & Accessibility):
+  - .wizard-field: flex column with gap, proper spacing
+  - .wizard-field-label: typography-label-md with optional indicator
+  - .wizard-field-textarea: padding, borders, focus states, min-height: 100px
+  - .wizard-step-header, .wizard-step-title, .wizard-step-description: consistent typography
+  - .wizard-actions: flex buttons with gap, justify-end
+- All classes properly defined; no new CSS needed
+- Responsive design: textarea resize: vertical, adaptive layout on mobile
+
+**5. Build & validation:**
+- `npm run build`: ✅ Succeeded (50 modules, 23.60 KB CSS, 235+ KB JS)
+- TypeScript validation: ✅ No new type errors
+- Component follows established patterns (blur-save, debounce, keyboard shortcuts, auto-focus)
+
+**Key pattern learned:**
+The Feature Definition step is a "context-gathering" step that sits early in the feature creation flow (after Story, before Business Rules in standard flow). Its optional fields don't block progression but provide rich context for downstream child story generation. This mirrors the design of Business Rules step — optional fields that enhance rather than gate progression.
+
+**Integration points:**
+- FeatureWizard conditionally renders when workItemType === 'Feature'
+- Step index shifts: all steps after Feature Definition incremented by 1
+- Saves via Redux-like onSave callback, captured in draft state
+- Navigation: Back → Step 2 (Story), Next → Step 4 (Business Rules)
+
+**Files created/modified:**
+- webview-ui/src/components/WizardStepFeatureDefinition.tsx (NEW)
+- webview-ui/src/components/FeatureWizard.tsx (modified: import, StepName type, steps array, conditional rendering)
+- webview-ui/src/types.ts (already had the interface fields — no changes needed)
+
+**Design decision:**
+Placed Feature Definition after Story (step 3) rather than immediately after Identity to allow users to first establish the story format (As a... I want... so that...) before diving into context questions. This ordering reflects typical PO workflow: define the story, then provide supporting context.
+
+**Next steps (for others):**
+- Backend integration (Linus): wire feature definition context to child story generation
+- Testing: 22 test cases covering field visibility, persistence, integration with child stories
+- Documentation: update wizard flow diagram to show new step
+
+**Key learning:**
+When integrating a new wizard step, the heaviest work is NOT building the component (the pattern is well-established) but coordinating:
+1. Step indexing shifts (all subsequent steps increment)
+2. Type safety alignment (PbiDraft interface)
+3. Conditional rendering rules (workItemType checks)
+4. Navigation handler logic (prev/next endpoints)
+
+The component itself follows a proven formula: state + blur-save debounce + auto-focus + keyboard shortcuts. Reuse these patterns consistently across all wizard steps.
+
