@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { PbiDraft, PbiAttachment } from '../types';
 
 interface Props {
@@ -7,9 +7,10 @@ interface Props {
   onBack: (prevStep: number) => void;
   onSave: (partialDraft: Partial<PbiDraft>) => void;
   onGenerate?: () => void;
+  isGenerating?: boolean;
 }
 
-export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate }: Props) {
+export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, isGenerating = false }: Props) {
   const [technicalDetails, setTechnicalDetails] = useState(
     draft.technicalConsiderations?.technicalDetails || ''
   );
@@ -19,6 +20,13 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate }
   const [newFile, setNewFile] = useState('');
   const [attachments] = useState<PbiAttachment[]>(draft.attachments || []);
   const [saveTimer, setSaveTimer] = useState<number | null>(null);
+
+  // Sync when AI updates draft.technicalConsiderations from parent
+  useEffect(() => {
+    if (draft.technicalConsiderations?.technicalDetails !== undefined) {
+      setTechnicalDetails(draft.technicalConsiderations.technicalDetails);
+    }
+  }, [draft.technicalConsiderations?.technicalDetails]);
 
   const savePayload = () => ({
     technicalConsiderations: {
@@ -75,13 +83,39 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate }
           onBlur={handleFieldBlur}
         />
         {onGenerate && (
-          <button
-            className="wizard-btn wizard-btn-secondary"
-            onClick={onGenerate}
-            style={{ marginTop: 'var(--space-2)' }}
-          >
-            ✨ AI Generate
-          </button>
+          <div style={{ marginTop: 'var(--space-2)' }}>
+            <button
+              className="wizard-btn wizard-btn-secondary"
+              onClick={onGenerate}
+              disabled={isGenerating}
+              aria-label={isGenerating ? 'Generating technical considerations...' : 'Generate technical considerations with AI'}
+            >
+              {isGenerating ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid currentColor',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 600ms linear infinite',
+                  }} />
+                  Generating...
+                </span>
+              ) : '✨ AI Generate'}
+            </button>
+            {isGenerating && (
+              <p style={{
+                marginTop: 'var(--space-2)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--ink-muted)',
+                fontStyle: 'italic',
+              }}>
+                Scanning codebase and generating technical considerations — this may take a moment.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -140,6 +174,8 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate }
           Next
         </button>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

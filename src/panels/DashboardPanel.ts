@@ -1228,7 +1228,57 @@ export class DashboardPanel {
     await this.draftService.upsert(this.context.globalState, mergedDraft);
     this.setWizardStep(draftId, currentStep);
     await this.postState();
+
+    // Auto-generate Gherkin acceptance criteria in the background when
+    // the user saves the story step and no AC exists yet
+    const hasStory = mergedDraft.description?.trim() || mergedDraft.title?.trim();
+    const hasNoAc = !mergedDraft.acceptanceCriteria?.length;
+    if (currentStep === 0 && hasStory && hasNoAc) {
+      void this.handleGenerateAcceptanceCriteria(draftId);
+    }
   }
+
+  private async handleGenerateAcceptanceCriteria(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) return;
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Generating acceptance criteria in Gherkin format...', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const suggestion = await this.copilotService.generateFullStoryFromSeed(
+        draft,
+        undefined,
+        token,
+        { linkedProjectContext }
+      );
+      // Only apply AC and test scenarios — preserve everything the PO wrote manually
+      if (suggestion.acceptanceCriteria?.length || suggestion.testScenarios?.length) {
+        const updated: PbiDraft = {
+          ...draft,
+          acceptanceCriteria: suggestion.acceptanceCriteria?.length
+            ? suggestion.acceptanceCriteria
+            : draft.acceptanceCriteria,
+          testScenarios: suggestion.testScenarios?.length
+            ? suggestion.testScenarios
+            : draft.testScenarios,
+          updatedAt: new Date().toISOString()
+        };
+        await this.draftService.upsert(this.context.globalState, updated);
+        await this.postState();
+      }
+    } catch {
+      // Silent failure — AC generation is best-effort; don't surface errors to the user
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+  }
+
 
   private getWizardStep(draftId: string): number {
     const wizardState = this.context.globalState.get<Record<string, number>>(
