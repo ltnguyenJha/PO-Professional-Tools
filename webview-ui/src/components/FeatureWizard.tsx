@@ -21,6 +21,8 @@ export function FeatureWizard({ draftId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [previousStep, setPreviousStep] = useState(-1);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [adoUrl, setAdoUrl] = useState<string | undefined>(undefined);
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
@@ -64,6 +66,30 @@ export function FeatureWizard({ draftId }: Props) {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [currentStep, draftId, vscode]);
+
+  // Listen for ADO push progress and completion
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.type === 'ADO_PROGRESS') {
+        const { busy, draftId: eventDraftId } = message.payload;
+        if (eventDraftId && eventDraftId !== draftId) return;
+        setIsPushing(busy);
+      }
+      if (message.type === 'STATE_UPDATED') {
+        const updatedDraft = message.payload.pbiDrafts?.find(
+          (d: PbiDraft) => d.id === draftId
+        );
+        if (updatedDraft?.adoWorkItemUrl) {
+          setAdoUrl(updatedDraft.adoWorkItemUrl);
+          setDraft(updatedDraft);
+          setIsPushing(false);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [draftId]);
 
   // Load draft on mount
   useEffect(() => {
@@ -163,8 +189,9 @@ export function FeatureWizard({ draftId }: Props) {
   };
 
   const handleFinish = () => {
+    setIsPushing(true);
     vscode.postMessage({
-      type: 'WIZARD_COMPLETE',
+      type: 'PUSH_PBI_TO_ADO',
       payload: { draftId },
     });
   };
@@ -273,6 +300,8 @@ export function FeatureWizard({ draftId }: Props) {
             draft={draft}
             onBack={(prev) => handleStepChange(prev)}
             onFinish={handleFinish}
+            isPushing={isPushing}
+            adoUrl={adoUrl}
           />
         )}
       </div>
