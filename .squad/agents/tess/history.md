@@ -74,9 +74,27 @@
 - Chose `--space-4` (16px) as the standard card padding because it's the sweet spot: enough breathing room without feeling wasteful of screen real estate
 - Kept `--space-3` (12px) for internal gaps — creates visual hierarchy (outer padding > inner gap)
 - Using `--radius-5` (12px) gives cards a friendly, modern feel while maintaining VS Code's design language
+### RDI Creation Wizard UX Spec (2026-04-30)
+**What I designed:**
+- Complete UX specification for Issue #41: RDI (Release Deployment Item) creation wizard
+- 4-step wizard flow: Release Details → Deployment Details → PBI Links → Review & Submit
+- 20+ fields organized across sections: release template, deployment config, PBI linking, release notes, backout strategy
+- Full accessibility spec: keyboard navigation, ARIA labels, focus management, screen reader announcements
+- Aligned with existing FeatureWizard patterns: reused `.wizard-*` CSS classes and component architecture
+- Edge cases documented: empty states, validation errors, API failures, loading states, offline handling
+
+**Key UX decisions:**
+- Progressive disclosure for optional fields (release notes collapsed by default)
+- Conditional fields (DB scripts only shown when manual DB changes enabled)
+- Auto-save on field blur (500ms debounce, matching existing wizard pattern)
+- PBI search with debounced API calls and clear error handling
+- Review step with edit affordances to jump back to specific sections
+
+**Spec location:** `docs/design/feature-41-rdi-ux-spec.md`
 
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
 - **2026-04-30 17:00:** Saul (UI Designer) joined roster as design partner to collaborate on component library and Feature Wizard refinement.
 - **2026-04-30 [current]:** Fixed card alignment consistency across PBI Studio (Issue: card spacing misalignment).
+- **2026-04-30:** Delivered RDI creation wizard UX specification (Issue #41)

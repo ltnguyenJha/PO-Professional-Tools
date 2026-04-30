@@ -339,3 +339,25 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 **Build Status:** ✅ TypeScript: 0 errors, Webview build: green, Extension build: green
 
 **Key Learning:** Complete feature PRs combine UX polish, bug fixes, and new capabilities in a single coherent release. Comprehensive PR bodies with emoji sections (🎨 UX, 🐛 Bugs, ✨ Features, 🔧 Fixes) improve reviewer experience and documentation clarity. AI-Generated pattern (button → message → service → response) is now established across multiple wizard steps.
+### Issue #41 Architecture: RDI Creation Wizard (2026-05-01)
+
+**Scope:** Produced complete architecture proposal for Feature 7 — Create RDI with all required details.
+
+**Core Decisions Made:**
+1. **New `RdiDraft` entity** — RDIs have distinct fields (deployment details, backout strategy, DB changes, PBI links). Extending `PbiDraft` would bloat it; clean entity separation is correct.
+2. **7-step `RdiWizard`** — Mirrors `FeatureWizard` orchestrator exactly. Reuses WIZARD_DRAFT_LOAD/SAVE/STEP message pattern, blur-debounce saves, progress rail. No new infrastructure.
+3. **ADO: embed in `System.Description` as structured HTML** — Compatible with all ADO org configurations; avoids process template assumptions. PBI links as hyperlinks for MVP (not ADO relations).
+4. **No AI assist for MVP** — RDIs are factual structured data; AI adds little value. Deferred cleanly.
+5. **New sidebar tab "RDIs"** — Clean separation from PBI Studio; users understand RDIs ≠ PBIs.
+
+**New Services:** `RdiDraftService` (mirrors `PbiDraftService`), `AdoService.pushRdi()` method.
+
+**Work Breakdown:** Phase 0 types → Linus (L1–L4, ~8 hrs) + Rusty (R1–R9, ~13 hrs) + Danny review.
+
+**Open Questions for ltnguyen (5):** Work item type, PBI linking depth, tab vs section placement, iteration pre-population, applications source.
+
+**Deliverables:**
+- `docs/architecture/feature-41-rdi-creation.md`
+- `.squad/decisions/inbox/danny-feature-41-rdi-architecture.md`
+
+**Lasting Pattern:** Architecture for wizard-based ADO features follows a predictable template: (1) define data model as new interface, (2) add WebviewRequest + ExtensionEvent types, (3) create dedicated service, (4) add ADO push method with HTML description builder, (5) create wizard orchestrator + N step components. This pattern should be documented as a feature template for future issues.

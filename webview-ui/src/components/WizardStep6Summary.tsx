@@ -1,9 +1,12 @@
+import { useVsCodeApi } from '../utils/useVsCodeApi';
 import type { PbiDraft } from '../types';
 
 interface Props {
   draft: PbiDraft;
   onBack: (prevStep: number) => void;
   onFinish: () => void;
+  isPushing?: boolean;
+  adoUrl?: string;
 }
 
 function Row({ label, value }: { label: string; value: string | undefined | null }) {
@@ -52,7 +55,8 @@ function ListRow({ label, items }: { label: string; items: string[] | undefined 
   );
 }
 
-export function WizardStep6Summary({ draft, onBack, onFinish }: Props) {
+export function WizardStep6Summary({ draft, onBack, onFinish, isPushing = false, adoUrl }: Props) {
+  const vscode = useVsCodeApi();
   return (
     <div className="wizard-step">
       <div className="wizard-step-header">
@@ -61,6 +65,42 @@ export function WizardStep6Summary({ draft, onBack, onFinish }: Props) {
           Review everything before pushing to ADO. Go back to make any changes.
         </p>
       </div>
+
+      {/* Success banner */}
+      {adoUrl && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--success-soft)',
+            border: '1px solid var(--success)',
+            borderRadius: 'var(--radius-3)',
+            marginBottom: 'var(--space-4)',
+          }}
+          role="status"
+        >
+          <span style={{ fontSize: '1.2rem' }}>✅</span>
+          <div>
+            <strong style={{ color: 'var(--success)' }}>Successfully pushed to ADO!</strong>
+            <div style={{ marginTop: 'var(--space-1)' }}>
+              <a
+                href={adoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--accent)', textDecoration: 'underline', fontSize: '0.85rem' }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  vscode.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: adoUrl } });
+                }}
+              >
+                View in Azure DevOps →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         style={{
@@ -92,13 +132,48 @@ export function WizardStep6Summary({ draft, onBack, onFinish }: Props) {
       </div>
 
       <div className="wizard-actions">
-        <button className="wizard-btn wizard-btn-secondary" onClick={() => onBack(4)}>
+        <button
+          className="wizard-btn wizard-btn-secondary"
+          onClick={() => onBack(4)}
+          disabled={isPushing}
+        >
           Back
         </button>
-        <button className="wizard-btn wizard-btn-primary" onClick={onFinish}>
-          Finish & Save
-        </button>
+        {adoUrl ? (
+          <button
+            className="wizard-btn wizard-btn-secondary"
+            onClick={() => onBack(4)}
+          >
+            ← Edit
+          </button>
+        ) : (
+          <button
+            className="wizard-btn wizard-btn-primary"
+            onClick={onFinish}
+            disabled={isPushing}
+            aria-label={isPushing ? 'Pushing to ADO...' : 'Finish and push to ADO'}
+          >
+            {isPushing ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid currentColor',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 600ms linear infinite',
+                }} />
+                Pushing to ADO...
+              </span>
+            ) : 'Finish & Save'}
+          </button>
+        )}
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
