@@ -16,6 +16,7 @@ import { ProjectsView } from './views/ProjectsView';
 import { PbiStudio } from './views/PbiStudio';
 import { BulkBreakdownView } from './views/BulkBreakdownView';
 import { SettingsView } from './views/SettingsView';
+import { RdiTab } from './components/rdi/RdiTab';
 
 import { vscodeApi } from './utils/useVsCodeApi';
 
@@ -166,6 +167,8 @@ export function App(): JSX.Element {
           title: 'Feature Creation',
           subtitle: 'Split a big feature into many prefixed child items.'
         };
+      case 'rdis':
+        return { title: 'RDIs', subtitle: 'Create and manage Release Deployment Items.' };
       case 'settings':
         return {
           title: 'Settings',
@@ -220,6 +223,7 @@ export function App(): JSX.Element {
             send={sendMessage}
           />
         )}
+        {view === 'rdis' && <RdiTab />}
         {view === 'settings' && (
           <SettingsView
             adoSettings={state.adoSettings}

@@ -156,6 +156,7 @@ export interface AppStatePayload {
   /** When omitted (older sessions), treat as `projects`. */
   linkTargets?: ImportedProject[];
   pbiDrafts: PbiDraft[];
+  rdiDrafts: RdiDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -171,6 +172,58 @@ export interface AdoProgressPayload {
   projectId?: string;
 }
 
+// ─── RDI Types ───────────────────────────────────────────────────────────────
+
+export interface RdiPbiLink {
+  pbiId: string;
+  pbiTitle?: string;
+  relationUrl?: string;
+}
+
+export interface RdiDeploymentDetail {
+  application: string;
+  repoUrl: string;
+  buildUrl: string;
+  version: string;
+}
+
+export interface RdiManualDbChange {
+  description: string;
+  script?: string;
+  rollbackScript?: string;
+}
+
+export type RdiStatus = 'draft' | 'pushed' | 'error';
+
+export interface RdiDraft {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  status: RdiStatus;
+
+  workItemTitle: string;
+  iterationPath: string;
+  areaPath: string;
+  assignedTo: string;
+  targetReleaseDate: string;
+
+  pbiLinks: RdiPbiLink[];
+  releaseNotes: string;
+
+  deploymentDetails: RdiDeploymentDetail[];
+  applications: string;
+
+  backoutStrategy: string;
+  backoutOwner: string;
+  estimatedBackoutTime: string;
+
+  manualDbChanges: RdiManualDbChange[];
+  hasManualDbChanges: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type ExtensionEvent =
   | { type: 'DRAFT_CREATED'; payload: { draftId: string } }
   | { type: 'STATE_UPDATED'; payload: AppStatePayload }
@@ -185,7 +238,16 @@ export type ExtensionEvent =
   | { type: 'ADO_TEAMS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
-  | { type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string } };
+  | { type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string } }
+  // RDI events
+  | { type: 'rdiDraftCreated'; draft: RdiDraft }
+  | { type: 'rdiDraftLoaded'; draft: RdiDraft }
+  | { type: 'rdiDraftSaved'; draft: RdiDraft }
+  | { type: 'rdiDraftDeleted'; id: string }
+  | { type: 'rdiPushed'; id: string; adoUrl: string }
+  | { type: 'rdiListLoaded'; drafts: RdiDraft[] }
+  | { type: 'defaultIterationLoaded'; iterationPath: string }
+  | { type: 'rdiError'; message: string };
 
 export type WebviewRequest =
   | { type: 'APP_READY' }
@@ -249,7 +311,15 @@ export type WebviewRequest =
   | { type: 'FETCH_ADO_TEAMS' }
   | { type: 'FETCH_ADO_AREA_PATHS'; payload: { team: string } }
   | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
-  | { type: 'VALIDATE_PAT_SCOPES' };
+  | { type: 'VALIDATE_PAT_SCOPES' }
+  // RDI requests
+  | { type: 'createRdiDraft' }
+  | { type: 'loadRdiDraft'; id: string }
+  | { type: 'saveRdiDraft'; draft: RdiDraft }
+  | { type: 'deleteRdiDraft'; id: string }
+  | { type: 'pushRdi'; id: string }
+  | { type: 'loadRdiList' }
+  | { type: 'getDefaultIteration' };
 
 interface VsCodeApi {
   postMessage(message: WebviewRequest): void;

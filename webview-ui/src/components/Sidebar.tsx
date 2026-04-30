@@ -1,6 +1,6 @@
 import type { ThemePreference } from '../types';
 
-export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'settings';
+export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'rdis' | 'settings';
 
 interface NavEntry {
   id: ViewId;
@@ -13,6 +13,7 @@ const NAV: NavEntry[] = [
   { id: 'projects', label: 'Projects', icon: '❏' },
   { id: 'studio', label: 'PBI Studio', icon: '✎' },
   { id: 'bulk', label: 'Feature Creation', icon: '≡' },
+  { id: 'rdis', label: 'RDIs', icon: '⬆' },
   { id: 'settings', label: 'Settings', icon: '⚙' }
 ];
 
