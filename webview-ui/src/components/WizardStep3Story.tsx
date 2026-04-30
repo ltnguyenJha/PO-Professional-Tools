@@ -158,6 +158,11 @@ export function WizardStep3Story({
             AI-Generated
           </button>
         </div>
+        <p className="wizard-mode-hint">
+          {aiMode === 'AI-Generated' 
+            ? '✨ Copilot can draft content for you. Use Ctrl+Shift+P → Generate Story or right-click fields to refine.'
+            : 'Write your story manually, or switch to AI-Generated to let Copilot help draft content.'}
+        </p>
       </div>
 
       {/* Story inputs */}
