@@ -250,14 +250,16 @@ export class AdoService {
 
     // Collect indices of auto-mermaid attachment relations. Remove in descending index order
     // so that earlier removals do not shift the indices of subsequent ones in the same patch.
+    // The filename lives in attributes.name — NOT in the URL (the URL is a plain GUID endpoint).
     const indicesToRemove = relations
       .map((rel, idx) => ({ rel, idx }))
-      .filter(
-        ({ rel }) =>
-          rel.rel === 'AttachedFile' &&
-          typeof rel.url === 'string' &&
-          rel.url.includes('po-tools-ai-diagram-')
-      )
+      .filter(({ rel }) => {
+        if (rel.rel !== 'AttachedFile') {
+          return false;
+        }
+        const name = (rel.attributes as Record<string, unknown> | undefined)?.['name'];
+        return typeof name === 'string' && name.includes('po-tools-ai-diagram-');
+      })
       .map(({ idx }) => idx)
       .sort((a, b) => b - a); // descending
 
