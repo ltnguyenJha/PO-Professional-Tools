@@ -1,0 +1,57 @@
+/* ================================================================
+   Tailwind CSS entry point for PO-Professional-Tools webview-ui
+   Import order matters: base → components → utilities
+   ================================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------------------------------
+   VS Code → Tailwind Bridge Variables
+   
+   Maps VS Code's runtime --vscode-* theme tokens to semantic
+   --tw-vscode-* names that the tailwind.config.js custom color
+   palette references. Automatically adapts to any VS Code theme
+   (dark, light, high-contrast) without hardcoded values.
+   ---------------------------------------------------------------- */
+:root {
+  /* Surface & text */
+  --tw-vscode-bg:       var(--vscode-editor-background, #1e1e1e);
+  --tw-vscode-bg-alt:   var(--vscode-sideBar-background, #252526);
+  --tw-vscode-fg:       var(--vscode-editor-foreground, #d4d4d4);
+  --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #858585);
+  --tw-vscode-border:   var(--vscode-panel-border, var(--vscode-widget-border, #454545));
+
+  /* Interactive */
+  --tw-vscode-accent:    var(--vscode-button-background, #0078d4);
+  --tw-vscode-accent-fg: var(--vscode-button-foreground, #ffffff);
+  --tw-vscode-input-bg:  var(--vscode-input-background, #3c3c3c);
+
+  /* Status foreground colors (from VS Code diagnostic / test icons) */
+  --tw-vscode-success: var(--vscode-testing-iconPassed,
+                        var(--vscode-notebookStatusSuccessIcon-foreground, #4ec9b0));
+  --tw-vscode-warning: var(--vscode-editorWarning-foreground, #cca700);
+  --tw-vscode-info:    var(--vscode-notificationsInfoIcon-foreground, #75beff);
+  --tw-vscode-error:   var(--vscode-editorError-foreground, #f44747);
+
+  /* Status soft backgrounds — dark theme defaults (15% opacity tint) */
+  --tw-vscode-success-bg: rgba(78, 201, 176, 0.15);
+  --tw-vscode-warning-bg: rgba(204, 167, 0, 0.15);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.15);
+  --tw-vscode-error-bg:   rgba(244, 71, 71, 0.15);
+}
+
+/* VS Code injects vscode-light/vscode-dark/vscode-high-contrast on <body> */
+body.vscode-light {
+  --tw-vscode-success-bg: rgba(4, 120, 87, 0.12);
+  --tw-vscode-warning-bg: rgba(146, 64, 14, 0.12);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.12);
+  --tw-vscode-error-bg:   rgba(190, 18, 60, 0.12);
+}
+
+body.vscode-high-contrast {
+  --tw-vscode-success-bg: rgba(78, 201, 176, 0.25);
+  --tw-vscode-warning-bg: rgba(204, 167, 0, 0.25);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.25);
+  --tw-vscode-error-bg:   rgba(244, 71, 71, 0.25);
+}

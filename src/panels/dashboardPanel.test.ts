@@ -15,7 +15,6 @@
  * - Integration: message → service → ADO flow
  */
 
-import { WebviewRequest, PbiDraft, InvestWizardInput, ExtensionEvent } from '../shared/messages';
 
 /**
  * ============================================================================

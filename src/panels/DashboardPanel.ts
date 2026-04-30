@@ -6,7 +6,6 @@ import {
   AdoSettings,
   BugReportInput,
   BulkBreakdownRequest,
-  BulkChildInput,
   ExtensionEvent,
   ImportedProject,
   PbiDraft,
@@ -1171,7 +1170,6 @@ export class DashboardPanel {
     if (errors.length > 0) {
       this.postToast('error', `${errors.length} item(s) failed to push. See output for details.`);
       for (const err of errors) {
-        // eslint-disable-next-line no-console
         console.error(`[PO Tools] Push failed for ${err.draftId}: ${err.message}`);
       }
     }
