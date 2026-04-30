@@ -63,6 +63,12 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 
 **Extensibility Roadmap** — Phase 1 (ADO, shipped) → Phase 2 (multi-platform, 6 months) → Phase 3 (plugin SDK, 12 months) → Phase 4 (team collaboration, 18 months). Clear signal that this is a long-term platform investment, not a prototype.
 
+### Node.js / Vite Compatibility Diagnosis (2026-04-28)
+
+Diagnosed root cause of webview-ui build failure and documented comprehensive decision. Found: Node 14.17.5 (EOL) incompatible with Vite 6.4.2 (requires Node 18+) and plugin-react 4.7.0 (requires Node 14.18+). Built compatibility matrix, assessed risk, and recommended Node 20 LTS upgrade as primary path with clear implementation steps and verification procedure.
+
+**Cross-team coordination:** Recommended Node upgrade while Linus implemented parallel downgrade workaround. Both paths now documented in decisions.md for strategic review.
+
 ### Postinstall Hook Implementation (2026-04-28)
 
 **Cross-Agent Update:** Linus implemented postinstall script based on local setup diagnosis. Recommendation was to add `"postinstall": "npm --prefix webview-ui install"` to root `package.json` scripts — this eliminates the two-step manual install friction. All new devs and CI/CD now require single `npm install` command instead of remembering to manually install webview-ui dependencies.

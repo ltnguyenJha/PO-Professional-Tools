@@ -99,6 +99,59 @@
 - Clean state on successful save + brief success feedback (3s timeout).
 - Sticky footer with conditional rendering (`hasUnsavedChanges || saveSuccess`) keeps UI clean when no action needed.
 
+### 2026-05-01 — Feature Definition Empty State & Card Alignment
+
+**Problem solved:**
+- Feature Definition step (index 3) in FeatureWizard was empty for non-Feature work item types.
+- Cards and wizard container had misaligned horizontal padding causing visual inconsistency.
+
+**Root causes:**
+1. **Empty Feature Definition step:**
+   - `FeatureWizard.tsx` line 219 had conditional rendering: `{currentStep === 3 && draft.workItemType === 'Feature' && (<WizardStepFeatureDefinition />)}`
+   - If `workItemType` wasn't exactly 'Feature', the step content wouldn't render at all, leaving an empty step.
+   - Step 3 was visible in progress indicator but showed nothing when clicked.
+
+2. **Card alignment issue:**
+   - `.card` in `styles.css` uses `padding: var(--space-lg)` = 16px (line 532).
+   - `.wizard-container` in `wizard.css` used `padding: var(--space-5)` = 20px (line 19).
+   - `.pbi-type-selector-wrap` had no margin-bottom, creating inconsistent vertical spacing between sections.
+   - Result: Cards and wizard sections had different left/right insets, breaking visual alignment.
+
+**Solution implemented:**
+
+**1. Remove workItemType condition:**
+- Changed `FeatureWizard.tsx` line 219 from:
+  ```tsx
+  {currentStep === 3 && draft.workItemType === 'Feature' && (
+  ```
+  to:
+  ```tsx
+  {currentStep === 3 && (
+  ```
+- Now `WizardStepFeatureDefinition` renders for all work item types at step 3.
+- The component's fields (`featureWhy`, `featureUserFlow`, etc.) are optional by design in `PbiDraft` type, so they work fine for any work item type.
+
+**2. Align wizard container padding:**
+- Changed `wizard.css` line 19 from `padding: var(--space-5)` to `padding: var(--space-4)`.
+- `var(--space-4)` = 16px, matching `.card` padding.
+- Now wizard and cards have consistent horizontal alignment.
+
+**3. Add vertical spacing to pbi-type-selector:**
+- Added `margin-bottom: var(--space-md)` to `.pbi-type-selector-wrap` in `styles.css`.
+- Creates consistent gap between PBI type selector and the FeatureWizard below it.
+- Uses existing token (12px) for consistency.
+
+**Key patterns:**
+- **Conditional rendering gotcha:** If step UI is conditionally rendered based on draft properties, ensure fallback or make it universal. Empty steps confuse users.
+- **Padding alignment:** When mixing layout containers (`.card`, `.wizard-container`, custom wrappers), audit padding/margin to ensure visual alignment. Use consistent spacing tokens.
+- **PbiDraft flexibility:** Feature-specific fields (featureWhy, featureUserFlow, etc.) are all optional, so Feature Definition step is safe to show for all work item types. Users can skip it if not relevant.
+
+**Testing notes:**
+- Verified build succeeds with `npm run build` in webview-ui.
+- Changes are purely presentational — no backend message handler updates needed.
+- Feature Definition step now shows content regardless of workItemType selection.
+
+
 **CSS strategy:**
 - Inline styles for sticky footer (`position: 'sticky'`, `bottom: 0`) — no new CSS classes needed.
 - Used existing VS Code CSS variables (`--panel`, `--line-strong`) for consistent theming.
@@ -250,6 +303,13 @@
 - **Accessibility**: Users with screen readers, keyboard-only navigation, and motor disabilities can now use the UI effectively
 - **Maintainability**: Future UI updates can reference spacing tokens instead of hardcoding values — reduces CSS bloat and inconsistency
 - **Professional Polish**: Focus states and touch targets meet WCAG 2.1 AA standards
+
+## Learnings
+
+- PBI Studio toggle UX: inactive button used --ink-muted (looks disabled). Fixed to use --ink with opacity: 0.6 for clear interactivity.
+- CSS architecture: tokens.css and wizard.css in styles/ subdir were NOT imported. Fixed by: importing wizard.css in main.tsx, bridging missing variables in styles.css [data-theme] blocks.
+- Variable bridge pattern: --color-primary-default and --color-error mapped to --accent and --danger respectively in each [data-theme] block so dark/light mode works correctly.
+- Numeric spacing scale (--space-1..8) added to :root in styles.css as convenience aliases = 4px/8px/12px/16px/20px/24px/28px/32px.
 
 ### 2026-04-29 — "Bulk Breakdown" Renamed to "Feature Creation" (Issue #21)
 
@@ -1040,15 +1100,80 @@ When implementing conditional rendering for action buttons, check if dirty state
 5. Clear button UX: only show when search term exists, position absolutely inside input
 6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
 
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.60 KB CSS, 232.29 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Hybrid approach: native elements + search input = best of both worlds
+2. Filtering options before rendering in native select is simpler than custom dropdown positioning
+3. Search input ABOVE select (not replacing it) avoids all clipping/blocking issues
+4. Case-insensitive substring matching (.toLowerCase().includes()) is sufficient for most dropdown searches
+5. Clear button UX: only show when search term exists, position absolutely inside input
+6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
+
 **Design decision:**
 This hybrid approach solves the search requirement without reintroducing the clipping issues that plagued SearchableDropdown. The search input + native select pattern is reusable for any dropdown that needs filtering while maintaining reliability.
 
-### 2026-04-30 — Searchable Dropdown: Reverted to Custom Component
+### 2026-04-30 — Business Rules Navigation Fix + Feature Definition Frontend Wiring
 
 **Problem solved:**
-- User requested built-in searchable dropdown (not separate search field above select)
-- Previous implementation added search input ABOVE native select — not integrated
-- User wanted typing directly in dropdown to filter (like custom dropdown behavior)
+- Off-by-one error in Business Rules step navigation — `onNext(4)` was hardcoded, stayed on step 4
+- AI-Generated button missing from Feature Definition step
+- Card/wizard padding misalignment and vertical spacing inconsistencies
+
+**Solutions implemented:**
+
+**1. Business Rules Navigation (Commit 41c64cc):**
+- Changed `WizardStep3p5BusinessRules.tsx` line 38: `onNext(4)` → `onNext(5)`
+- Now correctly advances to Details step
+
+**2. Feature Definition AI Button (Commit 41c64cc):**
+- Added `onGenerateAI?: () => void` prop to WizardStepFeatureDefinition
+- Added "✨ AI-Generated" button in wizard-step-header
+- Wired to `FeatureWizard.handleGenerateFeatureDefinition()` handler
+- Sends `GENERATE_FEATURE_DEFINITION` message with draftId (backend complete by Linus)
+
+**3. Feature Definition Step Rendering (Commit fa1fb69):**
+- Removed `draft.workItemType === 'Feature'` condition from step 3 rendering
+- Step now displays for all work item types (Feature, User Story, PBI, Bug)
+- All Feature Definition fields are optional — safe for any work item type
+- Better UX than blank step — users can skip if not relevant
+
+**4. Card & Wizard Alignment (Commit fa1fb69):**
+- Fixed padding mismatch: `wizard.css` changed from 20px to 16px (var(--space-4))
+- Now matches `.card` padding for visual consistency
+- Added `margin-bottom: var(--space-md)` (12px) to `.pbi-type-selector-wrap`
+- Creates uniform vertical rhythm between sections
+
+**Files modified:**
+- `webview-ui/src/components/WizardStep3p5BusinessRules.tsx` — Navigation fix
+- `webview-ui/src/components/WizardStepFeatureDefinition.tsx` — AI button + prop
+- `webview-ui/src/components/FeatureWizard.tsx` — Rendering condition fix, handler wiring
+- `webview-ui/src/styles/wizard.css` — Padding alignment
+- `webview-ui/src/styles.css` — Vertical spacing
+
+**Testing:**
+- ✅ Build: `npm run build` → 60 modules, 256.42 KB JS (gzipped: 75.44 KB)
+- ✅ TypeScript: 0 errors
+- ✅ Lint: 0 errors (11 pre-existing warnings unrelated)
+
+**Learnings:**
+1. **Conditional rendering gotcha:** If a wizard step is conditionally rendered based on draft properties, ensure it either has a fallback OR is truly universal. Empty steps confuse users.
+
+2. **Padding alignment in multi-component layouts:** When cards, wizards, and custom wrappers share a parent, they must use consistent padding tokens. Audit all layout containers for padding/margin consistency.
+
+3. **Optional fields are powerful:** Feature-specific optional fields in PbiDraft allow components to be reused across multiple work item types without breaking. Users get richer context options without strict enforcement.
+
+4. **Vertical spacing matters:** Gaps between sections should be consistent. Missing margin-bottom on intermediate elements breaks visual rhythm. New layout wrappers need spacing audit with adjacent elements.
+
+**Design pattern established:**
+CSS layout consistency requires:
+- Consistent padding tokens across cards, wizards, wrappers
+- Audit all layout containers when updating one
+- Use design system tokens (`--space-*`) instead of hardcoded px values
+- Verify vertical rhythm with adjacent elements when adding new wrappers
+
 
 **Solution implemented:**
 
@@ -1238,4 +1363,93 @@ When integrating a new wizard step, the heaviest work is NOT building the compon
 4. Navigation handler logic (prev/next endpoints)
 
 The component itself follows a proven formula: state + blur-save debounce + auto-focus + keyboard shortcuts. Reuse these patterns consistently across all wizard steps.
+
+### 2026-05-02 — Wizard Bug Fixes: Business Rules Navigation & AI-Generated Button
+
+**Problem solved:**
+- **BUG 1:** Business Rules step couldn't proceed to next step — clicking Next button didn't advance
+- **BUG 2:** AI-Generated feature in Feature Definition step had no UI to trigger it
+
+**Root cause analysis:**
+
+**BUG 1 - Off-by-one error in step navigation:**
+- In WizardStep3p5BusinessRules.tsx line 38: `onNext(4)` was hardcoded
+- But in FeatureWizard.tsx line 228: `currentStep === 4` renders WizardStep3p5BusinessRules
+- This meant clicking Next was trying to navigate to the SAME step (4), not the next step (5)
+- Navigation guard prevented this, so the button did nothing
+- **Root cause:** Hardcoded step index instead of calculating next step
+
+**BUG 2 - Missing UI component:**
+- WizardStepFeatureDefinition.tsx had no "AI-Generated" button
+- FeatureWizard.tsx already had `handleGenerateAI()` that sends `GENERATE_FULL_STORY_AI` message
+- Message type exists in both `webview-ui/src/types.ts` (line 214) and `src/shared/messages.ts` (line 195)
+- Backend handler exists (Linus's domain) — this was purely a frontend wiring issue
+- **Root cause:** Component prop not passed, no UI to trigger existing functionality
+
+**Solution implemented:**
+
+**1. Fixed Business Rules navigation:**
+- Changed WizardStep3p5BusinessRules.tsx line 38: `onNext(4)` → `onNext(5)`
+- Now correctly advances to Details step (step 5)
+- Navigation flow restored: Business Rules (4) → Details (5) → Technical Considerations (6)
+
+**2. Added AI-Generated button to Feature Definition:**
+- Added `onGenerateAI?: () => void` prop to WizardStepFeatureDefinition interface
+- Added button in wizard-step-header section:
+  ```tsx
+  {onGenerateAI && (
+    <button
+      className="wizard-btn wizard-btn-secondary"
+      onClick={onGenerateAI}
+      aria-label="Generate feature definition with AI"
+    >
+      ✨ AI-Generated
+    </button>
+  )}
+  ```
+- Wired up in FeatureWizard.tsx: passed `onGenerateAI={handleGenerateAI}` to WizardStepFeatureDefinition
+- Button conditionally rendered (only shows if callback provided)
+- Uses existing `handleGenerateAI()` that sends `GENERATE_FULL_STORY_AI` message
+- Backend handler already exists — no backend changes needed
+
+**Build & validation:**
+- `npm run build`: ✅ Succeeded (60 modules, 256.42 KB JS, 926ms)
+- Committed on branch `feature/pbi-studio-ux-improvements`
+- Commit message includes detailed explanation of both fixes
+
+**Key learnings:**
+
+**1. Hardcoded step indices are fragile:**
+- When wizard step order changes (adding/removing steps), hardcoded indices break
+- Better pattern: Calculate next step relative to current: `onNext(currentStep + 1)`
+- Or use named constants/enums for step indices
+- **Action:** Consider refactoring all wizard steps to use relative navigation
+
+**2. Message type alignment is critical:**
+- Always verify message type exists in BOTH:
+  - `webview-ui/src/types.ts` (WebviewRequest union)
+  - `src/shared/messages.ts` (WebviewRequest union)
+- These must be kept in sync manually (no type sharing between webview and extension contexts)
+- Before adding frontend features, check if backend handler already exists
+
+**3. Optional prop pattern for conditional features:**
+- Using `onGenerateAI?: () => void` (optional prop) allows component to work with/without AI feature
+- Button renders only when callback provided: `{onGenerateAI && <button onClick={onGenerateAI}>...}`
+- This pattern makes components reusable in contexts with different feature availability
+
+**Findings for Linus (backend):**
+- AI-Generated button now sends `GENERATE_FULL_STORY_AI` message type with `{ draftId }`
+- This is the same message used in WizardStep3Story.tsx for "Generate Full Story with AI"
+- Backend handler should populate all 4 feature definition fields:
+  - `featureWhy`
+  - `featureUserFlow`
+  - `featureBusinessRules`
+  - `featureUserStoryStatement`
+- Message type already registered in both type systems — no new message needed
+
+**Files modified:**
+- webview-ui/src/components/WizardStep3p5BusinessRules.tsx (navigation fix)
+- webview-ui/src/components/WizardStepFeatureDefinition.tsx (prop interface + button)
+- webview-ui/src/components/FeatureWizard.tsx (prop wiring)
+- dist/assets/* (rebuilt)
 
