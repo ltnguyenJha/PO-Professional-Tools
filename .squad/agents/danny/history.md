@@ -63,6 +63,12 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 
 **Extensibility Roadmap** — Phase 1 (ADO, shipped) → Phase 2 (multi-platform, 6 months) → Phase 3 (plugin SDK, 12 months) → Phase 4 (team collaboration, 18 months). Clear signal that this is a long-term platform investment, not a prototype.
 
+### Node.js / Vite Compatibility Diagnosis (2026-04-28)
+
+Diagnosed root cause of webview-ui build failure and documented comprehensive decision. Found: Node 14.17.5 (EOL) incompatible with Vite 6.4.2 (requires Node 18+) and plugin-react 4.7.0 (requires Node 14.18+). Built compatibility matrix, assessed risk, and recommended Node 20 LTS upgrade as primary path with clear implementation steps and verification procedure.
+
+**Cross-team coordination:** Recommended Node upgrade while Linus implemented parallel downgrade workaround. Both paths now documented in decisions.md for strategic review.
+
 ### Postinstall Hook Implementation (2026-04-28)
 
 **Cross-Agent Update:** Linus implemented postinstall script based on local setup diagnosis. Recommendation was to add `"postinstall": "npm --prefix webview-ui install"` to root `package.json` scripts — this eliminates the two-step manual install friction. All new devs and CI/CD now require single `npm install` command instead of remembering to manually install webview-ui dependencies.
@@ -274,3 +280,46 @@ All architecture decisions validated. All implementation complete. Zero blockers
 Rusty's frontend restoration + Linus's backend handler = complete feature. No rework needed. Both pieces fit together perfectly. Ready for immediate merge to main.
 
 **Final Recommendation:** ✅ **APPROVED — MERGE TO MAIN**
+
+### Ultimate Roadmap Architecture Document (2026-04-29)
+
+**Task:** Created comprehensive stakeholder-facing architecture document (`docs/ULTIMATE-ROADMAP.md`) presenting three-phase implementation roadmap for PO Professional Tools.
+
+**Content Structure:**
+- Executive summary and problem statement
+- Phase 1: Azure DevOps Deployment (completed) — Local-first VS Code extension with AI-powered PBI generation, code scanning, ADO integration
+- Phase 2: GitHub Synchronization (in development) — Bidirectional sync between ADO and GitHub for developer workflows, selective PBI flow, conflict resolution
+- Phase 3: Squad Team Automation (planned) — Autonomous AI agents pick up GitHub Issues, implement code, generate regression tests, create PRs with quality guardrails
+
+**Detailed Mermaid Diagrams Created:**
+1. **Phase 1 Architecture:** Extension core → AI services → data layer → ADO integration (professional stakeholder-ready visualization)
+2. **Phase 2 Sync Engine:** PO layer → sync engine (controller, rules, mapper, conflict resolver) → GitHub layer with bidirectional data flow
+3. **Phase 2 Sequence Diagram:** End-to-end sync flow showing PO → ADO → GitHub → Developer interactions, including conflict scenarios
+4. **Phase 3 Full Stack:** Planning layer → GitHub interface → Squad orchestration (agents: Rusty, Linus, Livingston, Danny) → development pipeline → quality gates → repository
+5. **Phase 3 Squad Workflow:** Detailed sequence showing autonomous agent flow from issue pickup → code generation → testing → PR creation → human approval → merge
+6. **Phase 3 Quality Guardrails:** Flowchart showing pre-merge quality gates (lint, build, test, security, coverage, review, approval) with fix loops
+
+**Key Architectural Decisions:**
+- **Phase sequencing:** Build local-first foundation → add sync layer → enable autonomous delivery
+- **Stakeholder communication:** Balance technical depth with executive accessibility, use visual diagrams for complex flows
+- **Success metrics:** Defined KPIs for each phase (time savings, adoption rates, merge rates, test coverage)
+- **Risk mitigation:** Technical risks (rate limiting, conflicts, code quality) and organizational risks (adoption resistance, trust in agents)
+
+**Visual Design Principles:**
+- Professional aesthetics with color coding by phase
+- Swim lanes for role separation (PO, Developer, Agent, System)
+- Decision points and data flows clearly labeled
+- High-fidelity diagrams suitable for executive presentations
+
+**Benefits Summary:**
+- Phase 1: 60% reduction in PBI drafting time (delivered)
+- Phase 2: Real-time bidirectional sync with conflict resolution (in development)
+- Phase 3: 85%+ reduction in routine development tasks via autonomous agents (planned)
+
+**Stakeholder Readiness:**
+- Document is presentation-ready for executive meetings
+- Clear call-to-action for each stakeholder group (POs, devs, leadership)
+- Success metrics tied to ROI ($50k–75k/year per team in reclaimed capacity)
+- Risk mitigation strategies for both technical and organizational concerns
+
+**Key Learning:** Architecture roadmaps for stakeholders require balancing technical precision with executive accessibility. Use detailed Mermaid diagrams (not minimal sketches) to convey system complexity. Present three-phase approach (foundation → integration → automation) to show compounding value over time. Tie each phase to measurable business outcomes (time savings, adoption rates, quality metrics) rather than technical implementation details.

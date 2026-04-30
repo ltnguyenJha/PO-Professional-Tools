@@ -4,6 +4,7 @@ import type { PbiDraft } from '../types';
 import { WizardStep1Type } from './WizardStep1Type';
 import { WizardStep2Identity } from './WizardStep2Identity';
 import { WizardStep3Story } from './WizardStep3Story';
+import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
 import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
@@ -12,7 +13,7 @@ interface Props {
   draftId: string;
 }
 
-type StepName = 'Type' | 'Identity' | 'Story' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Type' | 'Identity' | 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -24,7 +25,7 @@ export function FeatureWizard({ draftId }: Props) {
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
 
-  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -122,6 +123,13 @@ export function FeatureWizard({ draftId }: Props) {
     });
   };
 
+  const handleGenerateFeatureDefinition = () => {
+    vscode.postMessage({
+      type: 'GENERATE_FEATURE_DEFINITION',
+      payload: { draftId },
+    });
+  };
+
   const handleOpenInChat = () => {
     vscode.postMessage({
       type: 'OPEN_IN_COPILOT_CHAT',
@@ -138,13 +146,13 @@ export function FeatureWizard({ draftId }: Props) {
 
   if (loading) {
     return (
-      <div style={{ padding: 'var(--space-5)' }} role="status" aria-live="polite">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+      <div style={{ padding: 'var(--space-xl)' }} role="status" aria-live="polite">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
           <div style={{ 
             width: '16px', 
             height: '16px', 
             borderRadius: '50%', 
-            border: '2px solid var(--color-primary-default)',
+            border: '2px solid var(--accent)',
             borderTopColor: 'transparent',
             animation: 'spin 600ms linear infinite'
           }} />
@@ -156,7 +164,7 @@ export function FeatureWizard({ draftId }: Props) {
 
   if (error || !draft) {
     return (
-      <div style={{ padding: 'var(--space-5)', color: 'var(--color-error)' }} role="alert">
+      <div style={{ padding: 'var(--space-xl)', color: 'var(--danger)' }} role="alert">
         Error: {error || 'Draft not found'}
       </div>
     );
@@ -216,6 +224,15 @@ export function FeatureWizard({ draftId }: Props) {
           />
         )}
         {currentStep === 3 && (
+          <WizardStepFeatureDefinition
+            draft={draft}
+            onNext={(next) => handleStepChange(next)}
+            onBack={(prev) => handleStepChange(prev)}
+            onSave={handleSave}
+            onGenerateAI={handleGenerateFeatureDefinition}
+          />
+        )}
+        {currentStep === 4 && (
           <WizardStep3p5BusinessRules
             draft={draft}
             onNext={(next) => handleStepChange(next)}
@@ -223,7 +240,7 @@ export function FeatureWizard({ draftId }: Props) {
             onSave={handleSave}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <WizardStep4Details
             draft={draft}
             onNext={(next) => handleStepChange(next)}
@@ -231,7 +248,7 @@ export function FeatureWizard({ draftId }: Props) {
             onSave={handleSave}
           />
         )}
-        {currentStep === 5 && (
+        {currentStep === 6 && (
           <WizardStep6TechnicalConsiderations
             draft={draft}
             isLoading={aiGenerating}

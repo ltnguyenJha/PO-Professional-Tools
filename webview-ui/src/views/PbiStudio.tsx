@@ -13,7 +13,7 @@ import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
-import { UserStoryWizard } from '../components/UserStoryWizard';
+import { FeatureWizard } from '../components/FeatureWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
 import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
@@ -638,6 +638,202 @@ export function PbiStudio({
                 </div>
               )}
 
+              <div className="pbi-type-selector-wrap">
+                <span className="pbi-type-label">PBI Type</span>
+                <div className="pbi-type-selector">
+                  <button
+                    type="button"
+                    className={`pbi-type-btn${pbiType === 'feature' ? ' active' : ''}`}
+                    onClick={() => setPbiType('feature')}
+                  >
+                    🆕 New Feature
+                  </button>
+                  <button
+                    type="button"
+                    className={`pbi-type-btn${pbiType === 'bug' ? ' active' : ''}`}
+                    onClick={() => setPbiType('bug')}
+                  >
+                    🐛 Bug
+                  </button>
+                </div>
+              </div>
+
+              {pbiType === 'feature' ? (
+                <FeatureWizard
+                  key={`feature-${active.id}`}
+                  draftId={active.id}
+                />
+              ) : (
+                <BugReportWizard
+                  key={`bug-${active.id}`}
+                  onGenerate={handleBugGenerate}
+                  onOpenInChat={handleBugOpenInChat}
+                />
+              )}
+
+              {pbiType === 'bug' && (
+                <article className="card">
+                  <div className="section-header" onClick={() => setOpenBugRefinement((o) => !o)}>
+                    <h3 style={{ margin: 0 }}>Bug Refinement Details</h3>
+                    <span className={`section-chevron ${openBugRefinement ? 'open' : ''}`}>▾</span>
+                  </div>
+
+                  <div className={`section-body ${openBugRefinement ? '' : 'collapsed'}`}>
+                    <p className="card-subtitle">
+                      Document the root cause, expected behavior, and actual behavior to help developers
+                      understand and fix the issue faster. These details complement the reproduction steps.
+                    </p>
+
+                    <label className="field">
+                      Root Cause Analysis (optional)
+                      <textarea
+                        rows={3}
+                        value={active.bugRootCause || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugRootCause: e.target.value })
+                        }
+                        placeholder="e.g. The loan verification API returns a 500 error when the loan number contains special characters. The backend is not sanitizing input before querying the database."
+                      />
+                    </label>
+
+                    <label className="field">
+                      Expected Behavior
+                      <textarea
+                        rows={2}
+                        value={active.bugExpectedBehavior || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugExpectedBehavior: e.target.value })
+                        }
+                        placeholder="e.g. The system accepts loan numbers with hyphens and special characters, sanitizes them, and returns a 200 response with valid verification data."
+                      />
+                    </label>
+
+                    <label className="field">
+                      Actual Behavior
+                      <textarea
+                        rows={2}
+                        value={active.bugActualBehavior || ''}
+                        onChange={(e) =>
+                          setWorking({ ...active, bugActualBehavior: e.target.value })
+                        }
+                        placeholder="e.g. When entering a loan number with a hyphen (e.g. 12345-67890), the system returns a 500 error with the message 'Internal Server Error' and no verification occurs."
+                      />
+                    </label>
+
+                    <ListEditor
+                      label="Reproduction Steps (detailed)"
+                      values={active.bugReproductionSteps || []}
+                      placeholder="Step 1: ..., Step 2: ..., etc."
+                      onChange={(next) =>
+                        setWorking({ ...active, bugReproductionSteps: next })
+                      }
+                    />
+                  </div>
+                </article>
+              )}
+
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
+                <TechnicalConsiderationsSection
+                  draft={active}
+                  isLoading={aiBusy}
+                  onUpdate={handleUpdateTechnicalConsiderations}
+                  onGenerate={handleGenerateTechnicalConsiderations}
+                />
+              )}
+
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
+              <article className="card">
+                <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiBusy && <span className="chip info">Generating…</span>}
+                    <span className={`section-chevron ${openFullStory ? 'open' : ''}`}>▾</span>
+                  </div>
+                </div>
+                <div className={`section-body ${openFullStory ? '' : 'collapsed'}`}>
+                <p className="card-subtitle">
+                  Uses the same GitHub Copilot <strong>language model inside VS Code</strong> (not Copilot
+                  Chat). This path <strong>applies title, description, acceptance criteria, and tests
+                  automatically</strong> — no copy/paste. Prompts favor <strong>4–7 sharp, testable
+                  criteria</strong> instead of long vague lists. Copilot Chat cannot inject replies into
+                  this panel (VS Code limitation); use this for a one-click workflow.
+                </p>
+                <label className="field">
+                  Business context for AI (optional)
+                  <textarea
+                    rows={4}
+                    value={fullStorySeed}
+                    onChange={(e) => setFullStorySeed(e.target.value)}
+                    placeholder="Goals, actors, constraints, integrations, or compliance notes — or leave empty to expand from the Description field above."
+                  />
+                </label>
+                <div className="action-row">
+                  <button
+                    className="btn btn-primary"
+                    disabled={aiBusy}
+                    onClick={() =>
+                      send({
+                        type: 'GENERATE_FULL_STORY_AI',
+                        payload: {
+                          draftId: active.id,
+                          seedText:
+                            fullStorySeed.trim() ||
+                            active.description.trim() ||
+                            undefined
+                        }
+                      })
+                    }
+                  >
+                    Generate full story &amp; apply
+                  </button>
+                </div>
+                </div>{/* end section-body */}
+              </article>
+              )}{/* end hidden: Generate full story in-panel */}
+
+              <article className="card">
+                <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
+                  <h3 style={{ margin: 0 }}>VS Code Copilot Chat</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiBusy && <span className="chip info">Copilot is thinking...</span>}
+                    <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
+                  </div>
+                </div>
+                <div className={`section-body ${openCopilotChat ? '' : 'collapsed'}`}>
+                <p className="card-subtitle">
+                  <strong>Build story</strong> opens Chat with a prompt to draft the user story and
+                  acceptance criteria from scratch (or your seed). <strong>Refine</strong> improves
+                  what is already in the fields below.
+                </p>
+                <div className="action-row" style={{ flexWrap: 'wrap' }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() =>
+                      send({
+                        type: 'OPEN_IN_COPILOT_CHAT',
+                        payload: { draftId: active.id, mode: 'newStory' }
+                      })
+                    }
+                  >
+                    Build story in Copilot Chat
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      send({
+                        type: 'OPEN_IN_COPILOT_CHAT',
+                        payload: { draftId: active.id, mode: 'refine' }
+                      })
+                    }
+                  >
+                    Refine in Copilot Chat
+                  </button>
+                </div>
+                </div>{/* end section-body */}
+              </article>
+
               <article className="card">
                 <div className="section-header" onClick={() => setOpenEditItem((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Edit item</h3>
@@ -883,199 +1079,8 @@ export function PbiStudio({
                 </div>{/* end section-body */}
               </article>
 
-              <div className="pbi-type-selector-wrap">
-                <div className="pbi-type-selector">
-                  <button
-                    type="button"
-                    className={`pbi-type-btn${pbiType === 'feature' ? ' active' : ''}`}
-                    onClick={() => setPbiType('feature')}
-                  >
-                    🆕 New Feature
-                  </button>
-                  <button
-                    type="button"
-                    className={`pbi-type-btn${pbiType === 'bug' ? ' active' : ''}`}
-                    onClick={() => setPbiType('bug')}
-                  >
-                    🐛 Bug
-                  </button>
-                </div>
-              </div>
-
-              {pbiType === 'feature' ? (
-                <UserStoryWizard
-                  key={`feature-${active.id}`}
-                  draftId={active.id}
-                  aiBusy={aiBusy}
-                  onGenerate={handleWizardGenerate}
-                  onOpenInChat={handleWizardOpenInChat}
-                  onSave={handleWizardSaveDescription}
-                />
-              ) : (
-                <BugReportWizard
-                  key={`bug-${active.id}`}
-                  onGenerate={handleBugGenerate}
-                  onOpenInChat={handleBugOpenInChat}
-                />
-              )}
-
-              {pbiType === 'bug' && (
-                <article className="card">
-                  <div className="section-header" onClick={() => setOpenBugRefinement((o) => !o)}>
-                    <h3 style={{ margin: 0 }}>Bug Refinement Details</h3>
-                    <span className={`section-chevron ${openBugRefinement ? 'open' : ''}`}>▾</span>
-                  </div>
-
-                  <div className={`section-body ${openBugRefinement ? '' : 'collapsed'}`}>
-                    <p className="card-subtitle">
-                      Document the root cause, expected behavior, and actual behavior to help developers
-                      understand and fix the issue faster. These details complement the reproduction steps.
-                    </p>
-
-                    <label className="field">
-                      Root Cause Analysis (optional)
-                      <textarea
-                        rows={3}
-                        value={active.bugRootCause || ''}
-                        onChange={(e) =>
-                          setWorking({ ...active, bugRootCause: e.target.value })
-                        }
-                        placeholder="e.g. The loan verification API returns a 500 error when the loan number contains special characters. The backend is not sanitizing input before querying the database."
-                      />
-                    </label>
-
-                    <label className="field">
-                      Expected Behavior
-                      <textarea
-                        rows={2}
-                        value={active.bugExpectedBehavior || ''}
-                        onChange={(e) =>
-                          setWorking({ ...active, bugExpectedBehavior: e.target.value })
-                        }
-                        placeholder="e.g. The system accepts loan numbers with hyphens and special characters, sanitizes them, and returns a 200 response with valid verification data."
-                      />
-                    </label>
-
-                    <label className="field">
-                      Actual Behavior
-                      <textarea
-                        rows={2}
-                        value={active.bugActualBehavior || ''}
-                        onChange={(e) =>
-                          setWorking({ ...active, bugActualBehavior: e.target.value })
-                        }
-                        placeholder="e.g. When entering a loan number with a hyphen (e.g. 12345-67890), the system returns a 500 error with the message 'Internal Server Error' and no verification occurs."
-                      />
-                    </label>
-
-                    <ListEditor
-                      label="Reproduction Steps (detailed)"
-                      values={active.bugReproductionSteps || []}
-                      placeholder="Step 1: ..., Step 2: ..., etc."
-                      onChange={(next) =>
-                        setWorking({ ...active, bugReproductionSteps: next })
-                      }
-                    />
-                  </div>
-                </article>
-              )}
-
-              <TechnicalConsiderationsSection
-                draft={active}
-                isLoading={aiBusy}
-                onUpdate={handleUpdateTechnicalConsiderations}
-                onGenerate={handleGenerateTechnicalConsiderations}
-              />
-
-              <article className="card">
-                <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
-                  <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info">Generating…</span>}
-                    <span className={`section-chevron ${openFullStory ? 'open' : ''}`}>▾</span>
-                  </div>
-                </div>
-                <div className={`section-body ${openFullStory ? '' : 'collapsed'}`}>
-                <p className="card-subtitle">
-                  Uses the same GitHub Copilot <strong>language model inside VS Code</strong> (not Copilot
-                  Chat). This path <strong>applies title, description, acceptance criteria, and tests
-                  automatically</strong> — no copy/paste. Prompts favor <strong>4–7 sharp, testable
-                  criteria</strong> instead of long vague lists. Copilot Chat cannot inject replies into
-                  this panel (VS Code limitation); use this for a one-click workflow.
-                </p>
-                <label className="field">
-                  Business context for AI (optional)
-                  <textarea
-                    rows={4}
-                    value={fullStorySeed}
-                    onChange={(e) => setFullStorySeed(e.target.value)}
-                    placeholder="Goals, actors, constraints, integrations, or compliance notes — or leave empty to expand from the Description field above."
-                  />
-                </label>
-                <div className="action-row">
-                  <button
-                    className="btn btn-primary"
-                    disabled={aiBusy}
-                    onClick={() =>
-                      send({
-                        type: 'GENERATE_FULL_STORY_AI',
-                        payload: {
-                          draftId: active.id,
-                          seedText:
-                            fullStorySeed.trim() ||
-                            active.description.trim() ||
-                            undefined
-                        }
-                      })
-                    }
-                  >
-                    Generate full story &amp; apply
-                  </button>
-                </div>
-                </div>{/* end section-body */}
-              </article>
-
-              <article className="card">
-                <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
-                  <h3 style={{ margin: 0 }}>VS Code Copilot Chat</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info">Copilot is thinking...</span>}
-                    <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
-                  </div>
-                </div>
-                <div className={`section-body ${openCopilotChat ? '' : 'collapsed'}`}>
-                <p className="card-subtitle">
-                  <strong>Build story</strong> opens Chat with a prompt to draft the user story and
-                  acceptance criteria from scratch (or your seed). <strong>Refine</strong> improves
-                  what is already in the fields below.
-                </p>
-                <div className="action-row" style={{ flexWrap: 'wrap' }}>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() =>
-                      send({
-                        type: 'OPEN_IN_COPILOT_CHAT',
-                        payload: { draftId: active.id, mode: 'newStory' }
-                      })
-                    }
-                  >
-                    Build story in Copilot Chat
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() =>
-                      send({
-                        type: 'OPEN_IN_COPILOT_CHAT',
-                        payload: { draftId: active.id, mode: 'refine' }
-                      })
-                    }
-                  >
-                    Refine in Copilot Chat
-                  </button>
-                </div>
-                </div>{/* end section-body */}
-              </article>
-
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
               <article className="card">
                 <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
@@ -1265,6 +1270,7 @@ export function PbiStudio({
                 </div>
                 </div>{/* end section-body */}
               </article>
+              )}{/* end hidden: Refine with AI (in panel) */}
             </>
           )}
         </section>

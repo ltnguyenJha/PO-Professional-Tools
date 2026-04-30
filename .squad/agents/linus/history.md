@@ -613,6 +613,112 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 **Coordination with Rusty (Frontend):**
 - Rusty will add dropdowns to Settings UI
 - Rusty sends FETCH_* messages on component mount or settings change
+
+### Feature Definition AI Generation End-to-End (2026-04-30)
+
+**Problem solved:**
+- AI-Generated button in Feature Definition step didn't work
+- Frontend sent `GENERATE_FULL_STORY_AI`, but backend handler was wrong
+- Story generation (title, description, acceptanceCriteria, testScenarios) ≠ Feature Definition generation (why, userFlow, businessRules, userStoryStatement)
+
+**Investigation & decision:**
+- Traced frontend message flow: Button sends GENERATE_FULL_STORY_AI with draftId
+- Backend handler calls handleGenerateFullStory(), designed for Story step (step 2)
+- **Decision:** Create dedicated GENERATE_FEATURE_DEFINITION message type instead of reusing GENERATE_FULL_STORY_AI
+- **Rationale:** Different operations need different handlers; reusing creates confusion and data model mismatches
+
+**Solution implemented (Commit ff4b34a):**
+
+**1. Message type & data model (src/shared/messages.ts, webview-ui/src/types.ts):**
+```typescript
+| { type: 'GENERATE_FEATURE_DEFINITION'; payload: { draftId: string } }
+
+export interface FeatureDefinition {
+  why: string;
+  userFlow: string;
+  businessRules: string;
+  userStoryStatement: string;
+}
+```
+
+Added PbiDraft fields:
+- `featureWhy?: string`
+- `featureUserFlow?: string`
+- `featureBusinessRules?: string`
+- `featureUserStoryStatement?: string`
+
+**2. Backend handler (src/panels/DashboardPanel.ts):**
+```typescript
+case 'GENERATE_FEATURE_DEFINITION':
+  await this.handleGenerateFeatureDefinition(message.payload.draftId);
+  return;
+```
+
+Pattern: Show AI_PROGRESS → Call service → Update draft → Save → Post state → Toast
+
+**3. Copilot Service (src/services/copilotService.ts):**
+- FEATURE_DEFINITION_SYSTEM_PROMPT: Instructs LLM on 4-part generation
+  - WHY: 200-500 chars, business impact and strategic importance
+  - USER FLOW: Step-by-step journey with touchpoints
+  - BUSINESS RULES: Constraints, compliance, validation, assumptions
+  - USER STORY STATEMENT: As a [role], I want [capability], so that [benefit]
+- FEATURE_DEFINITION_JSON_BRIDGE: JSON response format spec
+- generateFeatureDefinition() method: Gathers repo context, calls LM, parses response
+- featureDefinitionFromParsed() helper: Safely extracts fields from JSON
+- Includes PRODUCT_MANAGER_RULEBOOK and LINKED_PROJECT_CONTEXT when available
+
+**4. Frontend wiring (webview-ui/src/components/FeatureWizard.tsx):**
+```typescript
+const handleGenerateFeatureDefinition = () => {
+  vscode.postMessage({
+    type: 'GENERATE_FEATURE_DEFINITION',
+    payload: { draftId },
+  });
+};
+```
+
+Updated step 3 prop: `onGenerateAI={handleGenerateFeatureDefinition}`
+
+**Files modified:**
+1. `src/shared/messages.ts` — Message type, FeatureDefinition interface, PbiDraft fields
+2. `src/panels/DashboardPanel.ts` — Case handler, handleGenerateFeatureDefinition()
+3. `src/services/copilotService.ts` — System prompt, JSON bridge, generateFeatureDefinition(), parser
+4. `webview-ui/src/types.ts` — Message type mirror
+5. `webview-ui/src/components/FeatureWizard.tsx` — Handler wiring
+
+**Testing:**
+- ✅ TypeScript: `npx tsc --noEmit` → 0 errors
+- ✅ Build: `node build/esbuild.config.js` → 228ms, 2.7mb extension.js
+- ✅ All 5 files staged and committed
+
+**Message flow verified:**
+1. User clicks "AI-Generated" in Feature Definition step
+2. Frontend sends GENERATE_FEATURE_DEFINITION with draftId
+3. Backend routes to handleGenerateFeatureDefinition()
+4. CopilotService calls Copilot Language Model with feature definition prompt
+5. Response parsed into FeatureDefinition interface
+6. Draft updated with featureWhy, featureUserFlow, businessRules, userStoryStatement
+7. State saved and posted to webview
+8. User sees generated content in step 3 fields
+
+**Learnings:**
+1. **Message type specialization:** When UI component needs different AI generation than existing handler, create dedicated message type. Don't reuse handlers when data models don't match.
+
+2. **System prompt architecture:** Each message type gets dedicated system prompt with clear field definitions, length specs, format requirements, and context guidelines. Includes domain-specific ruleooks (product manager, linked project context) for generation quality.
+
+3. **Service method pattern:** Always wrap with gatherRepoContext(). Implement dedicated parser helper. Include AI_PROGRESS events for busy indicator. Provide clear error messages and success toasts.
+
+4. **Frontend-backend coordination:** Clear separation: Frontend owns UI/messaging, Backend owns AI logic. Message type acts as contract between layers. Document decisions in squad/decisions for cross-team visibility.
+
+5. **Pattern reuse:** GENERATE_TECHNICAL_CONSIDERATIONS pattern is solid for specialized AI handlers. When adding new message type: (1) New message in union, (2) Return interface, (3) Case handler in DashboardPanel, (4) Private async handler, (5) Service method with prompt+bridge, (6) Parser helper, (7) AI_PROGRESS/toasts, (8) Frontend wiring. Follow this exactly for consistency.
+
+**Design decision:**
+Created dedicated GENERATE_FEATURE_DEFINITION instead of reusing GENERATE_FULL_STORY_AI because:
+- Different data models (4 fields vs 4 different fields)
+- Different generation logic (feature context vs narrative context)
+- Different prompts (business/product focus vs story format)
+- Clear separation prevents confusion and supports future specialization
+
 - Backend responds with *_LOADED or FETCH_FAILED messages
 - Rusty populates dropdowns from payload arrays
 
@@ -653,3 +759,150 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 - Applied to all AI methods: `refineDraft()`, `generateFullStoryFromSeed()`, `generateTechnicalConsiderations()`
 
 **Key lesson:** Retry logic and caching are orthogonal. Retry handles transient failures (user should retry). Cache handles known-good data within TTL window (user sees instant response). Both improve reliability and UX.
+## Task: Add PAT Validation that Gates Dropdown Fetches
+
+**Date**: April 30, 2026
+
+**Task**: Implement scope checking so Area Path / Iteration Path dropdowns don't hang when PAT is invalid or missing scopes.
+
+**Work Done**:
+
+1. **Enhanced message types** (src/shared/messages.ts):
+   - Added VALIDATE_PAT_SCOPES to WebviewRequest union
+   - Added PAT_VALIDATION_RESULT to ExtensionEvent union
+
+2. **Backend handler** (src/panels/DashboardPanel.ts):
+   - Added patValidatedThisSession boolean flag to track validation state
+   - Implemented handleValidatePatScopes() handler that validates PAT scopes
+   - Sets flag on success, returns clear error messages on failure
+   - Added case handler for VALIDATE_PAT_SCOPES message type
+
+3. **PAT flag lifecycle**:
+   - Flag initialized to alse on panel creation
+   - Set to 	rue when validation succeeds
+   - Reset to alse when new PAT is saved (forcing re-validation)
+
+4. **Guard gates on dropdown fetches**:
+   - handleFetchTeams(): Checks patValidatedThisSession before fetch
+   - handleFetchAreaPaths(): Checks patValidatedThisSession before fetch  
+   - handleFetchIterations(): Checks patValidatedThisSession before fetch
+   - Returns FETCH_FAILED with: "Please validate PAT in Settings first."
+
+5. **Scope validation**:
+   - adoService.testConnection() validates PAT scopes
+   - Returns clear error messages: "PAT missing required scopes: vso.work, vso.identity"
+
+**Impact**:
+- Dropdowns no longer hang when PAT is invalid
+- Clear error messages guide users to validate PAT
+- Session-based validation prevents redundant checks
+
+### Vite Downgrade for Node 14 Compatibility (2026-04-28)
+
+Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vite 6.4.2 → 3.2.11 and @vitejs/plugin-react 4.7.0 → 2.2.0 in webview-ui/package.json. Root cause: Vite 6 requires Node 18+ (uses `||=` logical assignment), plugin-react 4 requires Node 14.18+, but machine runs Node 14.17.5.
+
+**Execution:** Updated package.json, ran npm install, verified full `npm run build` passes (52 modules, 211.50 KiB JS, zero errors). Vite 3.2.11 is stable, widely used, and compatible with Node 12.2+. Non-breaking change; vite.config.ts and React 18 require no adjustments.
+
+**Cross-team coordination:** Danny recommended parallel Node upgrade path (Node 20 LTS). Both paths documented in decisions.md — downgrade provides immediate relief; upgrade is strategic longer-term path when Node environment can be updated.
+**Build Status**: ✅ Success (no TypeScript errors)
+**Lint Status**: ✅ Pass (no new issues)
+### 2025-04-29 — PAT Validation Infinite Load Fix (Backend Implementation)
+
+**Problem:** Settings Team/Area Path/Iteration dropdowns stuck in "loading" indefinitely when PAT invalid or missing required scopes (vso.work + vso.identity). No validation gate existed.
+
+**Solution:** Added PAT-first validation flow with backend guards.
+
+**Implementation in DashboardPanel.ts:**
+- Added `patValidatedThisSession` boolean flag to track per-session validation state
+- Created `handleValidatePatScopes()` handler: receives `VALIDATE_PAT_SCOPES` request, calls `testConnection()` to verify scopes, sends `PAT_VALIDATION_RESULT` response with `{ valid: boolean, error?: string }`
+- Added guard checks in `handleFetchTeams()`, `handleFetchAreaPaths()`, `handleFetchIterations()`: if `!patValidatedThisSession`, return `{ ok: false, message: 'FETCH_FAILED' }`
+- Guards prevent dropdown fetches until PAT validated in current session
+
+**Message Contract:**
+- Request: `type: 'VALIDATE_PAT_SCOPES'` (no payload)
+- Response: `type: 'PAT_VALIDATION_RESULT', payload: { valid: boolean, error?: string }`
+- Guard response: returns fetch error if validation skipped
+
+**Integration Points:**
+- Reused existing `testConnection()` (already validates vso.work + vso.identity scopes)
+- Follows one-way messaging pattern: webview posts request, extension posts result
+- No database or file changes needed
+
+**Testing Outcome:** All 29 tests passing, zero regressions. Build clean.
+
+
+---
+
+## Issue 38 - Feature Definition Wiring (Backend)
+
+### 2025-04-30 - Feature Definition Context Injection for Child Story Generation
+
+**Problem:** Child stories generated from parent features lack context about parent Why, User Flow, Business Rules, and User Story Statement. Bulk breakdown pipeline needs feature definition propagation.
+
+**Solution:** Wired feature definition through data model and injection logic.
+
+**Implementation:**
+
+1. PbiDraft Interface Extension (webview-ui/src/types.ts):
+   - Added optional fields: featureWhy, featureUserFlow, featureBusinessRules, featureUserStoryStatement
+   - Holds answers from Feature Definition section
+   - Used by child drafts to preserve parent context
+
+2. BulkBreakdownRequest Extension (src/shared/messages.ts):
+   - Added structured featureDefinition object with: why, userFlow, businessRules, userStoryStatement
+   - Chosen Option B (structured object) for clarity and future extensibility
+   - Isolated feature context from flat request surface
+
+3. buildBulkDrafts() Injection Logic (src/panels/DashboardPanel.ts):
+   - Extracts featureDefinition from request
+   - Prepends formatted feature context to child description
+   - Spreads feature definition fields into child draft object
+   - Handles null gracefully: children generate correctly without feature context
+
+**Data Flow:**
+- UI captures feature definition in parent story
+- Passes to backend via BulkBreakdownRequest.featureDefinition
+- buildBulkDrafts() injects context into each childs description
+- Child drafts preserve feature context fields for UI display/editing
+
+**Edge Cases Handled:**
+- Partial feature context (only some fields) - appends available context
+- Missing feature context entirely - child generation unaffected
+- Empty context fields - skipped in output
+
+**Build Status:** Clean build, TypeScript validation passed
+
+### Learnings:
+
+- Structured vs. Flat: Using nested object for feature definition cleaner than flat fields, especially for bulk operations with optional groupings
+- Description Injection: Markdown formatting with separator makes feature context scannable in long descriptions
+- Spread Operator Trick: Using conditional spread elegantly propagates optional fields without conditional branches
+- Backwards Compatibility: Optional fields mean old callers still work, feature context gracefully degrades when absent
+### Feature Definition AI-Generated Handler (2026-05-01)
+
+**Issue:** AI-Generated button in Feature Definition wizard step (step 3) was calling the wrong backend handler.
+
+**Root Cause:**
+- FeatureWizard.tsx passed handleGenerateAI (which sends GENERATE_FULL_STORY_AI) to WizardStepFeatureDefinition
+- GENERATE_FULL_STORY_AI is designed for Story step (step 2), not Feature Definition
+- Backend had no handler for generating Feature Definition content
+
+**Fix Implemented:**
+1. **Message Type:** Added GENERATE_FEATURE_DEFINITION to WebviewRequest union in src/shared/messages.ts and webview-ui/src/types.ts
+2. **Interface:** Added FeatureDefinition interface with why, userFlow, businessRules, userStoryStatement fields
+3. **Backend Handler:** Added handleGenerateFeatureDefinition() in DashboardPanel.ts following pattern of handleGenerateTechnicalConsiderations()
+4. **Copilot Service:** Added generateFeatureDefinition() method with:
+   - FEATURE_DEFINITION_SYSTEM_PROMPT for guiding AI
+   - FEATURE_DEFINITION_JSON_BRIDGE for output contract
+   - featureDefinitionFromParsed() helper for JSON parsing
+5. **Frontend Wiring:** Created dedicated handleGenerateFeatureDefinition() in FeatureWizard.tsx and passed it to WizardStepFeatureDefinition
+
+**Pattern:**
+- Followed existing GENERATE_TECHNICAL_CONSIDERATIONS structure exactly
+- AI progress events via AI_PROGRESS with busy/message/draftId
+- Linked project context injected when available
+- Error handling with toast notifications
+
+**Commit:** ff4b34a
+**Build:** ✅ tsc --noEmit (0 errors), esbuild (228ms)
+**Branch:** feature/pbi-studio-ux-improvements
