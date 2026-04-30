@@ -1100,15 +1100,80 @@ When implementing conditional rendering for action buttons, check if dirty state
 5. Clear button UX: only show when search term exists, position absolutely inside input
 6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
 
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.60 KB CSS, 232.29 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Hybrid approach: native elements + search input = best of both worlds
+2. Filtering options before rendering in native select is simpler than custom dropdown positioning
+3. Search input ABOVE select (not replacing it) avoids all clipping/blocking issues
+4. Case-insensitive substring matching (.toLowerCase().includes()) is sufficient for most dropdown searches
+5. Clear button UX: only show when search term exists, position absolutely inside input
+6. When custom dropdowns fail due to clipping, augment native elements instead of fighting browser rendering
+
 **Design decision:**
 This hybrid approach solves the search requirement without reintroducing the clipping issues that plagued SearchableDropdown. The search input + native select pattern is reusable for any dropdown that needs filtering while maintaining reliability.
 
-### 2026-04-30 — Searchable Dropdown: Reverted to Custom Component
+### 2026-04-30 — Business Rules Navigation Fix + Feature Definition Frontend Wiring
 
 **Problem solved:**
-- User requested built-in searchable dropdown (not separate search field above select)
-- Previous implementation added search input ABOVE native select — not integrated
-- User wanted typing directly in dropdown to filter (like custom dropdown behavior)
+- Off-by-one error in Business Rules step navigation — `onNext(4)` was hardcoded, stayed on step 4
+- AI-Generated button missing from Feature Definition step
+- Card/wizard padding misalignment and vertical spacing inconsistencies
+
+**Solutions implemented:**
+
+**1. Business Rules Navigation (Commit 41c64cc):**
+- Changed `WizardStep3p5BusinessRules.tsx` line 38: `onNext(4)` → `onNext(5)`
+- Now correctly advances to Details step
+
+**2. Feature Definition AI Button (Commit 41c64cc):**
+- Added `onGenerateAI?: () => void` prop to WizardStepFeatureDefinition
+- Added "✨ AI-Generated" button in wizard-step-header
+- Wired to `FeatureWizard.handleGenerateFeatureDefinition()` handler
+- Sends `GENERATE_FEATURE_DEFINITION` message with draftId (backend complete by Linus)
+
+**3. Feature Definition Step Rendering (Commit fa1fb69):**
+- Removed `draft.workItemType === 'Feature'` condition from step 3 rendering
+- Step now displays for all work item types (Feature, User Story, PBI, Bug)
+- All Feature Definition fields are optional — safe for any work item type
+- Better UX than blank step — users can skip if not relevant
+
+**4. Card & Wizard Alignment (Commit fa1fb69):**
+- Fixed padding mismatch: `wizard.css` changed from 20px to 16px (var(--space-4))
+- Now matches `.card` padding for visual consistency
+- Added `margin-bottom: var(--space-md)` (12px) to `.pbi-type-selector-wrap`
+- Creates uniform vertical rhythm between sections
+
+**Files modified:**
+- `webview-ui/src/components/WizardStep3p5BusinessRules.tsx` — Navigation fix
+- `webview-ui/src/components/WizardStepFeatureDefinition.tsx` — AI button + prop
+- `webview-ui/src/components/FeatureWizard.tsx` — Rendering condition fix, handler wiring
+- `webview-ui/src/styles/wizard.css` — Padding alignment
+- `webview-ui/src/styles.css` — Vertical spacing
+
+**Testing:**
+- ✅ Build: `npm run build` → 60 modules, 256.42 KB JS (gzipped: 75.44 KB)
+- ✅ TypeScript: 0 errors
+- ✅ Lint: 0 errors (11 pre-existing warnings unrelated)
+
+**Learnings:**
+1. **Conditional rendering gotcha:** If a wizard step is conditionally rendered based on draft properties, ensure it either has a fallback OR is truly universal. Empty steps confuse users.
+
+2. **Padding alignment in multi-component layouts:** When cards, wizards, and custom wrappers share a parent, they must use consistent padding tokens. Audit all layout containers for padding/margin consistency.
+
+3. **Optional fields are powerful:** Feature-specific optional fields in PbiDraft allow components to be reused across multiple work item types without breaking. Users get richer context options without strict enforcement.
+
+4. **Vertical spacing matters:** Gaps between sections should be consistent. Missing margin-bottom on intermediate elements breaks visual rhythm. New layout wrappers need spacing audit with adjacent elements.
+
+**Design pattern established:**
+CSS layout consistency requires:
+- Consistent padding tokens across cards, wizards, wrappers
+- Audit all layout containers when updating one
+- Use design system tokens (`--space-*`) instead of hardcoded px values
+- Verify vertical rhythm with adjacent elements when adding new wrappers
+
 
 **Solution implemented:**
 

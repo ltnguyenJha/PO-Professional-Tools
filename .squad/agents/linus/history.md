@@ -613,6 +613,112 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 **Coordination with Rusty (Frontend):**
 - Rusty will add dropdowns to Settings UI
 - Rusty sends FETCH_* messages on component mount or settings change
+
+### Feature Definition AI Generation End-to-End (2026-04-30)
+
+**Problem solved:**
+- AI-Generated button in Feature Definition step didn't work
+- Frontend sent `GENERATE_FULL_STORY_AI`, but backend handler was wrong
+- Story generation (title, description, acceptanceCriteria, testScenarios) ≠ Feature Definition generation (why, userFlow, businessRules, userStoryStatement)
+
+**Investigation & decision:**
+- Traced frontend message flow: Button sends GENERATE_FULL_STORY_AI with draftId
+- Backend handler calls handleGenerateFullStory(), designed for Story step (step 2)
+- **Decision:** Create dedicated GENERATE_FEATURE_DEFINITION message type instead of reusing GENERATE_FULL_STORY_AI
+- **Rationale:** Different operations need different handlers; reusing creates confusion and data model mismatches
+
+**Solution implemented (Commit ff4b34a):**
+
+**1. Message type & data model (src/shared/messages.ts, webview-ui/src/types.ts):**
+```typescript
+| { type: 'GENERATE_FEATURE_DEFINITION'; payload: { draftId: string } }
+
+export interface FeatureDefinition {
+  why: string;
+  userFlow: string;
+  businessRules: string;
+  userStoryStatement: string;
+}
+```
+
+Added PbiDraft fields:
+- `featureWhy?: string`
+- `featureUserFlow?: string`
+- `featureBusinessRules?: string`
+- `featureUserStoryStatement?: string`
+
+**2. Backend handler (src/panels/DashboardPanel.ts):**
+```typescript
+case 'GENERATE_FEATURE_DEFINITION':
+  await this.handleGenerateFeatureDefinition(message.payload.draftId);
+  return;
+```
+
+Pattern: Show AI_PROGRESS → Call service → Update draft → Save → Post state → Toast
+
+**3. Copilot Service (src/services/copilotService.ts):**
+- FEATURE_DEFINITION_SYSTEM_PROMPT: Instructs LLM on 4-part generation
+  - WHY: 200-500 chars, business impact and strategic importance
+  - USER FLOW: Step-by-step journey with touchpoints
+  - BUSINESS RULES: Constraints, compliance, validation, assumptions
+  - USER STORY STATEMENT: As a [role], I want [capability], so that [benefit]
+- FEATURE_DEFINITION_JSON_BRIDGE: JSON response format spec
+- generateFeatureDefinition() method: Gathers repo context, calls LM, parses response
+- featureDefinitionFromParsed() helper: Safely extracts fields from JSON
+- Includes PRODUCT_MANAGER_RULEBOOK and LINKED_PROJECT_CONTEXT when available
+
+**4. Frontend wiring (webview-ui/src/components/FeatureWizard.tsx):**
+```typescript
+const handleGenerateFeatureDefinition = () => {
+  vscode.postMessage({
+    type: 'GENERATE_FEATURE_DEFINITION',
+    payload: { draftId },
+  });
+};
+```
+
+Updated step 3 prop: `onGenerateAI={handleGenerateFeatureDefinition}`
+
+**Files modified:**
+1. `src/shared/messages.ts` — Message type, FeatureDefinition interface, PbiDraft fields
+2. `src/panels/DashboardPanel.ts` — Case handler, handleGenerateFeatureDefinition()
+3. `src/services/copilotService.ts` — System prompt, JSON bridge, generateFeatureDefinition(), parser
+4. `webview-ui/src/types.ts` — Message type mirror
+5. `webview-ui/src/components/FeatureWizard.tsx` — Handler wiring
+
+**Testing:**
+- ✅ TypeScript: `npx tsc --noEmit` → 0 errors
+- ✅ Build: `node build/esbuild.config.js` → 228ms, 2.7mb extension.js
+- ✅ All 5 files staged and committed
+
+**Message flow verified:**
+1. User clicks "AI-Generated" in Feature Definition step
+2. Frontend sends GENERATE_FEATURE_DEFINITION with draftId
+3. Backend routes to handleGenerateFeatureDefinition()
+4. CopilotService calls Copilot Language Model with feature definition prompt
+5. Response parsed into FeatureDefinition interface
+6. Draft updated with featureWhy, featureUserFlow, businessRules, userStoryStatement
+7. State saved and posted to webview
+8. User sees generated content in step 3 fields
+
+**Learnings:**
+1. **Message type specialization:** When UI component needs different AI generation than existing handler, create dedicated message type. Don't reuse handlers when data models don't match.
+
+2. **System prompt architecture:** Each message type gets dedicated system prompt with clear field definitions, length specs, format requirements, and context guidelines. Includes domain-specific ruleooks (product manager, linked project context) for generation quality.
+
+3. **Service method pattern:** Always wrap with gatherRepoContext(). Implement dedicated parser helper. Include AI_PROGRESS events for busy indicator. Provide clear error messages and success toasts.
+
+4. **Frontend-backend coordination:** Clear separation: Frontend owns UI/messaging, Backend owns AI logic. Message type acts as contract between layers. Document decisions in squad/decisions for cross-team visibility.
+
+5. **Pattern reuse:** GENERATE_TECHNICAL_CONSIDERATIONS pattern is solid for specialized AI handlers. When adding new message type: (1) New message in union, (2) Return interface, (3) Case handler in DashboardPanel, (4) Private async handler, (5) Service method with prompt+bridge, (6) Parser helper, (7) AI_PROGRESS/toasts, (8) Frontend wiring. Follow this exactly for consistency.
+
+**Design decision:**
+Created dedicated GENERATE_FEATURE_DEFINITION instead of reusing GENERATE_FULL_STORY_AI because:
+- Different data models (4 fields vs 4 different fields)
+- Different generation logic (feature context vs narrative context)
+- Different prompts (business/product focus vs story format)
+- Clear separation prevents confusion and supports future specialization
+
 - Backend responds with *_LOADED or FETCH_FAILED messages
 - Rusty populates dropdowns from payload arrays
 
@@ -765,3 +871,31 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 - Description Injection: Markdown formatting with separator makes feature context scannable in long descriptions
 - Spread Operator Trick: Using conditional spread elegantly propagates optional fields without conditional branches
 - Backwards Compatibility: Optional fields mean old callers still work, feature context gracefully degrades when absent
+### Feature Definition AI-Generated Handler (2026-05-01)
+
+**Issue:** AI-Generated button in Feature Definition wizard step (step 3) was calling the wrong backend handler.
+
+**Root Cause:**
+- FeatureWizard.tsx passed handleGenerateAI (which sends GENERATE_FULL_STORY_AI) to WizardStepFeatureDefinition
+- GENERATE_FULL_STORY_AI is designed for Story step (step 2), not Feature Definition
+- Backend had no handler for generating Feature Definition content
+
+**Fix Implemented:**
+1. **Message Type:** Added GENERATE_FEATURE_DEFINITION to WebviewRequest union in src/shared/messages.ts and webview-ui/src/types.ts
+2. **Interface:** Added FeatureDefinition interface with why, userFlow, businessRules, userStoryStatement fields
+3. **Backend Handler:** Added handleGenerateFeatureDefinition() in DashboardPanel.ts following pattern of handleGenerateTechnicalConsiderations()
+4. **Copilot Service:** Added generateFeatureDefinition() method with:
+   - FEATURE_DEFINITION_SYSTEM_PROMPT for guiding AI
+   - FEATURE_DEFINITION_JSON_BRIDGE for output contract
+   - featureDefinitionFromParsed() helper for JSON parsing
+5. **Frontend Wiring:** Created dedicated handleGenerateFeatureDefinition() in FeatureWizard.tsx and passed it to WizardStepFeatureDefinition
+
+**Pattern:**
+- Followed existing GENERATE_TECHNICAL_CONSIDERATIONS structure exactly
+- AI progress events via AI_PROGRESS with busy/message/draftId
+- Linked project context injected when available
+- Error handling with toast notifications
+
+**Commit:** ff4b34a
+**Build:** ✅ tsc --noEmit (0 errors), esbuild (228ms)
+**Branch:** feature/pbi-studio-ux-improvements

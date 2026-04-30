@@ -2867,6 +2867,275 @@ Update git-workflow.md with step 6: "Update GitHub Issue — Ensure issue is clo
 
 **Next:** Coordinator will add this to .squad/git-workflow.md and ensure all agents include it in their post-work checklist.
 
+---
+
+## Merged from .squad/decisions/inbox/ (2026-04-30)
+
+### Business Rules Navigation Fix (2026-04-30)
+
+**Date:** 2026-04-30  
+**Author:** Rusty (Frontend Dev)  
+**Branch:** feature/pbi-studio-ux-improvements  
+**Commit:** 41c64cc  
+**Status:** ✅ Fixed and committed
+
+**Problem:**
+- User clicked Next button in Business Rules step (step 4)
+- Nothing happened — stayed on same step
+- Navigation guard prevented moving to same step
+
+**Root Cause:**
+- `WizardStep3p5BusinessRules.tsx` line 38 called `onNext(4)` (hardcoded)
+- But step 4 IS the Business Rules step
+- Navigation logic: don't advance if step == currentStep
+
+**Solution:**
+- Changed `onNext(4)` → `onNext(5)`
+- Now correctly advances to Details step
+
+**Files Changed:**
+- `webview-ui/src/components/WizardStep3p5BusinessRules.tsx`
+
+**Testing:**
+- ✅ Build passed: `npm run build` (60 modules, 256.42 KB JS)
+
+---
+
+### Feature Definition Step Rendering & Card Alignment (2026-04-30)
+
+**Date:** 2026-04-30  
+**Author:** Rusty (Frontend Dev)  
+**Branch:** feature/pbi-studio-ux-improvements  
+**Commit:** fa1fb69  
+**Status:** ✅ Fixed and committed
+
+**Problem 1: Feature Definition Step Empty**
+- Step 3 shows no content for non-Feature work item types (User Stories, PBIs, Bugs)
+- Progress indicator shows step but clicking displays empty view
+
+**Root Cause 1:**
+- `FeatureWizard.tsx` line 219 had overly restrictive condition:
+  ```tsx
+  {currentStep === 3 && draft.workItemType === 'Feature' && (
+    <WizardStepFeatureDefinition ... />
+  )}
+  ```
+- Only rendered when `workItemType` was exactly `'Feature'`
+- For other types, condition failed and no component rendered
+
+**Solution 1:**
+- Removed `draft.workItemType === 'Feature'` condition
+- Step now renders for all work item types
+- All Feature Definition fields are optional — safe for any work item type
+
+**Problem 2: Cards Not Aligned**
+- Horizontal padding mismatch between cards and wizard sections
+- Visual inconsistency in insets
+
+**Root Cause 2:**
+- `.card`: `padding: var(--space-lg)` = 16px
+- `.wizard-container`: `padding: var(--space-5)` = 20px
+- Different left/right insets broke alignment
+- `.pbi-type-selector-wrap` had no `margin-bottom` — gap was inconsistent
+
+**Solution 2:**
+- Changed `wizard.css` padding from 20px to 16px (var(--space-4))
+- Added `margin-bottom: var(--space-md)` (12px) to `.pbi-type-selector-wrap`
+- Now all sections have consistent horizontal insets and vertical rhythm
+
+**Files Changed:**
+- `webview-ui/src/components/FeatureWizard.tsx` — Removed workItemType condition
+- `webview-ui/src/styles/wizard.css` — Aligned padding
+- `webview-ui/src/styles.css` — Added margin-bottom
+
+**Design Pattern:**
+- When mixing layout containers, audit `padding` and `margin` for alignment
+- Use existing spacing tokens (`--space-*`) for consistency
+- Avoid hardcoded `px` values — they break when tokens update
+
+**Testing:**
+- ✅ Build succeeds: `npm run build`
+- ✅ No TypeScript errors
+- ✅ No linting issues
+
+---
+
+### Feature Definition AI-Generated Handler (2026-04-30)
+
+**Date:** 2026-04-30  
+**Author:** Linus (Backend Dev)  
+**Branch:** feature/pbi-studio-ux-improvements  
+**Commit:** ff4b34a  
+**Status:** ✅ Fixed and committed
+
+**Problem:**
+- "AI-Generated" button in Feature Definition wizard step (step 3) was not working
+- Frontend had button but backend handler was wrong
+
+**Investigation:**
+1. Frontend sends `GENERATE_FULL_STORY_AI` when user clicks "AI-Generated" (wired by Rusty)
+2. Backend handler `GENERATE_FULL_STORY_AI` calls `handleGenerateFullStory()`
+3. Story handler generates: `title`, `description`, `acceptanceCriteria`, `testScenarios`
+4. **Feature Definition needs:** `featureWhy`, `featureUserFlow`, `featureBusinessRules`, `featureUserStoryStatement`
+
+**Root Cause:**
+- Wrong message type. Story generation and Feature Definition generation are different operations
+- Story step needs title+description, Feature Definition needs why+flow+rules+statement
+
+**Solution:**
+- Created dedicated `GENERATE_FEATURE_DEFINITION` message type and handler
+- Followed `GENERATE_TECHNICAL_CONSIDERATIONS` pattern exactly:
+  1. New message type in WebviewRequest union
+  2. Interface for return data (FeatureDefinition)
+  3. Case handler in DashboardPanel.handleMessage()
+  4. Private async handler method
+  5. Copilot service method with system prompt + JSON bridge
+  6. Helper to parse JSON response
+  7. AI_PROGRESS events for busy indicator
+  8. Toast notifications for success/error
+
+**Implementation Details:**
+
+*Message Type (src/shared/messages.ts, webview-ui/src/types.ts):*
+```typescript
+| { type: 'GENERATE_FEATURE_DEFINITION'; payload: { draftId: string } }
+```
+
+*Interface (src/shared/messages.ts):*
+```typescript
+export interface FeatureDefinition {
+  why: string;
+  userFlow: string;
+  businessRules: string;
+  userStoryStatement: string;
+}
+```
+
+Added fields to PbiDraft:
+- `featureWhy?: string`
+- `featureUserFlow?: string`
+- `featureBusinessRules?: string`
+- `featureUserStoryStatement?: string`
+
+*Backend Handler (src/panels/DashboardPanel.ts):*
+```typescript
+case 'GENERATE_FEATURE_DEFINITION':
+  await this.handleGenerateFeatureDefinition(message.payload.draftId);
+  return;
+```
+
+*Copilot Service (src/services/copilotService.ts):*
+- FEATURE_DEFINITION_SYSTEM_PROMPT (lines 116-137)
+- FEATURE_DEFINITION_JSON_BRIDGE (lines 139-145)
+- generateFeatureDefinition() method (lines 386-439)
+- featureDefinitionFromParsed() helper (lines 736-747)
+
+Prompt structure:
+- **WHY:** 200-500 chars, business impact and strategic importance
+- **USER FLOW:** Step-by-step journey with touchpoints
+- **BUSINESS RULES:** Constraints, compliance, validation, assumptions
+- **USER STORY STATEMENT:** As a [role], I want [capability], so that [benefit]
+
+Uses PRODUCT_MANAGER_RULEBOOK and LINKED_PROJECT_CONTEXT when available.
+
+*Frontend Wiring (webview-ui/src/components/FeatureWizard.tsx):*
+```typescript
+const handleGenerateFeatureDefinition = () => {
+  vscode.postMessage({
+    type: 'GENERATE_FEATURE_DEFINITION',
+    payload: { draftId },
+  });
+};
+```
+
+Updated step 3 prop: `onGenerateAI={handleGenerateFeatureDefinition}`
+
+**Message Flow:**
+1. User clicks "AI-Generated" button in Feature Definition step
+2. Frontend sends GENERATE_FEATURE_DEFINITION with draftId
+3. Backend routes to handleGenerateFeatureDefinition()
+4. CopilotService calls Copilot Language Model with feature definition prompt
+5. Response parsed into FeatureDefinition interface
+6. Draft updated with featureWhy, featureUserFlow, featureBusinessRules, featureUserStoryStatement
+7. State saved and posted to webview
+8. User sees generated content in step 3 fields
+
+**Files Modified:**
+1. `src/shared/messages.ts` — PbiDraft fields, FeatureDefinition interface, message type
+2. `src/panels/DashboardPanel.ts` — case handler, handleGenerateFeatureDefinition()
+3. `src/services/copilotService.ts` — prompts, generateFeatureDefinition(), parser
+4. `webview-ui/src/types.ts` — message type mirror
+5. `webview-ui/src/components/FeatureWizard.tsx` — dedicated handler, prop update
+
+**Testing:**
+- ✅ TypeScript: `npx tsc --noEmit` → 0 errors
+- ✅ Build: `node build/esbuild.config.js` → 228ms, 2.7mb extension.js
+- ✅ All 5 modified files staged and committed
+
+---
+
+### AI-Generated Mode Contextual Help Text (2026-04-30)
+
+**Date:** 2026-04-30  
+**Author:** Tess (UX Designer)  
+**Branch:** feature/pbi-studio-ux-improvements  
+**Status:** Implemented  
+**Related Issue:** User confusion about "AI-Generated" toggle in PBI Studio
+
+**Context:**
+Users were confused by the "AI-Generated" label in Step 3 (Write Your Story) of the PBI Studio wizard. The toggle button label itself did not explain what the mode does or how to use it once enabled.
+
+**Problem Statement:**
+- The "AI-Generated" toggle button lacked context about its purpose
+- Users confused: "What does AI-Generated mean?" "What happens when I click it?"
+- Discoverability issue: Users who enabled the mode didn't know how to trigger AI generation (Ctrl+Shift+P or right-click)
+
+**Design Rationale:**
+
+*Why a dynamic hint below the toggle?*
+1. **Contextual placement:** Help text appears right where the decision is made
+2. **Non-intrusive:** Doesn't block UI or require dismissal (unlike modal/toast)
+3. **Persistent:** Always visible as reference, not one-time message
+4. **Dynamic:** Changes based on selected mode, providing relevant guidance
+
+*Why not a tooltip or info icon?*
+- Discoverability: Tooltips require hover/focus — easy to miss
+- Mobile/touch: Tooltips don't work on touch devices
+- Cognitive load: Users shouldn't hunt for icon to understand core feature
+
+**Tone and Messaging:**
+- **AI-Generated mode:** "✨ Copilot can draft content for you. Use Ctrl+Shift+P → Generate Story or right-click fields to refine."
+  - Friendly icon (✨) positions AI as magical/helpful, not intimidating
+  - "can draft for you" emphasizes it's a starting point, not final
+  - Clear instructions tell users exactly how to invoke AI features
+
+- **Manual mode:** "Write your story manually, or switch to AI-Generated to let Copilot help draft content."
+  - Invites exploration without pressure
+  - "help draft" reinforces AI as assistant, not replacement
+
+**Implementation:**
+- **Location:** `webview-ui/src/components/WizardStep3Story.tsx` (lines 162-166)
+- **Styling:** `.wizard-mode-hint` class in `WizardStep3Story.css`
+  - Font size: `0.75rem` (small but readable)
+  - Color: `var(--color-neutral-450)` (muted, non-distracting)
+  - Top margin: `8px` (comfortable spacing below toggle)
+- **Accessibility:** Text is part of DOM (screen-reader accessible, no hidden tooltips)
+
+**Alternatives Considered:**
+1. Tooltip on hover — Rejected (low discoverability, not touch-friendly)
+2. Persistent banner when AI mode enabled — Rejected (too intrusive, takes space)
+3. Expanding accordion with "Learn More" — Rejected (adds interaction cost, overkill)
+4. Static text that doesn't change — Rejected (less relevant when mode changes)
+
+**Success Metrics:**
+- Qualitative: User feedback — do users still ask "what does AI-Generated mean?"
+- Behavioral: Do users who enable AI-Generated mode actually trigger generation (Ctrl+Shift+P or right-click)?
+- Support volume: Reduction in support tickets about the AI toggle
+
+**Next Steps:**
+- User testing: Observe users interacting with wizard to validate clarity
+- Iteration: If confused, consider adding "Try it now" inline demo or video link
+- Consistency: Apply similar contextual hints to other modes/toggles in app
 
 ---
 
