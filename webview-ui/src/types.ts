@@ -52,11 +52,13 @@ export interface PbiDraft {
   bugReproductionSteps?: string[];
   // Technical considerations (optional)
   technicalConsiderations?: TechnicalConsiderations;
-  // User story statement (optional)
+  /** The "As a <persona>, I want <want>, so that <benefit>." sentence from the INVEST wizard.
+   *  Stored separately so AI generation cannot overwrite it.
+   *  Rendered as a dedicated "User Story Statement" section in ADO above Test Scenarios. */
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
-  // Feature definition context (optional, used when child story generated from parent feature)
+  // Feature definition fields (optional)
   featureWhy?: string;
   featureUserFlow?: string;
   featureBusinessRules?: string;
@@ -262,3 +264,4 @@ declare global {
 }
 
 export {};
+

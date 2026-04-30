@@ -55,7 +55,9 @@ export interface PbiDraft {
   bugReproductionSteps?: string[];
   // Technical considerations (optional)
   technicalConsiderations?: TechnicalConsiderations;
-  // User story statement (optional)
+  /** The "As a <persona>, I want <want>, so that <benefit>." sentence from the INVEST wizard.
+   *  Stored separately so AI generation cannot overwrite it.
+   *  Rendered as a dedicated "User Story Statement" section in ADO above Test Scenarios. */
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
@@ -269,5 +271,6 @@ export type ExtensionEvent =
   | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
   | { type: 'FETCH_FAILED'; payload: { type: string; error: string } };
+
 
 
