@@ -13,12 +13,14 @@ export default {
       // ─── VS Code Bridge Color Tokens ────────────────────────────────────
       // These reference CSS custom properties defined in src/styles/tailwind.css
       // that in turn map to VS Code's --vscode-* theme variables.
-      // Usage: bg-tw-bg, text-tw-fg, border-tw-border, etc.
+      // Usage: bg-tw-bg, text-tw-fg, bg-tw-surface, border-tw-border, etc.
       colors: {
         'tw-bg':         'var(--tw-vscode-bg)',
         'tw-bg-alt':     'var(--tw-vscode-bg-alt)',
+        'tw-surface':    'var(--tw-vscode-surface)',
         'tw-fg':         'var(--tw-vscode-fg)',
         'tw-fg-muted':   'var(--tw-vscode-fg-muted)',
+        'tw-muted':      'var(--tw-vscode-fg-muted)',
         'tw-border':     'var(--tw-vscode-border)',
         'tw-accent':     'var(--tw-vscode-accent)',
         'tw-accent-fg':  'var(--tw-vscode-accent-fg)',

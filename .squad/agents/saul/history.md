@@ -79,8 +79,26 @@ Status soft backgrounds can't use `color-mix` reliably for all themes — use ha
 
 **Responsive breakpoint:** Added `panel-wide: 700px` custom Tailwind breakpoint — VS Code webview panels can be very narrow, so the 2-column layout switches at 700px rather than Tailwind's default `sm` (640px).
 
+### 2026-05-01 — CSS Consistency + Light Mode Full Audit
+
+**@tailwind IDE warning suppression:**  
+`body.vscode-light` never controlled surface/text/border vars — only status colors. The fix is straightforward: always declare ALL bridge vars in `body.vscode-light`, not just the ones you remember having contrast issues with. The rule: *if a `:root` fallback is a dark value, it needs a light override.*
+
+**`--vscode-panel-border` unreliability:**  
+In several popular VS Code light themes, `--vscode-panel-border` resolves to transparent (or near-transparent). The `body.vscode-light` override now prefers `--vscode-widget-border` which is consistently opaque in light themes. Pattern: `var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4))`.
+
+**`--tw-vscode-surface` new token:**  
+Added a third surface layer. `--tw-vscode-bg` (editor canvas) vs `--tw-vscode-bg-alt` (accordion/list headers) vs `--tw-vscode-surface` (card/widget panels). Previously, card surfaces had to use `--tw-vscode-bg` which made them visually identical to the page background. Maps to `--vscode-editorWidget-background`.
+
+**Design System SKILL.md:**  
+Created `.squad/skills/design-system/SKILL.md` as the canonical token reference for the whole team. Documents both the legacy `styles.css` token system and the Tailwind bridge, with alignment table, component patterns, WCAG AA compliance notes, and Do/Don't table.
+
+**Two-CSS-system coexistence strategy:**  
+The legacy system (`styles.css`) and Tailwind bridge can coexist indefinitely as long as both systems reference the same underlying VS Code tokens. The alignment table in the SKILL.md ensures new Tailwind components visually match old legacy components without requiring a full migration.
+
 ## Session Log
 
 - **2026-04-30 12:00:** Saul joined the team as UI Designer, partnered with Tess. Charter established, ready for first assignment.
 - **2026-04-30 17:00:** Completed Dashboard Redesign + Tailwind CSS Setup task. Installed Tailwind v3, created bridge variable system, replaced DashboardView with Epic→Feature→Story hierarchy accordion, added StatusBadge component. Build ✅, tests ✅. Branch: `feature/saul-tailwind-dashboard-redesign`.
 - **2026-04-30 21:44:** Team sync: All three agent decisions merged into `.squad/decisions.md` (Danny architecture, Tess UX flows, Saul Tailwind implementation). Orchestration logs + session log written. Decision inbox deleted. Ready for PR + team review. Decisions record updated.
+- **2026-05-01:** CSS consistency pass — suppressed @tailwind IDE warnings, completed full light-mode bridge variable coverage, added `--tw-vscode-surface` token, created `.squad/skills/design-system/SKILL.md` as canonical design reference. Build ✅.
