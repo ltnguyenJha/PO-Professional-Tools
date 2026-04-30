@@ -15,6 +15,7 @@ import { DashboardView } from './views/DashboardView';
 import { ProjectsView } from './views/ProjectsView';
 import { PbiStudio } from './views/PbiStudio';
 import { BulkBreakdownView } from './views/BulkBreakdownView';
+import { FeatureCreationWizard } from './views/FeatureCreationWizard';
 import { SettingsView } from './views/SettingsView';
 import { RdiTab } from './components/rdi/RdiTab';
 
@@ -34,6 +35,9 @@ const EMPTY_STATE: AppStatePayload = {
   projects: [],
   linkTargets: [],
   pbiDrafts: [],
+  rdiDrafts: [],
+  featureDrafts: [],
+  epicDrafts: [],
   adoSettings: undefined,
   uiSettings: { theme: 'auto' },
   hasAdoPat: false
@@ -58,6 +62,13 @@ export function App(): JSX.Element {
   >();
   const [focusDraftId, setFocusDraftId] = useState<string | undefined>(undefined);
   const [adoProgress, setAdoProgress] = useState<AdoProgressPayload>(EMPTY_ADO_PROGRESS);
+  const [featureGeneratedPbiIds, setFeatureGeneratedPbiIds] = useState<string[] | undefined>();
+  const [featurePushProgress, setFeaturePushProgress] = useState<{
+    featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string;
+  } | null>(null);
+  const [featurePushResult, setFeaturePushResult] = useState<{
+    featureId: string; adoWorkItemId?: number; childCount: number; failedIds?: string[];
+  } | null>(null);
   const toastIdRef = useRef(0);
 
   const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -106,6 +117,21 @@ export function App(): JSX.Element {
           return;
         case 'ADO_CONNECTION_RESULT':
           setConnectionResult(message.payload);
+          return;
+        case 'FEATURE_DRAFT_CREATED':
+          pushToast({ level: 'success', message: 'Feature draft created.' });
+          return;
+        case 'FEATURE_DRAFT_UPDATED':
+          return;
+        case 'USER_STORIES_GENERATED':
+          setFeatureGeneratedPbiIds(message.payload.generatedDraftIds);
+          return;
+        case 'FEATURE_PUSH_PROGRESS':
+          setFeaturePushProgress(message.payload);
+          return;
+        case 'FEATURE_PUSHED':
+          setFeaturePushResult(message.payload);
+          setFeaturePushProgress(null);
           return;
         default:
           return;
@@ -165,7 +191,7 @@ export function App(): JSX.Element {
       case 'bulk':
         return {
           title: 'Feature Creation',
-          subtitle: 'Split a big feature into many prefixed child items.'
+          subtitle: 'AI-driven feature decomposition into Product Backlog Items.'
         };
       case 'rdis':
         return { title: 'RDIs', subtitle: 'Create and manage Release Deployment Items.' };
@@ -212,15 +238,15 @@ export function App(): JSX.Element {
           />
         )}
         {view === 'bulk' && (
-          <BulkBreakdownView
-            linkTargets={state.linkTargets ?? state.projects}
-            drafts={state.pbiDrafts}
-            adoSettings={state.adoSettings}
-            aiBusy={breakdownBusy}
-            adoProgress={adoProgress}
-            suggestedChildren={suggestedChildren}
-            onConsumeSuggestion={consumeSuggestedChildren}
+          <FeatureCreationWizard
+            appState={state}
             send={sendMessage}
+            onNavigate={setView}
+            generatedPbiIds={featureGeneratedPbiIds}
+            onClearGeneratedPbiIds={() => setFeatureGeneratedPbiIds(undefined)}
+            pushProgress={featurePushProgress}
+            pushResult={featurePushResult}
+            onClearPushResult={() => setFeaturePushResult(null)}
           />
         )}
         {view === 'rdis' && <RdiTab />}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AppStatePayload, PbiDraft } from '../types';
+import type { AppStatePayload, PbiDraft, FeatureDraft } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 
 interface Props {
@@ -325,6 +325,131 @@ function RecentActivity({
   );
 }
 
+function HierarchyStatusBadge({ status }: { status: string }) {
+  const configs: Record<string, { label: string; bg: string; text: string }> = {
+    draft: { label: 'Draft', bg: 'var(--tw-vscode-warning-bg)', text: 'var(--tw-vscode-warning)' },
+    ready: { label: 'Ready', bg: 'var(--tw-vscode-info-bg)', text: 'var(--tw-vscode-info)' },
+    pushed: { label: 'Pushed', bg: 'var(--tw-vscode-success-bg)', text: 'var(--tw-vscode-success)' },
+    partial: { label: 'Partial', bg: 'var(--tw-vscode-warning-bg)', text: 'var(--tw-vscode-warning)' },
+  };
+  const cfg = configs[status] ?? configs.draft;
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+function FeatureDraftCard({
+  feature,
+  childPbis,
+  onNavigate,
+  onNavigateToStudio,
+}: {
+  feature: FeatureDraft;
+  childPbis: PbiDraft[];
+  onNavigate: Props['onNavigate'];
+  onNavigateToStudio: (draftId?: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const pushedCount = childPbis.filter((p) => p.status === 'pushed').length;
+  const draftCount = childPbis.filter((p) => p.status !== 'pushed').length;
+  const hierarchyStatus = feature.hierarchyStatus ?? 'draft';
+
+  return (
+    <div
+      className="rounded-lg overflow-hidden border"
+      style={{ borderColor: 'var(--tw-vscode-border)' }}
+    >
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-opacity hover:opacity-80 border-0 cursor-pointer"
+        style={{ background: 'var(--tw-vscode-bg-alt)' }}
+        onClick={() => setExpanded((o) => !o)}
+      >
+        <ChevronIcon open={expanded} />
+        <span
+          className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
+          style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+        >
+          Feature
+        </span>
+        <span className="flex-1 text-sm truncate font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>
+          {feature.title}
+        </span>
+        <HierarchyStatusBadge status={hierarchyStatus} />
+        {childPbis.length > 0 && (
+          <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            {childPbis.length} PBI{childPbis.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        {(hierarchyStatus === 'draft' || hierarchyStatus === 'partial') && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm shrink-0 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate('bulk');
+            }}
+            title="Push to ADO"
+          >
+            ⬆ Push
+          </button>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
+          {childPbis.length === 0 ? (
+            <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              No Product Backlog Items yet.
+            </p>
+          ) : (
+            <div>
+              <div className="px-3 py-1.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--tw-vscode-border)' }}>
+                <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                  {pushedCount > 0 && `${pushedCount} pushed`}
+                  {pushedCount > 0 && draftCount > 0 && ' · '}
+                  {draftCount > 0 && `${draftCount} draft`}
+                </span>
+              </div>
+              {childPbis.map((pbi) => (
+                <div
+                  key={pbi.id}
+                  className="flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0"
+                  style={{ borderColor: 'var(--tw-vscode-border)', paddingLeft: '2rem' }}
+                >
+                  <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+                    {pbi.title}
+                  </span>
+                  {pbi.effortDays && (
+                    <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                      {pbi.effortDays}pt
+                    </span>
+                  )}
+                  <StatusBadge status={pbi.status ?? 'draft'} size="xs" />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm shrink-0"
+                    style={{ fontSize: '0.65rem' }}
+                    onClick={() => onNavigateToStudio(pbi.id)}
+                    title="Edit in PBI Studio"
+                  >
+                    ✏ Edit
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   return (
     <div
@@ -356,7 +481,10 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function DashboardView({ state, onNavigate }: Props): JSX.Element {
-  const { pbiDrafts, adoSettings, hasAdoPat } = state;
+  const { pbiDrafts, adoSettings, hasAdoPat, featureDrafts: rawFeatureDrafts, epicDrafts: rawEpicDrafts } = state;
+  const featureDrafts = rawFeatureDrafts ?? [];
+  // epicDrafts used for future expansion
+  void (rawEpicDrafts ?? []);
 
   // Derive hierarchy groups from the flat draft list using workItemType
   const epics = pbiDrafts.filter((d) => d.workItemType === 'Epic');
@@ -376,7 +504,7 @@ export function DashboardView({ state, onNavigate }: Props): JSX.Element {
     .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
     .slice(0, 5);
 
-  const hasContent = epics.length > 0 || features.length > 0 || stories.length > 0;
+  const hasContent = epics.length > 0 || features.length > 0 || stories.length > 0 || featureDrafts.length > 0;
 
   const toggleEpic = (epicId: string) => {
     setExpandedEpics((prev) => {
@@ -387,9 +515,11 @@ export function DashboardView({ state, onNavigate }: Props): JSX.Element {
     });
   };
 
-  // When parent-child IDs exist on features, pass the real count.
-  // For now there is no featureId on PbiDraft, so all stories are standalone.
   const storyCountFor = (_featureId: string) => 0;
+
+  const navigateToStudio = (_draftId?: string) => {
+    onNavigate('studio');
+  };
 
   return (
     <div className="content">
@@ -432,6 +562,37 @@ export function DashboardView({ state, onNavigate }: Props): JSX.Element {
                   storyCountFor={storyCountFor}
                   onNavigate={onNavigate}
                 />
+              )}
+
+              {/* FeatureDrafts (hierarchy-based features from wizard) */}
+              {featureDrafts.length > 0 && (
+                <div className="space-y-2">
+                  {featureDrafts.map((feature) => {
+                    const childPbis = feature.childPbiIds
+                      .map((id) => pbiDrafts.find((d) => d.id === id))
+                      .filter((d): d is PbiDraft => Boolean(d));
+                    return (
+                      <FeatureDraftCard
+                        key={feature.id}
+                        feature={feature}
+                        childPbis={childPbis}
+                        onNavigate={onNavigate}
+                        onNavigateToStudio={navigateToStudio}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* CTA when no features/epics but stories exist */}
+              {featureDrafts.length === 0 && features.length === 0 && epics.length === 0 && stories.length > 0 && (
+                <div className="rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}>
+                  No features yet.{' '}
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onNavigate('bulk')}>
+                    Create your first feature
+                  </button>{' '}
+                  to break work into stories.
+                </div>
               )}
 
               {/* Standalone Stories — shown only when no Features/Epics exist yet */}

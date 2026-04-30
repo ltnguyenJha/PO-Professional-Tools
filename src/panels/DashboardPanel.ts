@@ -7,6 +7,8 @@ import {
   BugReportInput,
   BulkBreakdownRequest,
   ExtensionEvent,
+  FeatureDraft,
+  HierarchyStatus,
   ImportedProject,
   PbiDraft,
   RdiDraft,
@@ -234,6 +236,22 @@ export class DashboardPanel {
         return;
       case 'getDefaultIteration':
         await this.handleGetDefaultIteration();
+        return;
+      // Feature draft handlers
+      case 'CREATE_FEATURE_DRAFT':
+        await this.handleCreateFeatureDraft(message.payload);
+        return;
+      case 'UPDATE_FEATURE_DRAFT':
+        await this.handleUpdateFeatureDraft(message.payload);
+        return;
+      case 'DELETE_FEATURE_DRAFT':
+        await this.handleDeleteFeatureDraft(message.payload.featureId);
+        return;
+      case 'GENERATE_USER_STORIES_FROM_FEATURE':
+        await this.handleGenerateUserStoriesFromFeature(message.payload.featureId, message.payload.storyCount);
+        return;
+      case 'PUSH_FEATURE_TO_ADO':
+        await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren);
         return;
       default:
         return;
@@ -1356,6 +1374,256 @@ export class DashboardPanel {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // ─── Feature Draft Persistence ───────────────────────────────────────────
+
+  private getFeatureDrafts(): FeatureDraft[] {
+    return this.context.globalState.get<FeatureDraft[]>('featureDrafts', []);
+  }
+
+  private async saveFeatureDrafts(features: FeatureDraft[]): Promise<void> {
+    await this.context.globalState.update('featureDrafts', features);
+  }
+
+  // ─── Feature Draft Handlers ───────────────────────────────────────────────
+
+  private async handleCreateFeatureDraft(
+    payload: Omit<FeatureDraft, 'id' | 'createdAt' | 'updatedAt' | 'hierarchyStatus'> & { hierarchyStatus?: HierarchyStatus }
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const feature: FeatureDraft = {
+      ...payload,
+      id: Date.now().toString(),
+      hierarchyStatus: payload.hierarchyStatus ?? 'draft',
+      createdAt: now,
+      updatedAt: now
+    };
+    const features = this.getFeatureDrafts();
+    await this.saveFeatureDrafts([...features, feature]);
+    this.post({ type: 'FEATURE_DRAFT_CREATED', payload: feature });
+    await this.postState();
+  }
+
+  private async handleUpdateFeatureDraft(feature: FeatureDraft): Promise<void> {
+    const updated: FeatureDraft = { ...feature, updatedAt: new Date().toISOString() };
+    const features = this.getFeatureDrafts();
+    const idx = features.findIndex((f) => f.id === updated.id);
+    if (idx === -1) {
+      this.postToast('error', 'Feature draft not found.');
+      return;
+    }
+    features[idx] = updated;
+    await this.saveFeatureDrafts(features);
+    this.post({ type: 'FEATURE_DRAFT_UPDATED', payload: updated });
+    await this.postState();
+  }
+
+  private async handleDeleteFeatureDraft(featureId: string): Promise<void> {
+    const features = this.getFeatureDrafts().filter((f) => f.id !== featureId);
+    await this.saveFeatureDrafts(features);
+
+    // Clear parentFeatureId on any child PBIs
+    const allDrafts = this.draftService.getAll(this.context.globalState);
+    const cleared = allDrafts.map((d) =>
+      d.parentFeatureId === featureId ? { ...d, parentFeatureId: undefined } : d
+    );
+    await this.draftService.saveAll(this.context.globalState, cleared);
+
+    this.post({ type: 'FEATURE_DRAFT_DELETED', payload: { featureId } });
+    await this.postState();
+  }
+
+  private async handleGenerateUserStoriesFromFeature(
+    featureId: string,
+    storyCount?: number
+  ): Promise<void> {
+    const feature = this.getFeatureDrafts().find((f) => f.id === featureId);
+    if (!feature) {
+      this.postToast('error', 'Feature draft not found.');
+      return;
+    }
+
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { message: 'Generating user stories from feature…', busy: true }
+    });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      // Gather repo context from the first linked repo if available
+      let linkedProjectContext: string | undefined;
+      if (feature.repoIds.length > 0) {
+        linkedProjectContext = await this.buildLinkedContextForProjectId(feature.repoIds[0]);
+      }
+
+      const stories = await this.copilotService.generateUserStoriesFromFeature(
+        feature,
+        cts.token,
+        { storyCount, linkedProjectContext }
+      );
+
+      if (stories.length === 0) {
+        this.postToast('error', 'AI did not generate any stories. Add more feature context and retry.');
+        return;
+      }
+
+      const ado = this.settingsService.getAdoSettings();
+      const now = new Date().toISOString();
+      const newPbis: PbiDraft[] = stories.map((s) => ({
+        id: this.draftService.newId(),
+        projectId: feature.repoIds[0] ?? 'standalone',
+        title: s.title,
+        description: s.description,
+        effortDays: (Math.min(5, Math.max(1, s.effort)) as 1 | 2 | 3 | 4 | 5),
+        acceptanceCriteria: [],
+        testScenarios: [],
+        iteration: iterationLeafFromPath(ado?.iterationPath) ?? this.defaultIteration(),
+        workItemType: 'Product Backlog Item' as const,
+        status: 'draft' as const,
+        parentFeatureId: feature.id,
+        updatedAt: now
+      }));
+
+      // Save new PBIs
+      const existingDrafts = this.draftService.getAll(this.context.globalState);
+      await this.draftService.saveAll(this.context.globalState, [...existingDrafts, ...newPbis]);
+
+      // Update feature with childPbiIds
+      const updatedFeature: FeatureDraft = {
+        ...feature,
+        childPbiIds: [...feature.childPbiIds, ...newPbis.map((p) => p.id)],
+        updatedAt: now
+      };
+      const features = this.getFeatureDrafts().map((f) =>
+        f.id === featureId ? updatedFeature : f
+      );
+      await this.saveFeatureDrafts(features);
+
+      this.post({ type: 'USER_STORIES_GENERATED', payload: { featureId, generatedPbis: newPbis } });
+      this.postToast('success', `Generated ${newPbis.length} user stories from feature.`);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      cts.dispose();
+      this.post({ type: 'AI_PROGRESS', payload: { message: '', busy: false } });
+    }
+    await this.postState();
+  }
+
+  private async handlePushFeatureToAdo(
+    featureId: string,
+    includeChildren: boolean
+  ): Promise<void> {
+    const feature = this.getFeatureDrafts().find((f) => f.id === featureId);
+    if (!feature) {
+      this.postToast('error', 'Feature draft not found.');
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      return;
+    }
+
+    const allDrafts = this.draftService.getAll(this.context.globalState);
+    const childPbis = includeChildren
+      ? allDrafts.filter((d) => feature.childPbiIds.includes(d.id))
+      : [];
+    const total = childPbis.length;
+
+    try {
+      this.postAdoProgress({ busy: true, message: 'Pushing feature to Azure DevOps…', scope: 'single' });
+
+      // Emit progress for each child PBI
+      let progress = 0;
+      for (const pbi of childPbis) {
+        this.post({
+          type: 'FEATURE_PUSH_PROGRESS',
+          payload: { featureId, message: `Pushing "${pbi.title}"…`, progress, total }
+        });
+        progress++;
+      }
+
+      const result = await this.adoService.pushFeatureHierarchy(
+        ctx.settings,
+        ctx.pat,
+        feature,
+        childPbis
+      );
+
+      // Persist updated feature
+      const now = new Date().toISOString();
+      const hierarchyStatus: HierarchyStatus =
+        result.errors.length === 0
+          ? 'pushed'
+          : result.childResults.length > 0
+          ? 'partial'
+          : 'partial';
+
+      const updatedFeature: FeatureDraft = {
+        ...feature,
+        adoWorkItemId: result.featureWorkItemId,
+        hierarchyStatus,
+        updatedAt: now
+      };
+      const features = this.getFeatureDrafts().map((f) =>
+        f.id === featureId ? updatedFeature : f
+      );
+      await this.saveFeatureDrafts(features);
+
+      // Persist updated child PBIs
+      if (result.childResults.length > 0) {
+        const childAdoIds: Record<string, number> = {};
+        const updatedDrafts = allDrafts.map((d) => {
+          const match = result.childResults.find((r) => r.draftId === d.id);
+          if (!match) { return d; }
+          childAdoIds[d.id] = match.workItemId;
+          return {
+            ...d,
+            adoWorkItemId: match.workItemId,
+            adoWorkItemUrl: match.workItemUrl,
+            status: 'pushed' as const,
+            updatedAt: now
+          };
+        });
+        await this.draftService.saveAll(this.context.globalState, updatedDrafts);
+      }
+
+      const childAdoIds: Record<string, number> = {};
+      for (const r of result.childResults) {
+        childAdoIds[r.draftId] = r.workItemId;
+      }
+
+      this.post({
+        type: 'FEATURE_PUSHED',
+        payload: {
+          featureId,
+          adoWorkItemId: result.featureWorkItemId,
+          childAdoIds,
+          hierarchyStatus
+        }
+      });
+
+      if (result.errors.length > 0) {
+        this.postToast(
+          'error',
+          `Feature pushed as #${result.featureWorkItemId}. ${result.errors.length} child(ren) failed.`
+        );
+      } else {
+        this.postToast(
+          'success',
+          `Feature pushed as #${result.featureWorkItemId} with ${result.childResults.length} child(ren).`
+        );
+      }
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', `Feature push failed: ${messageText}`);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'single' });
+    }
+    await this.postState();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
 
   private async postState(): Promise<void> {
     const pat = await this.secretStorage.getAdoPat();
@@ -1366,6 +1634,7 @@ export class DashboardPanel {
         linkTargets: await this.importService.getLinkTargets(),
         pbiDrafts: this.draftService.getAll(this.context.globalState),
         rdiDrafts: this.rdiDraftService.listDrafts(this.context.globalState),
+        featureDrafts: this.getFeatureDrafts(),
         adoSettings: this.settingsService.getAdoSettings(),
         uiSettings: this.settingsService.getUiSettings(),
         hasAdoPat: Boolean(pat && pat.length > 0)

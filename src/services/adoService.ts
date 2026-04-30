@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import {
   AdoSettings,
   AdoWorkItemType,
+  FeatureDraft,
   PbiAttachment,
   PbiDraft,
   RdiDraft
@@ -601,6 +602,122 @@ export class AdoService {
       '<h3>PO Tools Metadata</h3>',
       '<p>Created by PO Professional Tools — RDI Wizard</p>'
     ].join('');
+  }
+
+  /**
+   * Pushes a Feature work item and its child PBIs to ADO with parent-child hierarchy links.
+   * Handles both CREATE (new) and UPDATE (existing) for both feature and children.
+   * The Feature type is hardcoded as "Feature"; child PBIs as "Product Backlog Item".
+   */
+  public async pushFeatureHierarchy(
+    settings: AdoSettings,
+    pat: string,
+    feature: Pick<FeatureDraft, 'id' | 'title' | 'description' | 'why' | 'userFlow' | 'businessRules' | 'adoWorkItemId'>,
+    childPbis: PbiDraft[]
+  ): Promise<{
+    featureWorkItemId: number;
+    featureApiUrl: string;
+    childResults: PushItemResult[];
+    errors: Array<{ draftId: string; message: string }>;
+  }> {
+    const connection = this.createConnection(settings, pat);
+    const witApi = await connection.getWorkItemTrackingApi();
+    const orgUrl = this.trimSlash(settings.orgUrl);
+
+    // Build Feature description from structured fields
+    const featureDescription = [
+      feature.description ? `<p>${this.escapeHtml(feature.description)}</p>` : '',
+      feature.why ? `<h3>Why / Business Value</h3><p>${this.escapeHtml(feature.why)}</p>` : '',
+      feature.userFlow ? `<h3>User Flow</h3><p>${this.escapeHtml(feature.userFlow)}</p>` : '',
+      feature.businessRules ? `<h3>Business Rules</h3><p>${this.escapeHtml(feature.businessRules)}</p>` : '',
+      '<h3>PO Tools Metadata</h3><p>Managed by PO Professional Tools — Feature Creation</p>'
+    ].filter(Boolean).join('');
+
+    const featureEntries: PatchEntry[] = [
+      { op: 'add', path: '/fields/System.Title', value: feature.title },
+      { op: 'add', path: '/fields/System.Description', value: featureDescription },
+      { op: 'add', path: '/fields/System.Tags', value: 'AI-Generated;PO-Tools;Feature' }
+    ];
+    if (settings.areaPath) {
+      featureEntries.push({ op: 'add', path: '/fields/System.AreaPath', value: settings.areaPath });
+    }
+    if (settings.iterationPath) {
+      featureEntries.push({ op: 'add', path: '/fields/System.IterationPath', value: settings.iterationPath });
+    }
+
+    let featureWorkItemId: number;
+    let featureApiUrl: string;
+
+    if (feature.adoWorkItemId != null) {
+      // UPDATE existing Feature work item
+      const updatePatch = asPatch(
+        featureEntries.map((e) => ({ ...e, op: 'replace' as string }))
+      );
+      await witApi.updateWorkItem(undefined, updatePatch, feature.adoWorkItemId, settings.projectName);
+      featureWorkItemId = feature.adoWorkItemId;
+      featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
+    } else {
+      // CREATE new Feature work item
+      const item = await witApi.createWorkItem(
+        undefined,
+        asPatch(featureEntries),
+        settings.projectName,
+        'Feature'
+      );
+      if (!item.id) {
+        throw new Error('ADO did not return an ID for the Feature work item.');
+      }
+      featureWorkItemId = item.id;
+      featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
+    }
+
+    // Push child PBIs with parent-child links
+    const childResults: PushItemResult[] = [];
+    const errors: Array<{ draftId: string; message: string }> = [];
+
+    for (const pbi of childPbis) {
+      try {
+        if (pbi.adoWorkItemId != null) {
+          // UPDATE existing PBI (no link change needed — link already exists)
+          const updatePatches = this.buildFieldPatches(settings, pbi, 'replace');
+          await witApi.updateWorkItem(undefined, asPatch(updatePatches), pbi.adoWorkItemId, settings.projectName);
+          childResults.push({
+            draftId: pbi.id,
+            workItemId: pbi.adoWorkItemId,
+            workItemUrl: this.buildBrowserUrl(settings, pbi.adoWorkItemId)
+          });
+        } else {
+          // CREATE new PBI with Hierarchy-Reverse link to Feature
+          const patches = this.buildFieldPatches(settings, pbi, 'add');
+          patches.push({
+            op: 'add',
+            path: '/relations/-',
+            value: {
+              rel: 'System.LinkTypes.Hierarchy-Reverse',
+              url: featureApiUrl
+            }
+          });
+          const item = await witApi.createWorkItem(
+            undefined,
+            asPatch(patches),
+            settings.projectName,
+            'Product Backlog Item'
+          );
+          if (item.id) {
+            childResults.push({
+              draftId: pbi.id,
+              workItemId: item.id,
+              workItemUrl: item._links?.html?.href ?? this.buildBrowserUrl(settings, item.id)
+            });
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        errors.push({ draftId: pbi.id, message });
+      }
+    }
+
+    return { featureWorkItemId, featureApiUrl, childResults, errors };
   }
 
   private createConnection(settings: AdoSettings, pat: string): azdev.WebApi {
