@@ -55,7 +55,9 @@ export interface PbiDraft {
   bugReproductionSteps?: string[];
   // Technical considerations (optional)
   technicalConsiderations?: TechnicalConsiderations;
-  // User story statement (optional)
+  /** The "As a <persona>, I want <want>, so that <benefit>." sentence from the INVEST wizard.
+   *  Stored separately so AI generation cannot overwrite it.
+   *  Rendered as a dedicated "User Story Statement" section in ADO above Test Scenarios. */
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
@@ -85,12 +87,72 @@ export interface UiSettings {
   theme: ThemePreference;
 }
 
+// ─── RDI Types ───────────────────────────────────────────────────────────────
+
+export interface RdiPbiLink {
+  pbiId: string;
+  pbiTitle?: string;
+  relationUrl?: string;
+}
+
+export interface RdiDeploymentDetail {
+  application: string;
+  repoUrl: string;
+  buildUrl: string;
+  version: string;
+}
+
+export interface RdiManualDbChange {
+  description: string;
+  script?: string;
+  rollbackScript?: string;
+}
+
+export type RdiStatus = 'draft' | 'pushed' | 'error';
+
+export interface RdiDraft {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  status: RdiStatus;
+
+  // Step 1 — Overview
+  workItemTitle: string;
+  iterationPath: string;
+  areaPath: string;
+  assignedTo: string;
+  targetReleaseDate: string;
+
+  // Step 2 — PBI Links (parent-child ADO relations)
+  pbiLinks: RdiPbiLink[];
+
+  // Step 3 — Release Notes
+  releaseNotes: string;
+
+  // Step 4 — Deployment Details
+  deploymentDetails: RdiDeploymentDetail[];
+  applications: string;
+
+  // Step 5 — Backout Strategy
+  backoutStrategy: string;
+  backoutOwner: string;
+  estimatedBackoutTime: string;
+
+  // Step 6 — Manual DB Changes
+  manualDbChanges: RdiManualDbChange[];
+  hasManualDbChanges: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface AppStatePayload {
   /** Manually imported repos (Projects tab). */
   projects: ImportedProject[];
   /** Imported + open workspace folders — use for linking PBIs to a repo without importing each. */
   linkTargets?: ImportedProject[];
   pbiDrafts: PbiDraft[];
+  rdiDrafts: RdiDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -237,9 +299,16 @@ export type WebviewRequest =
   | { type: 'WIZARD_DRAFT_LOAD'; payload: { draftId: string } }
   | { type: 'WIZARD_STEP_CHANGE'; payload: { draftId: string; targetStep: number } }
   | { type: 'WIZARD_DRAFT_SAVE'; payload: { draftId: string; partialDraft: Partial<PbiDraft>; currentStep: number } }
-  | { type: 'FETCH_ADO_TEAMS' }
   | { type: 'FETCH_ADO_AREA_PATHS'; payload: { team: string } }
-  | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } };
+  | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
+  // RDI messages
+  | { type: 'createRdiDraft' }
+  | { type: 'loadRdiDraft'; id: string }
+  | { type: 'saveRdiDraft'; draft: RdiDraft }
+  | { type: 'deleteRdiDraft'; id: string }
+  | { type: 'pushRdi'; id: string }
+  | { type: 'loadRdiList' }
+  | { type: 'getDefaultIteration' };
 
 export type AdoProgressScope = 'single' | 'bulk' | 'project';
 
@@ -268,6 +337,16 @@ export type ExtensionEvent =
   | { type: 'ADO_TEAMS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
-  | { type: 'FETCH_FAILED'; payload: { type: string; error: string } };
+  | { type: 'FETCH_FAILED'; payload: { type: string; error: string } }
+  // RDI events
+  | { type: 'rdiDraftCreated'; draft: RdiDraft }
+  | { type: 'rdiDraftLoaded'; draft: RdiDraft }
+  | { type: 'rdiDraftSaved'; draft: RdiDraft }
+  | { type: 'rdiDraftDeleted'; id: string }
+  | { type: 'rdiPushed'; id: string; adoUrl: string }
+  | { type: 'rdiListLoaded'; drafts: RdiDraft[] }
+  | { type: 'defaultIterationLoaded'; iterationPath: string }
+  | { type: 'rdiError'; message: string };
+
 
 

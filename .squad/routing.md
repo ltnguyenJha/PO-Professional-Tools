@@ -7,7 +7,8 @@ How to decide who handles what.
 | Work Type | Route To | Examples |
 |-----------|----------|----------|
 | React components, views, styles, webview UX | Rusty | New components, CSS, PbiStudio changes, UserStoryWizard |
-| UI/UX design, design specs, accessibility, design system | Tess | Design new features, design reviews, WCAG compliance, component spec |
+| UX design, wireframes, user flows, accessibility, interaction design | Tess | Design new features, design reviews, WCAG compliance, user flows |
+| Visual design, design tokens, component polish, high-fidelity specs | Saul | Visual specs, design tokens, theme variables, UI polish, visual consistency audits |
 | Extension backend, message handlers, Copilot API | Linus | DashboardPanel, CopilotService, message types, esbuild |
 | Architecture, scope, code review, PR review | Danny | Design decisions, trade-off analysis, reviewing PRs |
 | Tests, quality, edge cases, build validation | Livingston | Writing tests, verifying TypeScript clean, build checks |
@@ -21,7 +22,8 @@ How to decide who handles what.
 | `squad` | Triage: analyze issue, assign `squad:{member}` label | Danny |
 | `squad:danny` | Lead work: architecture, review, scope | Danny |
 | `squad:rusty` | Frontend work: UI, components, styles | Rusty |
-| `squad:tess` | UX Design work: design specs, accessibility, design system | Tess |
+| `squad:tess` | UX Design work: wireframes, interaction design, accessibility, user flows | Tess |
+| `squad:saul` | UI Design work: visual specs, design tokens, component polish, visual consistency | Saul |
 | `squad:linus` | Backend work: extension API, services | Linus |
 | `squad:livingston` | Testing: test cases, quality review | Livingston |
 

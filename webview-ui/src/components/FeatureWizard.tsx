@@ -5,13 +5,14 @@ import { WizardStep3Story } from './WizardStep3Story';
 import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
-import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
+import { WizardStep5TestCases } from './WizardStep5TestCases';
+import { WizardStep6Summary } from './WizardStep6Summary';
 
 interface Props {
   draftId: string;
 }
 
-type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Technical Details' | 'Test Cases' | 'Summary';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -20,11 +21,16 @@ export function FeatureWizard({ draftId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [previousStep, setPreviousStep] = useState(-1);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [adoUrl, setAdoUrl] = useState<string | undefined>(undefined);
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
+  // Signals that the next WIZARD_DRAFT_LOADED is an AI-triggered refresh
+  // (should update draft data only, not jump the user's current step)
+  const aiReloadRef = useRef(false);
 
-  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Technical Details', 'Test Cases', 'Summary'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -44,9 +50,12 @@ export function FeatureWizard({ draftId }: Props) {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (message.type === 'AI_PROGRESS') {
+        // Ignore AI events for other drafts or unrelated global AI tasks
+        if (message.payload.draftId && message.payload.draftId !== draftId) return;
         const nowBusy = message.payload.busy;
-        if (wasGeneratingRef.current && !nowBusy && currentStep === 0) {
-          // Generation just finished — reload draft
+        if (wasGeneratingRef.current && !nowBusy) {
+          // Generation just finished — reload draft data without moving the step
+          aiReloadRef.current = true;
           vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
         }
         wasGeneratingRef.current = nowBusy;
@@ -57,6 +66,30 @@ export function FeatureWizard({ draftId }: Props) {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [currentStep, draftId, vscode]);
+
+  // Listen for ADO push progress and completion
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.type === 'ADO_PROGRESS') {
+        const { busy, draftId: eventDraftId } = message.payload;
+        if (eventDraftId && eventDraftId !== draftId) return;
+        setIsPushing(busy);
+      }
+      if (message.type === 'STATE_UPDATED') {
+        const updatedDraft = message.payload.pbiDrafts?.find(
+          (d: PbiDraft) => d.id === draftId
+        );
+        if (updatedDraft?.adoWorkItemUrl) {
+          setAdoUrl(updatedDraft.adoWorkItemUrl);
+          setDraft(updatedDraft);
+          setIsPushing(false);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [draftId]);
 
   // Load draft on mount
   useEffect(() => {
@@ -77,8 +110,14 @@ export function FeatureWizard({ draftId }: Props) {
       if (message.type === 'WIZARD_DRAFT_LOADED') {
         const { draft: loadedDraft, currentStep: savedStep } = message.payload;
         setDraft(loadedDraft);
-        setCurrentStep(savedStep || 0);
-        setLoading(false);
+        if (aiReloadRef.current) {
+          // AI-triggered refresh: only update draft data, keep user on current step
+          aiReloadRef.current = false;
+        } else {
+          // Initial load: restore saved step (clamped to valid range)
+          setCurrentStep(Math.min(savedStep || 0, steps.length - 1));
+          setLoading(false);
+        }
       }
     };
 
@@ -145,6 +184,14 @@ export function FeatureWizard({ draftId }: Props) {
   const handleGenerateTechnicalConsiderations = () => {
     vscode.postMessage({
       type: 'GENERATE_TECHNICAL_CONSIDERATIONS',
+      payload: { draftId },
+    });
+  };
+
+  const handleFinish = () => {
+    setIsPushing(true);
+    vscode.postMessage({
+      type: 'PUSH_PBI_TO_ADO',
       payload: { draftId },
     });
   };
@@ -238,16 +285,24 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
+            onGenerate={handleGenerateTechnicalConsiderations}
           />
         )}
         {currentStep === 4 && (
-          <WizardStep6TechnicalConsiderations
+          <WizardStep5TestCases
             draft={draft}
-            isLoading={aiGenerating}
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerate={handleGenerateTechnicalConsiderations}
+          />
+        )}
+        {currentStep === 5 && (
+          <WizardStep6Summary
+            draft={draft}
+            onBack={(prev) => handleStepChange(prev)}
+            onFinish={handleFinish}
+            isPushing={isPushing}
+            adoUrl={adoUrl}
           />
         )}
       </div>

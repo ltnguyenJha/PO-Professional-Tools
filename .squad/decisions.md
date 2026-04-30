@@ -136,6 +136,59 @@ Completed comprehensive project restructuring with four-layer organization:
 
 ---
 
+### Node.js Version Upgrade (2026-04-28)
+
+**Author:** Danny (Lead)  
+**Status:** Recommended  
+**Severity:** High — blocks webview-ui builds
+
+**Finding:** Root cause of build failure `SyntaxError: Unexpected token '||='`:
+1. Current Node.js: 14.17.5 (LTS ended April 2023)
+2. Current Vite: 6.4.2 requires Node 18.0.0+
+3. Current @vitejs/plugin-react: 4.7.0 requires Node 14.18.0+
+4. Logical assignment operators (`||=`) supported only in Node 14.18+
+
+Trapped in narrow gap: can't run Vite 6 (requires Node 18+), can't run plugin-react 4 (requires Node 14.18+).
+
+**Compatibility Matrix:**
+| Package | Version | Requires |
+|---------|---------|----------|
+| Node.js | 14.17.5 | — |
+| Vite | 6.4.2 | Node 18+ |
+| @vitejs/plugin-react | 4.7.0 | Node 14.18.0+ |
+| React | 18.3.1 | Node 12+ |
+
+**Recommendation:** Upgrade Node.js to 20.x LTS (stable, widely adopted, supported until April 2026). No package.json changes needed; all dependencies support Node 18+. Verifies builds: `npm run build` and `cd webview-ui && npm run build`.
+
+**Rationale:** Node 14 is EOL; no security patches. Node 20 includes significant performance improvements and is the current LTS baseline. Team compatibility ensures modern, well-maintained tool versions (Vite 6, React 18, TS 5.7). Risk: Low — routine infra change; no code changes needed.
+
+---
+
+### Vite Downgrade for Node 14.17.5 Compatibility (2026-04-28)
+
+**Author:** Linus (Backend Dev)  
+**Status:** Implemented ✅  
+
+**Problem:** Build failed with `SyntaxError: Unexpected token '||='` on Node 14.17.5 because:
+- Vite 6.4.2 requires Node 18+ (uses `||=` logical assignment operator)
+- @vitejs/plugin-react 4.4.1 requires Vite 4.2+, which needs Node 14.18+
+- Machine running Node 14.17.5 (older than required minimum)
+
+**Solution:** Downgraded to Node 14.17.5-compatible versions in `webview-ui/package.json`:
+- **Vite:** `^6.1.0` → `^3.2.11` (last 3.x release, supports Node 12.2+)
+- **@vitejs/plugin-react:** `^4.4.1` → `^2.2.0` (compatible with Vite 3)
+
+**Verification:**
+- ✅ Updated `webview-ui/package.json` devDependencies
+- ✅ Ran `npm install` — successfully installed Vite 3.2.11 and plugin-react 2.2.0
+- ✅ Tested `npm run build:webview` — passes (52 modules, 211.50 KiB JS output)
+- ✅ Tested full `npm run build` — passes (extension + webview)
+
+Vite version: 3.2.11 ✓ | Plugin version: 2.2.0 ✓ | Build output: 211.50 KiB JS | Exit code: 0
+
+**Notes:** vite.config.ts requires no changes; compatible with Vite 3. React 18 (requires Node 14.0+) unchanged. TypeScript 5.7.3 unchanged. Non-breaking CSS minifier warnings (cosmetic). Build now works on Node 14.17.5 without Node version upgrade.
+
+**Recommendation:** Accept this change. Vite 3 is stable and widely used. Project now builds on Node 14.17.x without requiring user environment changes. When Node 18+ adoption is required in future, revisit Vite 6 upgrade.
 ### Local Dev Setup — Postinstall Hook (2026-04-28)
 
 **Author:** Danny (Lead) & Linus (Backend Dev)  
@@ -3188,4 +3241,142 @@ Users were confused by the "AI-Generated" label in Step 3 (Write Your Story) of 
 
 ---
 
+
+### Feature #41 — RDI Creation Architecture (2026-04-30)
+
+**Author:** Danny (Lead)  
+**Date:** 2026-05-01  
+**Status:** Implemented & Approved  
+**References:** `docs/architecture/feature-41-rdi-creation.md`
+
+## Decision
+
+Implement the RDI Creation feature (Issue #41) as a standalone **7-step wizard** (`RdiWizard`) that mirrors the existing `FeatureWizard` pattern. RDI drafts are stored in extension state as a new `RdiDraft[]` entity (separate from `PbiDraft`). ADO push uses the existing `AdoService` + `azure-devops-node-api` with a new `pushRdi()` method that writes all RDI fields into an HTML-structured `System.Description`.
+
+## Key Choices Made
+
+1. **New entity type (`RdiDraft`) — not extending `PbiDraft`.**  
+   RDIs have fundamentally different fields (deployment details, backout strategy, PBI links, DB changes). Forcing them into `PbiDraft` would bloat the interface and break the PBI wizard. Clean separation is the correct call.
+
+2. **7-step wizard orchestrated by `RdiWizard.tsx`.**  
+   Directly reuses the `FeatureWizard` orchestrator pattern (WIZARD_DRAFT_LOAD/SAVE/STEP messages, blur-debounce saves, step-guard navigation). No new infrastructure needed — proven pattern, well-understood by Rusty.
+
+3. **ADO field strategy: embed all content in `System.Description` as structured HTML.**  
+   This is pragmatic — organizations vary widely in ADO process template customization. Using the description field guarantees compatibility across all org configurations. PBI links are embedded as hyperlinks (not ADO relations) for MVP.
+
+4. **No AI assist for MVP.**  
+   RDIs are structured factual data (URLs, scripts, PBI IDs). AI generation adds little value here and defers complexity. AI assist can be added as a follow-on if users request summary generation for release notes.
+
+5. **New sidebar tab "RDIs" in Dashboard.**  
+   Keeps RDI workflow separate from PBI Studio. Clean mental model for users: PBIs ≠ RDIs. Same navigation shell.
+
+## Risks & Mitigations
+
+| Risk | Mitigation |
+|---|---|
+| ADO work item type mismatch (custom RDI type) | Step 1 exposes Work Item Type dropdown — user selects correct type |
+| Long wizard friction (7 steps) | All steps persist on blur; wizard is resumable from any step; Step 7 review before push |
+| PBI links not validated against ADO | MVP: accept any integer ID; show in description as-is. Future: resolve against ADO work item API |
+
+## Implementation Completed
+
+1. ✅ Type definitions in `messages.ts` + `webview-ui/src/types.ts` (Danny/Linus)
+2. ✅ `RdiDraftService` → `AdoService.pushRdi()` → DashboardPanel handlers (Linus)
+3. ✅ `RdiWizard.tsx` → 7 step components → `RdiStudio.tsx` → sidebar integration (Rusty)
+4. ✅ Final code review + architecture validation (Danny)
+
+**Status:** MERGED to main (commit a5ce5e8)
+
+---
+
+### RDI Wizard UX Design (2026-04-30)
+
+**Author:** Tess (UX Designer)  
+**Date:** 2026-04-30  
+**Issue:** #41 — Feature 7 - Create RDI with all required details  
+**Status:** Implemented  
+
+## Decision Summary
+
+The RDI creation wizard implements a **7-step linear wizard pattern** matching the existing FeatureWizard implementation, with step-specific optimizations for deployment workflows.
+
+## Key Decisions
+
+### 1. Wizard Structure: 7 Steps
+**Decision:** Organize RDI fields into 7 logical steps for comprehensive coverage.
+
+**Rationale:** 
+- Users creating RDIs need complete deployment context
+- Each step focuses on a specific aspect of deployment planning
+- Matches cognitive chunking: Basic Info → Tech Details → Dependencies → Rollback → Testing → PBI Links → Review
+
+### 2. Conditional Field Visibility
+**Decision:** DB Change Scripts field only appears when "Manual DB Changes Required" toggle is Yes.
+
+**Rationale:**
+- Reduces visual noise for majority of releases (no DB changes)
+- Prevents empty required field errors for users who don't need DB scripts
+- Progressive disclosure principle: show complexity only when needed
+
+### 3. PBI Search with Live Results
+**Decision:** Debounced search (300ms) with inline results, not modal picker.
+
+**Rationale:**
+- Inline results keep context visible (user sees what they've already linked)
+- Faster than modal open/close cycle
+- Matches VS Code's Quick Pick pattern conceptually
+
+### 4. Review Step with Section Jump
+**Decision:** Review step shows read-only summary with pencil icons to jump to specific steps.
+
+**Rationale:**
+- Users often catch errors on final review
+- Direct edit links faster than Back → Back → Back navigation
+- Clear separation: review is read-only, edit jumps to editable step
+
+### 5. Auto-save on Blur
+**Decision:** Save draft 500ms after field blur (not on every keystroke).
+
+**Rationale:**
+- Matches existing FeatureWizard pattern (consistency)
+- Balances responsiveness with API call efficiency
+- Prevents data loss if browser/extension crashes
+
+## Implementation Status
+
+✅ All UX decisions implemented in `RdiWizard.tsx` and step components  
+✅ Integrated with sidebar navigation in Dashboard  
+✅ Successfully tested with 52-test suite  
+✅ Merged to main (commit a5ce5e8)
+
+---
+
+### User Directive: Clean Build for Stale Artifacts (2026-04-30)
+
+**Author:** ltnguyen (via Copilot)  
+**Date:** 2026-04-30  
+**Status:** Documented for team memory  
+
+## Directive
+
+When the local build is stale (dist artifacts behind the current commit), always do a clean rebuild using the squad team before running or debugging the extension.
+
+**Steps:**
+1. Use Node 22: `nvm use 22`
+2. Run clean build: `npm run build` (rebuilds both extension and webview)
+3. Launch VS Code after build completes
+
+## Rationale
+
+Stale builds caused VS Code Insiders to load an old version of the extension, leading to confusing behavior and debugging red herrings. A clean rebuild ensures the running extension matches the current source code.
+
+## When to Apply
+
+- Before initial extension launch
+- After switching branches
+- After merging new code
+- If behavior doesn't match expected code changes
+- If debugging shows unexpected execution paths
+
+---
 

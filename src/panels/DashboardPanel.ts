@@ -10,6 +10,7 @@ import {
   ExtensionEvent,
   ImportedProject,
   PbiDraft,
+  RdiDraft,
   WebviewRequest
 } from '../shared/messages';
 import { iterationLeafFromPath } from '../shared/iterationUtils';
@@ -18,6 +19,7 @@ import { AdoService } from '../services/adoService';
 import { CodeAnalyzer } from '../services/codeAnalyzer';
 import { CopilotService } from '../services/copilotService';
 import { PbiDraftService, STANDALONE_PROJECT_ID } from '../services/pbiDraftService';
+import { RdiDraftService } from '../services/rdiDraftService';
 import { RepoImportService } from '../services/repoImportService';
 import { SecretStorageService } from '../services/secretStorageService';
 import { SettingsService } from '../services/settingsService';
@@ -49,6 +51,7 @@ export class DashboardPanel {
 
   private readonly disposables: vscode.Disposable[] = [];
   private patValidatedThisSession: boolean = false;
+  private readonly rdiDraftService: RdiDraftService = new RdiDraftService();
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -210,6 +213,28 @@ export class DashboardPanel {
           message.payload.partialDraft,
           message.payload.currentStep
         );
+        return;
+      // RDI handlers
+      case 'createRdiDraft':
+        await this.handleCreateRdiDraft();
+        return;
+      case 'loadRdiDraft':
+        await this.handleLoadRdiDraft(message.id);
+        return;
+      case 'saveRdiDraft':
+        await this.handleSaveRdiDraft(message.draft);
+        return;
+      case 'deleteRdiDraft':
+        await this.handleDeleteRdiDraft(message.id);
+        return;
+      case 'pushRdi':
+        await this.handlePushRdi(message.id);
+        return;
+      case 'loadRdiList':
+        await this.handleLoadRdiList();
+        return;
+      case 'getDefaultIteration':
+        await this.handleGetDefaultIteration();
         return;
       default:
         return;
@@ -829,6 +854,10 @@ export class DashboardPanel {
         cts.token,
         { linkedProjectContext }
       );
+      // Persist the "As a…, I want…, so that…" sentence independently of the AI-generated
+      // description so it is never overwritten by future AI refinements or re-generations.
+      const userStoryStatement = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
+      await this.draftService.upsert(this.context.globalState, { ...draft, userStoryStatement });
       await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
       this.postToast(
         'success',
@@ -1242,6 +1271,94 @@ export class DashboardPanel {
       .find((item) => item.id === draftId);
   }
 
+  // ─── RDI Handlers ──────────────────────────────────────────────────────────
+
+  private async handleCreateRdiDraft(): Promise<void> {
+    const draft = this.rdiDraftService.createDraft(this.context.globalState);
+    this.post({ type: 'rdiDraftCreated', draft });
+    await this.postState();
+  }
+
+  private async handleLoadRdiDraft(id: string): Promise<void> {
+    const draft = this.rdiDraftService.getDraft(this.context.globalState, id);
+    if (!draft) {
+      this.post({ type: 'rdiError', message: `RDI draft not found: ${id}` });
+      return;
+    }
+    this.post({ type: 'rdiDraftLoaded', draft });
+  }
+
+  private async handleSaveRdiDraft(draft: RdiDraft): Promise<void> {
+    await this.rdiDraftService.saveDraft(this.context.globalState, draft);
+    const saved = this.rdiDraftService.getDraft(this.context.globalState, draft.id);
+    if (saved) {
+      this.post({ type: 'rdiDraftSaved', draft: saved });
+    }
+    await this.postState();
+  }
+
+  private async handleDeleteRdiDraft(id: string): Promise<void> {
+    await this.rdiDraftService.deleteDraft(this.context.globalState, id);
+    this.post({ type: 'rdiDraftDeleted', id });
+    await this.postState();
+  }
+
+  private async handlePushRdi(id: string): Promise<void> {
+    const draft = this.rdiDraftService.getDraft(this.context.globalState, id);
+    if (!draft) {
+      this.post({ type: 'rdiError', message: `RDI draft not found: ${id}` });
+      return;
+    }
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({ type: 'rdiError', message: 'Azure DevOps settings not configured.' });
+      return;
+    }
+    this.post({
+      type: 'ADO_PROGRESS',
+      payload: { busy: true, message: 'Pushing RDI to Azure DevOps…', scope: 'single' }
+    });
+    try {
+      const result = await this.adoService.pushRdi(ctx.settings, ctx.pat, draft);
+      const pushed: RdiDraft = { ...draft, status: 'pushed', updatedAt: new Date().toISOString() };
+      await this.rdiDraftService.saveDraft(this.context.globalState, pushed);
+      this.post({ type: 'rdiPushed', id, adoUrl: result.url });
+      this.postToast('success', `RDI pushed to ADO — work item #${result.id}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'rdiError', message });
+      this.postToast('error', `Failed to push RDI: ${message}`);
+    } finally {
+      this.post({
+        type: 'ADO_PROGRESS',
+        payload: { busy: false, message: '', scope: 'single' }
+      });
+    }
+    await this.postState();
+  }
+
+  private async handleLoadRdiList(): Promise<void> {
+    const drafts = this.rdiDraftService.listDrafts(this.context.globalState);
+    this.post({ type: 'rdiListLoaded', drafts });
+  }
+
+  private async handleGetDefaultIteration(): Promise<void> {
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({ type: 'rdiError', message: 'Azure DevOps settings not configured.' });
+      return;
+    }
+    try {
+      const iterationPath = await this.adoService.getDefaultIteration(ctx.settings, ctx.pat);
+      this.post({ type: 'defaultIterationLoaded', iterationPath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'rdiError', message });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+
   private async postState(): Promise<void> {
     const pat = await this.secretStorage.getAdoPat();
     const payload: ExtensionEvent = {
@@ -1250,6 +1367,7 @@ export class DashboardPanel {
         projects: this.importService.getProjects(),
         linkTargets: await this.importService.getLinkTargets(),
         pbiDrafts: this.draftService.getAll(this.context.globalState),
+        rdiDrafts: this.rdiDraftService.listDrafts(this.context.globalState),
         adoSettings: this.settingsService.getAdoSettings(),
         uiSettings: this.settingsService.getUiSettings(),
         hasAdoPat: Boolean(pat && pat.length > 0)

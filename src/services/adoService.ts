@@ -1,12 +1,13 @@
 import * as azdev from 'azure-devops-node-api';
 import { JsonPatchOperation } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
-import { TreeStructureGroup } from 'azure-devops-node-api/interfaces/WorkItemTrackingInterfaces';
+import { TreeStructureGroup, WorkItemExpand } from 'azure-devops-node-api/interfaces/WorkItemTrackingInterfaces';
 import { Readable } from 'stream';
 import {
   AdoSettings,
   AdoWorkItemType,
   PbiAttachment,
-  PbiDraft
+  PbiDraft,
+  RdiDraft
 } from '../shared/messages';
 import { resolveIterationPathForPush } from '../shared/iterationUtils';
 
@@ -351,7 +352,9 @@ export class AdoService {
 
   /**
    * Applies field updates to an existing work item (after initial push).
-   * Optionally uploads and links attachments (diagrams, mermaid exports, etc.).
+   * Removes any previously auto-generated mermaid diagrams (po-tools-ai-diagram-*.mmd)
+   * from the ADO work item before uploading the fresh one.
+   * Manually-added attachments (different naming pattern) are never touched.
    */
   public async updateDraftInAdo(
     settings: AdoSettings,
@@ -361,6 +364,10 @@ export class AdoService {
   ): Promise<void> {
     const connection = this.createConnection(settings, pat);
     const witApi = await connection.getWorkItemTrackingApi();
+
+    // Remove stale auto-generated mermaid attachments before adding the refreshed one.
+    await this.removeAutoMermaidAttachments(witApi, settings, workItemId);
+
     const patch = asPatch(this.buildFieldPatches(settings, draft, 'replace'));
     await witApi.updateWorkItem(undefined, patch, workItemId, settings.projectName);
     if (draft.attachments && draft.attachments.length > 0) {
@@ -371,6 +378,51 @@ export class AdoService {
         throw new Error(`Work item fields were updated but attachment upload failed: ${msg}`);
       }
     }
+  }
+
+  /**
+   * Fetches the work item's current relations and removes any AttachedFile relation
+   * whose URL references an auto-generated PO Tools mermaid diagram
+   * (filename pattern: po-tools-ai-diagram-*.mmd).
+   * Manually-added attachments with other naming conventions are left untouched.
+   */
+  private async removeAutoMermaidAttachments(
+    witApi: Awaited<ReturnType<azdev.WebApi['getWorkItemTrackingApi']>>,
+    settings: AdoSettings,
+    workItemId: number
+  ): Promise<void> {
+    const workItem = await witApi.getWorkItem(
+      workItemId,
+      undefined,
+      undefined,
+      WorkItemExpand.Relations,
+      settings.projectName
+    );
+    const relations = workItem?.relations ?? [];
+
+    // Collect indices of auto-mermaid attachment relations. Remove in descending index order
+    // so that earlier removals do not shift the indices of subsequent ones in the same patch.
+    // The filename lives in attributes.name — NOT in the URL (the URL is a plain GUID endpoint).
+    const indicesToRemove = relations
+      .map((rel, idx) => ({ rel, idx }))
+      .filter(({ rel }) => {
+        if (rel.rel !== 'AttachedFile') {
+          return false;
+        }
+        const name = (rel.attributes as Record<string, unknown> | undefined)?.['name'];
+        return typeof name === 'string' && name.includes('po-tools-ai-diagram-');
+      })
+      .map(({ idx }) => idx)
+      .sort((a, b) => b - a); // descending
+
+    if (indicesToRemove.length === 0) {
+      return;
+    }
+
+    const removePatch = asPatch(
+      indicesToRemove.map((idx) => ({ op: 'remove', path: `/relations/${idx}` }))
+    );
+    await witApi.updateWorkItem(undefined, removePatch, workItemId, settings.projectName);
   }
 
   private async syncAttachments(
@@ -419,6 +471,136 @@ export class AdoService {
       ]);
       await witApi.updateWorkItem(undefined, relPatch, workItemId, project);
     }
+  }
+
+  public async getDefaultIteration(settings: AdoSettings, pat: string): Promise<string> {
+    const org = this.trimSlash(settings.orgUrl);
+    const project = encodeURIComponent(settings.projectName);
+    const team = encodeURIComponent(settings.team ?? settings.projectName);
+    const url = `${org}/${project}/${team}/_apis/work/teamsettings/iterations?$timeframe=current&api-version=7.1`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`:${pat}`).toString('base64')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch default iteration: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json() as { value?: Array<{ path?: string }> };
+    const first = data.value?.[0];
+    if (!first?.path) {
+      throw new Error('No current iteration found for the team.');
+    }
+    return first.path;
+  }
+
+  public async pushRdi(
+    settings: AdoSettings,
+    pat: string,
+    draft: RdiDraft
+  ): Promise<{ id: number; url: string }> {
+    const connection = this.createConnection(settings, pat);
+    const witApi = await connection.getWorkItemTrackingApi();
+
+    const description = this.buildRdiDescription(settings, draft);
+
+    const entries: PatchEntry[] = [
+      { op: 'add', path: '/fields/System.Title', value: draft.workItemTitle || draft.title },
+      { op: 'add', path: '/fields/System.Description', value: description },
+      { op: 'add', path: '/fields/System.Tags', value: 'RDI;PO-Tools;Release' }
+    ];
+
+    if (draft.iterationPath) {
+      entries.push({ op: 'add', path: '/fields/System.IterationPath', value: draft.iterationPath });
+    }
+    if (draft.areaPath || settings.areaPath) {
+      entries.push({ op: 'add', path: '/fields/System.AreaPath', value: draft.areaPath || settings.areaPath! });
+    }
+    if (draft.assignedTo) {
+      entries.push({ op: 'add', path: '/fields/System.AssignedTo', value: draft.assignedTo });
+    }
+    if (draft.targetReleaseDate) {
+      entries.push({ op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.TargetDate', value: draft.targetReleaseDate });
+    }
+
+    const item = await witApi.createWorkItem(
+      undefined,
+      asPatch(entries),
+      settings.projectName,
+      'Release Deployment Item'
+    );
+
+    if (!item.id) {
+      throw new Error('ADO did not return a work item ID after creation.');
+    }
+
+    // Add parent-child relations for each PBI link
+    if (draft.pbiLinks.length > 0) {
+      const orgUrl = this.trimSlash(settings.orgUrl);
+      const relationPatches: PatchEntry[] = draft.pbiLinks.map((link) => ({
+        op: 'add',
+        path: '/relations/-',
+        value: {
+          rel: 'System.LinkTypes.Hierarchy-Reverse',
+          url: `${orgUrl}/_apis/wit/workItems/${link.pbiId}`
+        }
+      }));
+      await witApi.updateWorkItem(
+        undefined,
+        asPatch(relationPatches),
+        item.id,
+        settings.projectName
+      );
+    }
+
+    const adoUrl = item._links?.html?.href ?? this.buildBrowserUrl(settings, item.id);
+    return { id: item.id, url: adoUrl };
+  }
+
+  private buildRdiDescription(settings: AdoSettings, draft: RdiDraft): string {
+    const orgUrl = this.trimSlash(settings.orgUrl);
+    const esc = this.escapeHtml.bind(this);
+
+    const pbiLinksHtml = draft.pbiLinks.length > 0
+      ? `<ul>${draft.pbiLinks.map((l) =>
+          `<li><a href="${orgUrl}/_workitems/edit/${esc(l.pbiId)}">${esc(l.pbiTitle || l.pbiId)}</a></li>`
+        ).join('')}</ul>`
+      : '<p>None</p>';
+
+    const deploymentHtml = draft.deploymentDetails.length > 0
+      ? `<table><thead><tr><th>Application</th><th>Version</th><th>Repo URL</th><th>Build URL</th></tr></thead><tbody>${
+          draft.deploymentDetails.map((d) =>
+            `<tr><td>${esc(d.application)}</td><td>${esc(d.version)}</td><td><a href="${esc(d.repoUrl)}">${esc(d.repoUrl)}</a></td><td><a href="${esc(d.buildUrl)}">${esc(d.buildUrl)}</a></td></tr>`
+          ).join('')
+        }</tbody></table>`
+      : '<p>None</p>';
+
+    const dbChangesHtml = draft.hasManualDbChanges && draft.manualDbChanges.length > 0
+      ? `<ul>${draft.manualDbChanges.map((c) =>
+          `<li><strong>${esc(c.description)}</strong>${c.script ? `<br/><pre>${esc(c.script)}</pre>` : ''}${c.rollbackScript ? `<br/><em>Rollback:</em> <pre>${esc(c.rollbackScript)}</pre>` : ''}</li>`
+        ).join('')}</ul>`
+      : '<p>No database changes required.</p>';
+
+    return [
+      `<h2>${esc(draft.title)}</h2>`,
+      '<h3>Applications Involved</h3>',
+      `<p>${esc(draft.applications || 'N/A')}</p>`,
+      '<h3>Associated PBIs</h3>',
+      pbiLinksHtml,
+      '<h3>Release Notes</h3>',
+      `<p>${esc(draft.releaseNotes)}</p>`,
+      '<h3>Deployment Details</h3>',
+      deploymentHtml,
+      '<h3>Backout Strategy</h3>',
+      `<p>${esc(draft.backoutStrategy)}</p>`,
+      `<p><strong>Backout Owner:</strong> ${esc(draft.backoutOwner)}</p>`,
+      `<p><strong>Estimated Backout Time:</strong> ${esc(draft.estimatedBackoutTime)}</p>`,
+      '<h3>Database Changes</h3>',
+      dbChangesHtml,
+      '<h3>PO Tools Metadata</h3>',
+      '<p>Created by PO Professional Tools — RDI Wizard</p>'
+    ].join('');
   }
 
   private createConnection(settings: AdoSettings, pat: string): azdev.WebApi {
@@ -547,3 +729,5 @@ export class AdoService {
       .replace(/'/g, '&#39;');
   }
 }
+
+

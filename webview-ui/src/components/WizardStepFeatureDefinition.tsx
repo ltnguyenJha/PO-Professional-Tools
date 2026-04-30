@@ -18,8 +18,6 @@ export function WizardStepFeatureDefinition({
 }: Props) {
   const [featureWhy, setFeatureWhy] = useState(draft.featureWhy || '');
   const [featureUserFlow, setFeatureUserFlow] = useState(draft.featureUserFlow || '');
-  const [featureBusinessRules, setFeatureBusinessRules] = useState(draft.featureBusinessRules || '');
-  const [featureUserStoryStatement, setFeatureUserStoryStatement] = useState(draft.featureUserStoryStatement || '');
   const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
 
@@ -34,8 +32,6 @@ export function WizardStepFeatureDefinition({
       onSave({
         featureWhy,
         featureUserFlow,
-        featureBusinessRules,
-        featureUserStoryStatement,
       });
     }, 500);
     setSaveTimer(timer);
@@ -47,8 +43,6 @@ export function WizardStepFeatureDefinition({
     onSave({
       featureWhy,
       featureUserFlow,
-      featureBusinessRules,
-      featureUserStoryStatement,
     });
     onNext(2);
   };
@@ -65,7 +59,7 @@ export function WizardStepFeatureDefinition({
       <div className="wizard-step-header">
         <h2 className="wizard-step-title">Feature Definition</h2>
         <p className="wizard-step-description">
-          Define the feature context with four essential questions. This helps align the team on the feature's purpose, flow, constraints, and user story. All fields are optional.
+          Define the feature context with two essential questions. This helps align the team on the feature's purpose and user flow. All fields are optional.
         </p>
         {onGenerateAI && (
           <div style={{ marginTop: 'var(--space-md)' }}>
@@ -116,44 +110,6 @@ export function WizardStepFeatureDefinition({
         />
         <small id="featureUserFlow-help" style={{ color: 'var(--color-neutral-450)', fontSize: '0.75rem' }}>
           Outline the step-by-step user journey through this feature. Be specific about touchpoints and interactions.
-        </small>
-      </div>
-
-      <div className="wizard-field">
-        <label htmlFor="featureBusinessRules" className="wizard-field-label">
-          What are the business rules and assumptions?
-        </label>
-        <textarea
-          id="featureBusinessRules"
-          className="wizard-field-textarea"
-          placeholder="e.g. Only verified users can initiate payments; Daily transaction limit is $5000; Payment must clear within 24 hours; Assumes payment gateway API has 99.9% uptime..."
-          value={featureBusinessRules}
-          onChange={(e) => setFeatureBusinessRules(e.target.value)}
-          onBlur={handleFieldBlur}
-          rows={6}
-          aria-describedby="featureBusinessRules-help"
-        />
-        <small id="featureBusinessRules-help" style={{ color: 'var(--color-neutral-450)', fontSize: '0.75rem' }}>
-          List constraints, conditions, compliance requirements, and critical assumptions that govern this feature.
-        </small>
-      </div>
-
-      <div className="wizard-field">
-        <label htmlFor="featureUserStoryStatement" className="wizard-field-label">
-          User story statement (As a… I want… so that…)
-        </label>
-        <textarea
-          id="featureUserStoryStatement"
-          className="wizard-field-textarea"
-          placeholder="e.g. As a busy professional, I want a fast, intuitive payment interface, so that I can complete transactions in under 60 seconds and get back to my work."
-          value={featureUserStoryStatement}
-          onChange={(e) => setFeatureUserStoryStatement(e.target.value)}
-          onBlur={handleFieldBlur}
-          rows={4}
-          aria-describedby="featureUserStoryStatement-help"
-        />
-        <small id="featureUserStoryStatement-help" style={{ color: 'var(--color-neutral-450)', fontSize: '0.75rem' }}>
-          Capture the core user story. This will guide child story generation and acceptance criteria.
         </small>
       </div>
 
