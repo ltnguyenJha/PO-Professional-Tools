@@ -148,6 +148,13 @@ export interface BulkBreakdownRequest {
   childWorkItemType: AdoWorkItemType;
   parentWorkItemType?: AdoWorkItemType;
   parentDescription?: string;
+  // Feature definition context for child story generation
+  featureDefinition?: {
+    why?: string;
+    userFlow?: string;
+    businessRules?: string;
+    userStoryStatement?: string;
+  };
   children: BulkChildInput[];
 }
 

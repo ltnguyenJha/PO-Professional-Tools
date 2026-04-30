@@ -4,6 +4,7 @@ import type { PbiDraft } from '../types';
 import { WizardStep1Type } from './WizardStep1Type';
 import { WizardStep2Identity } from './WizardStep2Identity';
 import { WizardStep3Story } from './WizardStep3Story';
+import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
 import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
@@ -12,7 +13,7 @@ interface Props {
   draftId: string;
 }
 
-type StepName = 'Type' | 'Identity' | 'Story' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Type' | 'Identity' | 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -24,7 +25,7 @@ export function FeatureWizard({ draftId }: Props) {
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
 
-  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -215,8 +216,8 @@ export function FeatureWizard({ draftId }: Props) {
             onOpenInChat={handleOpenInChat}
           />
         )}
-        {currentStep === 3 && (
-          <WizardStep3p5BusinessRules
+        {currentStep === 3 && draft.workItemType === 'Feature' && (
+          <WizardStepFeatureDefinition
             draft={draft}
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
@@ -224,7 +225,7 @@ export function FeatureWizard({ draftId }: Props) {
           />
         )}
         {currentStep === 4 && (
-          <WizardStep4Details
+          <WizardStep3p5BusinessRules
             draft={draft}
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
@@ -232,6 +233,14 @@ export function FeatureWizard({ draftId }: Props) {
           />
         )}
         {currentStep === 5 && (
+          <WizardStep4Details
+            draft={draft}
+            onNext={(next) => handleStepChange(next)}
+            onBack={(prev) => handleStepChange(prev)}
+            onSave={handleSave}
+          />
+        )}
+        {currentStep === 6 && (
           <WizardStep6TechnicalConsiderations
             draft={draft}
             isLoading={aiGenerating}
