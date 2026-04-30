@@ -922,7 +922,7 @@ button {
 /* ── Step progress rail ────────────────────────────────────────── */
 .wizard-steps {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   padding: var(--space-md) var(--space-xs) var(--space-xs);
 }
 
