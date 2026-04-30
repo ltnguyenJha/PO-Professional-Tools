@@ -248,7 +248,7 @@ export class DashboardPanel {
         await this.handleDeleteFeatureDraft(message.payload.featureId);
         return;
       case 'GENERATE_USER_STORIES_FROM_FEATURE':
-        await this.handleGenerateUserStoriesFromFeature(message.payload.featureId, message.payload.storyCount);
+        await this.handleGenerateUserStoriesFromFeature(message.payload);
         return;
       case 'PUSH_FEATURE_TO_ADO':
         await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren);
@@ -1433,14 +1433,26 @@ export class DashboardPanel {
   }
 
   private async handleGenerateUserStoriesFromFeature(
-    featureId: string,
-    storyCount?: number
+    payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number }
   ): Promise<void> {
-    const feature = this.getFeatureDrafts().find((f) => f.id === featureId);
-    if (!feature) {
-      this.postToast('error', 'Feature draft not found.');
-      return;
-    }
+    const { featureId, storyCount } = payload;
+
+    // Use inline payload data; fall back to global state if the feature is already saved
+    const saved = this.getFeatureDrafts().find((f) => f.id === featureId);
+    const now = new Date().toISOString();
+    const feature: FeatureDraft = saved ?? {
+      id: featureId,
+      title: payload.title,
+      description: payload.description,
+      why: payload.why,
+      userFlow: payload.userFlow,
+      businessRules: payload.businessRules,
+      repoIds: payload.repoIds,
+      childPbiIds: [],
+      hierarchyStatus: 'draft',
+      createdAt: now,
+      updatedAt: now
+    };
 
     this.post({
       type: 'AI_PROGRESS',
@@ -1461,12 +1473,13 @@ export class DashboardPanel {
       );
 
       if (stories.length === 0) {
+        this.post({ type: 'FEATURE_GENERATION_ERROR', payload: { featureId, message: 'AI did not generate any stories. Add more feature context and retry.' } });
         this.postToast('error', 'AI did not generate any stories. Add more feature context and retry.');
         return;
       }
 
       const ado = this.settingsService.getAdoSettings();
-      const now = new Date().toISOString();
+      const pbiNow = new Date().toISOString();
       const newPbis: PbiDraft[] = stories.map((s) => ({
         id: this.draftService.newId(),
         projectId: feature.repoIds[0] ?? 'standalone',
@@ -1479,28 +1492,32 @@ export class DashboardPanel {
         workItemType: 'Product Backlog Item' as const,
         status: 'draft' as const,
         parentFeatureId: feature.id,
-        updatedAt: now
+        updatedAt: pbiNow
       }));
 
       // Save new PBIs
       const existingDrafts = this.draftService.getAll(this.context.globalState);
       await this.draftService.saveAll(this.context.globalState, [...existingDrafts, ...newPbis]);
 
-      // Update feature with childPbiIds
+      // Upsert the feature in global state so child PBI IDs are persisted
       const updatedFeature: FeatureDraft = {
         ...feature,
         childPbiIds: [...feature.childPbiIds, ...newPbis.map((p) => p.id)],
-        updatedAt: now
+        updatedAt: pbiNow
       };
-      const features = this.getFeatureDrafts().map((f) =>
-        f.id === featureId ? updatedFeature : f
-      );
-      await this.saveFeatureDrafts(features);
+      const existingFeatures = this.getFeatureDrafts();
+      const featureIdx = existingFeatures.findIndex((f) => f.id === featureId);
+      const updatedFeatures =
+        featureIdx === -1
+          ? [...existingFeatures, updatedFeature]
+          : existingFeatures.map((f) => (f.id === featureId ? updatedFeature : f));
+      await this.saveFeatureDrafts(updatedFeatures);
 
-      this.post({ type: 'USER_STORIES_GENERATED', payload: { featureId, generatedPbis: newPbis } });
+      this.post({ type: 'USER_STORIES_GENERATED', payload: { featureId, generatedDraftIds: newPbis.map((p) => p.id) } });
       this.postToast('success', `Generated ${newPbis.length} user stories from feature.`);
     } catch (error) {
-      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      const messageText = error instanceof Error ? error.message : 'Unknown error generating user stories';
+      this.post({ type: 'FEATURE_GENERATION_ERROR', payload: { featureId, message: messageText } });
       this.postToast('error', messageText);
     } finally {
       cts.dispose();

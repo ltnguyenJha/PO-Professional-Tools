@@ -326,7 +326,7 @@ export type WebviewRequest =
   | { type: 'CREATE_FEATURE_DRAFT'; payload: Omit<FeatureDraft, 'id' | 'createdAt' | 'updatedAt' | 'hierarchyStatus'> & { hierarchyStatus?: HierarchyStatus } }
   | { type: 'UPDATE_FEATURE_DRAFT'; payload: FeatureDraft }
   | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
-  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; storyCount?: number } }
+  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number } }
   | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; includeChildren: boolean } }
   // RDI messages
   | { type: 'createRdiDraft' }
@@ -369,7 +369,8 @@ export type ExtensionEvent =
   | { type: 'FEATURE_DRAFT_CREATED'; payload: FeatureDraft }
   | { type: 'FEATURE_DRAFT_UPDATED'; payload: FeatureDraft }
   | { type: 'FEATURE_DRAFT_DELETED'; payload: { featureId: string } }
-  | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedPbis: PbiDraft[] } }
+  | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
+  | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
   | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; message: string; progress: number; total: number } }
   | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId: number; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
   // RDI events
