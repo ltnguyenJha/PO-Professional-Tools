@@ -428,7 +428,7 @@ export function SettingsView({
         {/* Second Row: Default Work Item Type (full width) */}
         <div className="field-row" style={{ marginTop: '16px' }}>
           <div style={{ gridColumn: '1 / -1' }}>
-            <SearchableDropdown
+            <DropdownWithFallback
               label="Default Work Item Type"
               value={form.defaultWorkItemType ?? 'Product Backlog Item'}
               options={WORK_ITEM_TYPES}

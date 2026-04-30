@@ -1124,3 +1124,34 @@ This hybrid approach solves the search requirement without reintroducing the cli
 
 **Design decision:**
 SearchableDropdown provides better UX for long lists (iterations, work item types) where filtering is essential. DropdownWithFallback remains for simpler dropdowns where native select is sufficient. The two components serve complementary roles rather than one replacing the other.
+
+## Learnings
+
+**Date:** 2025-01-29
+**Task:** Revert Default Work Item Type dropdown from SearchableDropdown back to DropdownWithFallback
+
+**Context:**
+User requested to revert Default Work Item Type back to native select while keeping Iteration Path as SearchableDropdown. This reverses the previous decision to use SearchableDropdown for both fields.
+
+**Changes made:**
+- Updated SettingsView.tsx line 431: Changed Default Work Item Type from SearchableDropdown to DropdownWithFallback
+- Iteration Path remains SearchableDropdown (line 411)
+- Both components coexist, serving different use cases
+
+**Rationale:**
+- Default Work Item Type has only 9 options (WORK_ITEM_TYPES array): Feature, Epic, User Story, Bug, Task, Product Backlog Item, Issue, Test Case, Impediment
+- With such a small list, native select is sufficient and simpler
+- Iteration Path has potentially hundreds of iterations across sprints/releases, so search is essential
+- Component selection should match data size: SearchableDropdown for large lists, DropdownWithFallback for small ones
+
+**Key learning:**
+Choose dropdown component based on option list size:
+- **Small lists (< 20 items):** Use DropdownWithFallback (native select) - simpler, familiar, no search needed
+- **Large lists (20+ items):** Use SearchableDropdown - filtering essential for usability
+
+This is about matching tool to use case, not preferring one component over the other. The previous decision applied SearchableDropdown universally without considering list size.
+
+**Build & lint:**
+- Build succeeded: 50 modules, 235.15 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings
+
