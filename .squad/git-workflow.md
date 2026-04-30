@@ -80,7 +80,16 @@ git rev-parse --abbrev-ref HEAD
    - Danny (Lead)
    - Or approved maintainers with merge authority
 
----
+6. **Update the GitHub issue item (REQUIRED):**
+   - After merge completes, add a comment to the issue summarizing the work:
+     ```
+     ✅ Issue resolved in PR #{pr-number}
+     - What changed: [brief summary]
+     - Related commit: [commit hash]
+     ```
+   - Verify the issue is **closed** (auto-closes when PR merged with `Fix #N` or `Closes #N` in title/description)
+   - If not auto-closed, manually close: `gh issue close {issue-number}`
+   - Update project board status (if using project view)
 
 ## Automation Script
 

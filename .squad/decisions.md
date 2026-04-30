@@ -21,7 +21,13 @@ Both scripts check current branch, auto-create timestamped feature branch if on 
 
 **Routing Integration:** `.squad/routing.md` updated with Rule 8 (git workflow enforcement) and "Pre-Spawn Checklist" reminding coordinators to verify feature branch before spawning agents.
 
-**Rationale:** Prevents accidental direct commits to main, enforces code review via PRs, ensures CI/CD validation before merge, maintains clean git history. All work flows through feature branches with proper naming conventions and merge authority restricted to Lead.
+**Post-Merge Requirement (2026-04-30):** Added step 6 to git-workflow.md "After Work is Complete" — all agents MUST update the GitHub issue after merge:
+- Add completion summary comment with PR link and commit reference
+- Verify issue is closed (auto-closes with `Fix #N` or `Closes #N` in PR title)
+- Manually close if needed: `gh issue close {issue-number}`
+- Update project board status
+
+**Rationale:** Prevents accidental direct commits to main, enforces code review via PRs, ensures CI/CD validation before merge, maintains clean git history. All work flows through feature branches with proper naming conventions and merge authority restricted to Lead. Complete traceability from issue → branch → PR → merge → closed ensures audit trail and team coordination.
 
 ---
 
