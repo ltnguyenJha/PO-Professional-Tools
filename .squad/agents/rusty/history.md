@@ -12,6 +12,24 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-XX — Repo Checkbox All-or-Nothing & Edit-in-Studio Navigation
+
+**Bug 1 — Repo checkboxes "all or nothing" (root cause finally found):**
+- `createId()` in `src/services/repoImportService.ts` slices base64url to 24 chars = 18 source bytes.
+- Two repos whose paths share the same first 18 characters (extremely common on Windows: `C:\Users\username\...`) get **identical IDs**.
+- All checkboxes used `repo.id` as key and checked value. With duplicate IDs, selecting any one repo caused all to appear selected (all share same `id`).
+- **Fix:** Step2Context now uses `repo.path` (filesystem path — always unique) as the internal identifier: `key={repo.path}`, `checked={selectedRepoIds.includes(repo.path)}`, `onChange={() => toggleRepo(repo.path)}`, "Select all" uses `repos.map(r => r.path)`.
+- API payloads still receive `repo.id` values via `getRepoIdPayloads()` which maps selected paths back to IDs.
+- **Never trust `repo.id` for unique UI keys if the underlying hash is truncated.** Always use a field that is guaranteed unique in the data model — typically the primary key (`path` for repos).
+- The extension's `createId` truncation is a backend bug (Linus's domain) — filed in decisions inbox.
+
+**Bug 2 — "Edit in PBI Studio" ignores target item:**
+- `handleEditInStudio` in FeatureCreationWizard had `_pbiId` (unused param) and just called `onNavigate('studio')`.
+- `navigateToStudio` in DashboardView similarly ignored `_draftId` and just called `onNavigate('studio')`.
+- PbiStudio already had `focusDraftId` / `onConsumedFocusDraft` plumbing that scrolls to and selects the item — it just was never being populated before navigation.
+- **Fix:** Added `onEditInStudio?: (pbiId: string) => void` to `FeatureCreationWizardProps`. App.tsx provides `navigateToStudio(draftId?)` via `useCallback` that calls `setFocusDraftId(draftId)` then `setView('studio')`. DashboardView accepts `onNavigateToStudio` prop and uses it when a draftId is present.
+- **Pattern:** When navigating to a detail view, ALWAYS pass the item ID at the same time as the navigation — do not rely on the destination view to infer context from ambient state.
+
 ### 2026-05-01 — GENERATE_USER_STORIES_GENERATED Handler Fix: Spinner Resolution
 
 **Problem:** Feature Creation Wizard Step 3 spinner never resolved when user clicks "Generate User Stories". Two root causes identified and fixed:
