@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { WORK_ITEM_TYPES } from '../types';
 import { DropdownWithFallback } from '../components/DropdownWithFallback';
+import { SearchableDropdown } from '../components/SearchableDropdown';
 
 interface Props {
   adoSettings?: AdoSettings;
@@ -246,37 +247,6 @@ export function SettingsView({
 
   return (
     <div className="content">
-      {/* Save Settings Button - Top of Page - Only shown when there are unsaved changes */}
-      {(hasUnsavedChanges || saveSuccess) && (
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          zIndex: 100, 
-          background: 'var(--panel)',
-          paddingBottom: '16px',
-          marginBottom: '16px',
-          borderBottom: '1px solid var(--line-strong)'
-        }}>
-          <button 
-            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
-            onClick={save} 
-            disabled={savingSettings}
-          >
-            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
-          </button>
-          {saveSuccess && (
-            <span className="chip success" style={{ marginLeft: '12px' }}>
-              Settings saved successfully
-            </span>
-          )}
-          {hasUnsavedChanges && !saveSuccess && (
-            <small style={{ marginLeft: '12px', color: 'var(--text-secondary)' }}>
-              You have unsaved changes
-            </small>
-          )}
-        </div>
-      )}
-
       {/* Azure DevOps Connection Section */}
       <section className="card settings-section">
         <div className="section-header" onClick={() => setOpenConnection((o) => !o)}>
@@ -438,7 +408,7 @@ export function SettingsView({
             }
             onChange={handleTeamChange}
           />
-          <DropdownWithFallback
+          <SearchableDropdown
             label="Iteration Path"
             value={form.iterationPath ?? ''}
             options={dropdownState.iterations}
@@ -474,6 +444,38 @@ export function SettingsView({
         </div>
         </div>
       </section>
+
+      {/* Save Settings Button - After Team & Defaults Section */}
+      {(hasUnsavedChanges || saveSuccess) && (
+        <div style={{ 
+          marginTop: '24px',
+          padding: '16px',
+          background: 'var(--panel)',
+          border: '1px solid var(--line-strong)',
+          borderRadius: 'var(--radius)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <button 
+            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
+            onClick={save} 
+            disabled={savingSettings}
+          >
+            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
+          </button>
+          {saveSuccess && (
+            <span className="chip success">
+              Settings saved successfully
+            </span>
+          )}
+          {hasUnsavedChanges && !saveSuccess && (
+            <small style={{ color: 'var(--ink-muted)' }}>
+              You have unsaved changes
+            </small>
+          )}
+        </div>
+      )}
     </div>
   );
 }
