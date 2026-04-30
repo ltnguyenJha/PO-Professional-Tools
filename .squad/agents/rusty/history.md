@@ -12,6 +12,52 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-30 — Feature Creation Wizard + Dashboard Hierarchy + PBI Studio Integration
+
+**Problem solved:**
+- No dedicated Feature creation flow — users used BulkBreakdownView which was generic and didn't support the Epic→Feature→PBI hierarchy.
+- Dashboard had no FeatureDraft-aware rendering; only showed PbiDraft objects with workItemType='Feature'.
+- PBI Studio had no visual indication when a PBI was part of a Feature.
+
+**Solution implemented:**
+
+**1. `FeatureCreationWizard.tsx` (5-step wizard):**
+- Step 1: Feature Details (title, description, why, userFlow, businessRules) with `WorkItemHierarchyBox` showing non-editable "Feature → Product Backlog Items" hierarchy info.
+- Step 2: Context & Repos (multi-select from linkTargets with search, epic assignment dropdown — graceful if epicDrafts is empty).
+- Step 3: AI Generation (dispatch `GENERATE_USER_STORIES_FROM_FEATURE`, loading state, auto-advances to Step 4 on `USER_STORIES_GENERATED`).
+- Step 4: Story Review (inline title editing via auto-resize textarea, effort dropdown [1,2,3,5,8,13], collapsible description, "Edit in PBI Studio" button, delete with confirm, "Add story" for manual entries).
+- Step 5: Save & Push (`CREATE_FEATURE_DRAFT` → dashboard, or `PUSH_FEATURE_TO_ADO` → progress bar → success/partial state).
+- Cancel dialog when content exists.
+- Stable `featureDraftId` generated at mount, reused for generation and save.
+
+**2. `types.ts` updates:**
+- Added `HierarchyStatus`, `FeatureDraft`, `EpicDraft` types.
+- Added `parentFeatureId?: string` to `PbiDraft`.
+- Added `featureDrafts?: FeatureDraft[]` and `epicDrafts?: EpicDraft[]` to `AppStatePayload`.
+- Added FEATURE_* event and request message types.
+
+**3. `App.tsx` updates:**
+- Replaced `BulkBreakdownView` with `FeatureCreationWizard` for the `bulk` view.
+- Added `featureGeneratedPbiIds`, `featurePushProgress`, `featurePushResult` state.
+- Added 5 new message event handlers: FEATURE_DRAFT_CREATED, FEATURE_DRAFT_UPDATED, USER_STORIES_GENERATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED.
+- Fixed EMPTY_STATE to include `rdiDrafts: []`, `featureDrafts: []`, `epicDrafts: []`.
+
+**4. `DashboardView.tsx` updates:**
+- Added `HierarchyStatusBadge` (draft/ready/pushed/partial with color coding).
+- Added `FeatureDraftCard` component: accordion with child PBI list, push button, status rollup.
+- Added empty-state CTA: "No features yet. Create your first feature to break work into stories."
+- Gracefully handles `appState.featureDrafts ?? []`.
+
+**5. `PbiStudio.tsx` updates:**
+- Added "Part of Feature" badge in sidebar list when `draft.parentFeatureId` is set.
+- Badge shows truncated feature title (28 chars max) with full title in tooltip.
+
+**Key patterns:**
+- **Wizard local edit state pattern**: Track per-item edits in `Record<string, LocalPbiEdit>` keyed by PBI ID; submit all at once on save. Avoids partial state syncs during review.
+- **Auto-advance on event**: `useEffect` monitoring the `generatedPbiIds` prop — when it changes and we're busy, automatically advance step and initialize local edits.
+- **Non-breaking hierarchy extension**: `FeatureDraftCard` coexists with legacy `FeatureGroup` (PbiDraft-based); no existing functionality was removed.
+- **Stable wizard session ID**: `useState(() => generateId())` gives a stable, unique ID for the wizard lifetime, reset on remount.
+
 ### 2026-04-30 — Settings Layout Restructure: Top Sticky Save Button
 
 **Problem solved:**

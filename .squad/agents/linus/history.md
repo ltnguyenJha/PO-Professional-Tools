@@ -906,3 +906,35 @@ Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vi
 **Commit:** ff4b34a
 **Build:** ✅ tsc --noEmit (0 errors), esbuild (228ms)
 **Branch:** feature/pbi-studio-ux-improvements
+
+### Phase 1 — FeatureDraft Data Layer + ADO Push (2026-07-01)
+
+**Task:** Implement the complete backend data layer for the Epic→Feature→Story hierarchy architecture.
+
+**What was added:**
+
+1. **New types in `src/shared/messages.ts`:**
+   - `HierarchyStatus = 'draft' | 'ready' | 'pushed' | 'partial'`
+   - `FeatureDraft` interface (id, title, description, why, userFlow, businessRules, repoIds, parentEpicId, childPbiIds, adoWorkItemId, hierarchyStatus, timestamps)
+   - `parentFeatureId?: string` on `PbiDraft` (additive, non-breaking back-reference)
+   - `featureDrafts: FeatureDraft[]` on `AppStatePayload`
+   - 5 new `WebviewRequest` members: CREATE/UPDATE/DELETE_FEATURE_DRAFT, GENERATE_USER_STORIES_FROM_FEATURE, PUSH_FEATURE_TO_ADO
+   - 6 new `ExtensionEvent` members: FEATURE_DRAFT_CREATED/UPDATED/DELETED, USER_STORIES_GENERATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED
+
+2. **`AdoService.pushFeatureHierarchy()`** — new method that handles both create and update for Feature work items (type: "Feature", hardcoded) and their child PBIs (type: "Product Backlog Item", hardcoded). Parent-child link uses `System.LinkTypes.Hierarchy-Reverse` on the PBI pointing to the Feature. UPDATE path for already-pushed items; CREATE path includes the relation in the same PATCH.
+
+3. **`CopilotService.generateUserStoriesFromFeature()`** — generates 3-7 user stories from a FeatureDraft using structured fields (why, userFlow, businessRules, description). Returns `{title, description, effort}` array. effort is 1-8 Fibonacci points. Supports linkedProjectContext injection.
+
+4. **DashboardPanel persistence & handlers:**
+   - `getFeatureDrafts()` / `saveFeatureDrafts()` following globalState pattern (key: `'featureDrafts'`)
+   - `postState()` now includes `featureDrafts` in STATE_UPDATED payload
+   - Handlers: handleCreateFeatureDraft, handleUpdateFeatureDraft, handleDeleteFeatureDraft (cascades parentFeatureId cleanup on child PBIs), handleGenerateUserStoriesFromFeature (creates PbiDraft[] with parentFeatureId + workItemType: 'Product Backlog Item'), handlePushFeatureToAdo (orchestrates FEATURE_PUSH_PROGRESS events + FEATURE_PUSHED emit + partial/full status)
+
+**Key hardcoded constants (non-negotiable per task spec):**
+- Feature parent work item type: `'Feature'` — never user-configurable
+- Child work item type: `'Product Backlog Item'` — never user-configurable  
+- ADO link type: `System.LinkTypes.Hierarchy-Reverse` on PBI → Feature
+
+**Build:** ✅ esbuild clean (2.8MB), tsc errors only in pre-existing test files (missing @types/jest).
+**Commit:** 78d5ee1 on branch feature/saul-tailwind-dashboard-redesign
+
