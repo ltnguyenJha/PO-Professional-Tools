@@ -24,6 +24,7 @@ export function WizardStep3Story({
   isGenerating = false,
 }: Props) {
   const [aiMode, setAiMode] = useState<AiMode>('Manual');
+  const [title, setTitle] = useState(draft.title || '');
   const [persona, setPersona] = useState('');
   const [want, setWant] = useState('');
   const [benefit, setBenefit] = useState('');
@@ -46,6 +47,11 @@ export function WizardStep3Story({
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
+
+  // Sync title if AI updates draft.title while this step is mounted
+  useEffect(() => {
+    if (draft.title) setTitle(draft.title);
+  }, [draft.title]);
 
   // Parse draft.description back into fields when AI updates it
   useEffect(() => {
@@ -75,6 +81,7 @@ export function WizardStep3Story({
     if (saveTimer) clearTimeout(saveTimer);
     const timer = setTimeout(() => {
       onSave({
+        title,
         description: `As a ${persona}\nI want ${want}\nSo that ${benefit}`,
       });
     }, 500);
@@ -85,6 +92,7 @@ export function WizardStep3Story({
     // Cancel pending blur save and do immediate save on step advance
     if (saveTimer) clearTimeout(saveTimer);
     onSave({
+      title,
       description: `As a ${persona}\nI want ${want}\nSo that ${benefit}`,
     });
     onNext(1);
@@ -138,6 +146,23 @@ export function WizardStep3Story({
         </p>
       </div>
 
+      {/* PBI Title */}
+      <div className="wizard-field">
+        <label htmlFor="pbi-title" className="wizard-field-label required">
+          Title
+        </label>
+        <input
+          id="pbi-title"
+          ref={firstFieldRef}
+          type="text"
+          className="wizard-field-input"
+          placeholder="e.g. Add single sign-on support for admin users"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleFieldBlur}
+        />
+      </div>
+
       {/* AI Mode Selector — at top of Story step (Decision #2) */}
       <div className="wizard-mode-selector">
         <div className="wizard-mode-toggle"role="radiogroup" aria-label="AI generation mode">
@@ -186,7 +211,6 @@ export function WizardStep3Story({
         </label>
         <input
           id="persona"
-          ref={firstFieldRef}
           type="text"
           className="wizard-field-input"
           placeholder="e.g. Product Manager, Customer, Admin"
@@ -267,7 +291,12 @@ export function WizardStep3Story({
         <div className="ai-generate-section">
           <button
             className="wizard-btn wizard-btn-primary ai-generate-btn"
-            onClick={() => onGenerateAI?.()}
+            onClick={() => {
+              // Flush pending saves so AI has the latest fields
+              if (saveTimer) clearTimeout(saveTimer);
+              onSave({ title, description: `As a ${persona}\nI want ${want}\nSo that ${benefit}` });
+              onGenerateAI?.();
+            }}
             disabled={!onGenerateAI || isGenerating}
             aria-label="Generate story using AI"
           >
