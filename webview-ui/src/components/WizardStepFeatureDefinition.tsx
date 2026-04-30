@@ -50,7 +50,7 @@ export function WizardStepFeatureDefinition({
       featureBusinessRules,
       featureUserStoryStatement,
     });
-    onNext(4);
+    onNext(2);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -160,7 +160,7 @@ export function WizardStepFeatureDefinition({
       <div className="wizard-actions">
         <button 
           className="wizard-btn wizard-btn-secondary" 
-          onClick={() => onBack(2)}
+          onClick={() => onBack(0)}
           aria-label="Go back to previous step"
         >
           Back

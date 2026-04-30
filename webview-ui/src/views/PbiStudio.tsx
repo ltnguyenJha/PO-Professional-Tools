@@ -891,7 +891,7 @@ export function PbiStudio({
                     className={`pbi-type-btn${pbiType === 'feature' ? ' active' : ''}`}
                     onClick={() => setPbiType('feature')}
                   >
-                    🆕 New Feature
+                    🆕 New
                   </button>
                   <button
                     type="button"

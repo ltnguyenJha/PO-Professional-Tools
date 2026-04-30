@@ -57,7 +57,7 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave }: Props) {
       testScenarios: testCases.map((tc) => `${tc.description} → ${tc.expected}`),
       attachments,
     });
-    onNext(5); // Would go to summary or submit
+    onNext(4); // Would go to summary or submit
   };
 
   const handleAddFile = () => {
@@ -226,7 +226,7 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave }: Props) {
       </div>
 
       <div className="wizard-actions">
-        <button className="wizard-btn wizard-btn-secondary" onClick={() => onBack(3)}>
+        <button className="wizard-btn wizard-btn-secondary" onClick={() => onBack(2)}>
           Back
         </button>
         <button
@@ -242,10 +242,10 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave }: Props) {
               testScenarios: testCases.map((tc) => `${tc.description} → ${tc.expected}`),
               attachments,
             });
-            onNext(5); // Submit/complete
+            onNext(4); // Submit/complete
           }}
         >
-          Complete
+          Next
         </button>
       </div>
     </div>

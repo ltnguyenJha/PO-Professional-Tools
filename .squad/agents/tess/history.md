@@ -47,8 +47,35 @@
 - Provides clear instructions on how to use AI-Generated mode (keyboard shortcut + right-click)
 - Reduces cognitive load and support questions
 
-(None yet — first day on the job. Will accumulate as work progresses.)
+### Card Alignment Consistency (2026-04-30)
+**Problem:**
+- The PBI Studio had multiple card types (`.card` for PBI edit panels, `.wizard-step` for wizard cards, `.pbi-type-selector-wrap`) with inconsistent spacing
+- `.card` was using legacy token names (`--radius-lg`, `--space-lg`, `--space-md`)
+- `.wizard-step` had more generous padding (`--space-5` = 20px) compared to standard cards (`--space-4` = 16px)
+- `.wizard-step` gap was also larger (`--space-5` vs `--space-3`)
+- This created visual misalignment where wizard cards felt "puffier" than edit cards
+
+**Solution:**
+- Normalized all card components to use consistent modern tokens:
+  - **Border radius:** `var(--radius-5)` = 12px (large, friendly corners)
+  - **Padding:** `var(--space-4)` = 16px (balanced internal spacing)
+  - **Internal gap:** `var(--space-3)` = 12px (comfortable element spacing)
+  - **Shadow:** `var(--shadow-sm)` (subtle elevation)
+  - **Border:** 1px solid `var(--line)` or `var(--color-neutral-300)`
+- Updated `.pbi-type-selector-wrap` margin-bottom to use `var(--space-4)` for consistency
+
+**Impact:**
+- All cards in PBI Studio now share a cohesive visual rhythm
+- Reduces cognitive load — users see one consistent "card" pattern, not multiple competing styles
+- Aligns with design system token migration (Phase 2) — using modern token names throughout
+- Easier maintenance — consistent spacing makes future adjustments simpler
+
+**Design Rationale:**
+- Chose `--space-4` (16px) as the standard card padding because it's the sweet spot: enough breathing room without feeling wasteful of screen real estate
+- Kept `--space-3` (12px) for internal gaps — creates visual hierarchy (outer padding > inner gap)
+- Using `--radius-5` (12px) gives cards a friendly, modern feel while maintaining VS Code's design language
 
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
+- **2026-04-30 [current]:** Fixed card alignment consistency across PBI Studio (Issue: card spacing misalignment).
