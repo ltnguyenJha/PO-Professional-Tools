@@ -5,10 +5,11 @@ import './WizardStep3Story.css';
 interface Props {
   draft: PbiDraft;
   onNext: (nextStep: number) => void;
-  onBack: (prevStep: number) => void;
+  onBack?: (prevStep: number) => void;
   onSave: (partialDraft: Partial<PbiDraft>) => void;
   onGenerateAI?: () => void;
   onOpenInChat?: () => void;
+  isGenerating?: boolean;
 }
 
 type AiMode = 'Manual' | 'AI-Generated';
@@ -20,6 +21,7 @@ export function WizardStep3Story({
   onSave,
   onGenerateAI,
   onOpenInChat,
+  isGenerating = false,
 }: Props) {
   const [aiMode, setAiMode] = useState<AiMode>('Manual');
   const [persona, setPersona] = useState('');
@@ -44,6 +46,19 @@ export function WizardStep3Story({
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
+
+  // Parse draft.description back into fields when AI updates it
+  useEffect(() => {
+    const desc = draft.description || '';
+    // Parse "As a X\nI want Y\nSo that Z" format
+    const lines = desc.split('\n');
+    const personaLine = lines.find(l => l.startsWith('As a '));
+    const wantLine = lines.find(l => l.startsWith('I want '));
+    const benefitLine = lines.find(l => l.startsWith('So that '));
+    if (personaLine) setPersona(personaLine.replace('As a ', ''));
+    if (wantLine) setWant(wantLine.replace('I want ', ''));
+    if (benefitLine) setBenefit(benefitLine.replace('So that ', ''));
+  }, [draft.description]);
 
   // Show AI toast once when AI mode is enabled for first time
   useEffect(() => {
@@ -72,7 +87,7 @@ export function WizardStep3Story({
     onSave({
       description: `As a ${persona}\nI want ${want}\nSo that ${benefit}`,
     });
-    onNext(3);
+    onNext(1);
   };
 
   const handleInvestToggle = (key: keyof typeof investChecks) => {
@@ -249,27 +264,33 @@ export function WizardStep3Story({
         </div>
       </div>
 
-      {/* AI action buttons removed — now AI-Ready indicator */}
+      {/* AI generate section */}
       {aiMode === 'AI-Generated' && (
-        <div 
-          className="ai-ready-indicator" 
-          role="status" 
-          aria-live="polite"
-          title="Press Ctrl+Shift+P to generate, or right-click any field to refine"
-        >
-          <span className="ai-indicator-icon">✨</span>
-          <span className="ai-indicator-text">AI-Ready</span>
+        <div className="ai-generate-section">
+          <button
+            className="wizard-btn wizard-btn-primary ai-generate-btn"
+            onClick={() => onGenerateAI?.()}
+            disabled={!onGenerateAI || isGenerating}
+            aria-label="Generate story using AI"
+          >
+            {isGenerating ? '⏳ Generating...' : '✨ Generate Story'}
+          </button>
+          <p className="wizard-mode-hint">
+            AI will draft your story based on the fields above. Fill in what you know, then let Copilot complete the rest.
+          </p>
         </div>
       )}
 
       <div className="wizard-actions">
-        <button 
-          className="wizard-btn wizard-btn-secondary" 
-          onClick={() => onBack(1)}
-          aria-label="Go back to previous step"
-        >
-          Back
-        </button>
+        {onBack && (
+          <button 
+            className="wizard-btn wizard-btn-secondary" 
+            onClick={() => onBack(0)}
+            aria-label="Go back to previous step"
+          >
+            Back
+          </button>
+        )}
         <button 
           className="wizard-btn wizard-btn-primary" 
           onClick={handleNext}

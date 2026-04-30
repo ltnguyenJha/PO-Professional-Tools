@@ -188,7 +188,7 @@ export function WizardStep6TechnicalConsiderations({
       <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)', justifyContent: 'flex-end' }}>
         <button
           className="wizard-btn wizard-btn-secondary"
-          onClick={() => onBack(4)}
+          onClick={() => onBack(3)}
         >
           ← Back
         </button>
