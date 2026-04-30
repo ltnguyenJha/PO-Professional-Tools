@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { WORK_ITEM_TYPES } from '../types';
 import { DropdownWithFallback } from '../components/DropdownWithFallback';
+import { SearchableDropdown } from '../components/SearchableDropdown';
 
 interface Props {
   adoSettings?: AdoSettings;
@@ -407,7 +408,7 @@ export function SettingsView({
             }
             onChange={handleTeamChange}
           />
-          <DropdownWithFallback
+          <SearchableDropdown
             label="Iteration Path"
             value={form.iterationPath ?? ''}
             options={dropdownState.iterations}
@@ -415,7 +416,6 @@ export function SettingsView({
             error={dropdownState.iterationsError}
             disabled={!form.team?.trim()}
             placeholder="Select iteration"
-            searchable={true}
             helperText={
               !form.team?.trim() 
                 ? 'Select team first' 
@@ -428,14 +428,13 @@ export function SettingsView({
         {/* Second Row: Default Work Item Type (full width) */}
         <div className="field-row" style={{ marginTop: '16px' }}>
           <div style={{ gridColumn: '1 / -1' }}>
-            <DropdownWithFallback
+            <SearchableDropdown
               label="Default Work Item Type"
               value={form.defaultWorkItemType ?? 'Product Backlog Item'}
               options={WORK_ITEM_TYPES}
               loading={false}
               disabled={false}
               placeholder="Select work item type"
-              searchable={true}
               helperText="Used when creating new work items"
               onChange={(value) =>
                 setForm({ ...form, defaultWorkItemType: value as AdoWorkItemType })

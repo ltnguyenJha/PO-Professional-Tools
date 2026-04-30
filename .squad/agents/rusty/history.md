@@ -1042,3 +1042,85 @@ When implementing conditional rendering for action buttons, check if dirty state
 
 **Design decision:**
 This hybrid approach solves the search requirement without reintroducing the clipping issues that plagued SearchableDropdown. The search input + native select pattern is reusable for any dropdown that needs filtering while maintaining reliability.
+
+### 2026-04-30 — Searchable Dropdown: Reverted to Custom Component
+
+**Problem solved:**
+- User requested built-in searchable dropdown (not separate search field above select)
+- Previous implementation added search input ABOVE native select — not integrated
+- User wanted typing directly in dropdown to filter (like custom dropdown behavior)
+
+**Solution implemented:**
+
+**1. Reverted DropdownWithFallback:**
+- Removed searchable prop
+- Removed searchTerm state and search input JSX
+- Went back to simple native select rendering
+- Kept fallback text input functionality intact
+
+**2. Updated SettingsView to use SearchableDropdown:**
+- Imported SearchableDropdown component (already existed in codebase)
+- Replaced DropdownWithFallback with SearchableDropdown for:
+  - Iteration Path
+  - Default Work Item Type
+- Kept same props interface (label, value, options, loading, error, disabled, placeholder, helperText, onChange)
+
+**3. SearchableDropdown features:**
+- Custom dropdown with input field that doubles as search and display
+- Click to open dropdown list (max-height: 380px, scrollable)
+- Type to filter options in real-time
+- Keyboard navigation (ArrowUp, ArrowDown, Enter, Escape)
+- Dropdown positioned with z-index: 1000 to prevent clipping
+- Auto-detects available space and flips dropdown upward if needed (dropdownAbove state)
+- Shows "No matches found" when search yields no results
+
+**4. Clipping prevention:**
+- SearchableDropdown uses position: absolute with z-index: 1000
+- Dropdown positioned outside normal flow (top: calc(100% + 4px) or bottom: calc(100% + 4px))
+- Auto-detection of space: if less than 150px below and more space above, flip upward
+- Works within Team & Defaults card without clipping issues
+
+**Key advantages over separate search input:**
+- Search is part of the dropdown interaction (type in input → dropdown filters)
+- Matches typical searchable dropdown UX pattern
+- Input field serves dual purpose: display selected value + search when open
+- Keyboard navigation built-in
+- No separate search field cluttering the UI
+
+**UX pattern:**
+1. Click or focus input → dropdown opens with all options
+2. Type → options filter in real-time
+3. Arrow keys navigate filtered list (highlighted item has accent-soft background)
+4. Enter selects highlighted option, closes dropdown
+5. Click outside closes dropdown and resets search
+6. Escape closes dropdown and resets search
+
+**Files changed:**
+- webview-ui/src/components/DropdownWithFallback.tsx
+  - Removed searchable prop from interface
+  - Removed searchTerm state and related handlers
+  - Removed search input JSX (lines 86-119 in previous version)
+  - Back to simple native select + fallback text input
+- webview-ui/src/views/SettingsView.tsx
+  - Added import: SearchableDropdown
+  - Replaced DropdownWithFallback with SearchableDropdown for Iteration Path (line 410)
+  - Replaced DropdownWithFallback with SearchableDropdown for Default Work Item Type (line 431)
+  - Removed searchable={true} props
+
+**Build & lint:**
+- Build succeeded: 50 modules transformed, 23.60 KB CSS, 235.15 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+
+**Key learnings:**
+1. Custom searchable dropdown vs native select + search input: trade-offs
+   - Custom: integrated UX, single input field, keyboard navigation
+   - Hybrid: simpler, native reliability, but separate search field
+2. User preference matters: "built-in to dropdown" means search IS the dropdown input
+3. SearchableDropdown already existed in codebase — reuse before reinventing
+4. Clipping prevention: z-index: 1000 + position: absolute + space detection (dropdownAbove)
+5. Component reuse: SearchableDropdown and DropdownWithFallback serve different use cases
+   - SearchableDropdown: for large option lists needing filter (Iteration Path, Work Item Type)
+   - DropdownWithFallback: for simpler dropdowns where native select suffices (Team)
+
+**Design decision:**
+SearchableDropdown provides better UX for long lists (iterations, work item types) where filtering is essential. DropdownWithFallback remains for simpler dropdowns where native select is sufficient. The two components serve complementary roles rather than one replacing the other.
