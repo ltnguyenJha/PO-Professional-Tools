@@ -651,6 +651,15 @@ export class AdoService {
         `<p>${this.escapeHtml(draft.userStoryStatement)}</p>`
       );
     }
+
+    // Add Why does this matter section if present (placed after user story statement)
+    const featureWhy = draft.featureWhy?.trim() ?? '';
+    if (featureWhy.length > 0) {
+      descriptionParts.push(
+        '<h3>Why does this matter</h3>',
+        `<p>${this.escapeHtml(featureWhy)}</p>`
+      );
+    }
     
     // Add Business Rules and Assumptions section (immediately after user story)
     const businessRules = draft.businessRulesAndAssumptions?.trim() || '';
