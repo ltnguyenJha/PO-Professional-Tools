@@ -12,6 +12,47 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-30 — Settings Layout Restructure: Top Sticky Save Button
+
+**Problem solved:**
+- Save Settings button was duplicated in both Azure DevOps Connection and Team & Defaults sections.
+- Default Work Item Type was crowded in a 3-column row with Team and Iteration Path.
+- User had to scroll to find Save buttons, and it was unclear which button saved which settings.
+
+**Solution implemented:**
+
+**1. Single Sticky Save Button at Top:**
+- Moved Save Settings button to top of Settings view (above both cards).
+- Made it sticky with `position: 'sticky'`, `top: 0`, `zIndex: 100`.
+- Button applies to ALL settings (both Azure DevOps Connection and Team & Defaults).
+- Added visual feedback:
+  - Disabled when no unsaved changes (`disabled={savingSettings || !hasUnsavedChanges}`).
+  - Shows "You have unsaved changes" hint when `hasUnsavedChanges` is true.
+  - Shows success chip "Settings saved successfully" after save.
+- Removed all other Save Settings buttons from individual cards.
+
+**2. Default Work Item Type Gets Own Row:**
+- Moved Default Work Item Type dropdown to its own row (full width).
+- Team and Iteration Path remain in first row (2 columns).
+- New layout in Team & Defaults section:
+  - Row 1: Team + Iteration Path (2 columns)
+  - Row 2: Default Work Item Type (full width with `gridColumn: '1 / -1'`)
+- Added `marginTop: '16px'` to separate the rows visually.
+
+**3. Test Connection Button Stays in Azure DevOps Connection:**
+- Kept Test Connection button in Azure DevOps Connection section's action row.
+- Only removed Save Settings button from that section.
+- Test Connection is specific to connection validation, so it stays with connection fields.
+
+**4. Removed Sticky Footer:**
+- Deleted the conditional sticky footer that previously appeared at bottom with Save/Test buttons.
+- All save/test functionality now clearly organized: Save at top, Test in connection section.
+
+**Key pattern:**
+- **Top-level sticky save pattern** works well for multi-section forms where all sections share the same save action.
+- Clearer UX: one obvious "Save Settings" button always visible, no hunting through sections.
+- State tracking (`hasUnsavedChanges`) prevents accidental saves and provides clear feedback.
+
 ### 2026-04-29 — Smart Dropdown Positioning & Sticky Footer Pattern
 
 **Problem solved:**
@@ -755,3 +796,162 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - Build succeeded: 50 modules transformed, 23.58 KB CSS, 234.26 KB JS
 - Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
 - No breaking changes to search/filter functionality, keyboard navigation, or state management
+
+### 2026-04-29 — Reverted to Native Select for All Team & Defaults Dropdowns
+
+**Problem solved:**
+- SearchableDropdown component was causing blocking issues in Team & Defaults section
+- Iteration Path and Default Work Item Type dropdowns were getting blocked by the section card boundaries
+- Custom dropdown positioning (absolute/fixed) caused viewport overflow and z-index conflicts
+- Save button was in sticky footer but users reported it wasn't visible/accessible
+
+**Root cause analysis:**
+- SearchableDropdown uses custom absolute positioning which can be blocked by parent containers with overflow constraints
+- Card sections with box-shadow and z-index created stacking context issues
+- Custom dropdowns require careful manual positioning math to avoid viewport clipping
+- Native <select> elements handle all of this automatically via browser-native rendering
+
+**Solution implemented:**
+- Reverted Iteration Path from SearchableDropdown to DropdownWithFallback (native <select>)
+- Reverted Default Work Item Type from SearchableDropdown to DropdownWithFallback (native <select>)
+- Removed unused SearchableDropdown import from SettingsView.tsx
+- All three dropdowns now use DropdownWithFallback: Team, Iteration Path, Default Work Item Type
+
+**Key learnings:**
+- **When custom dropdowns are blocked by parent containers, native <select> is the safer choice**
+- Native <select> elements automatically handle:
+  - Viewport positioning (never get clipped or blocked)
+  - Z-index stacking (browser manages the dropdown layer)
+  - Scroll handling (dropdown stays visible even if parent scrolls)
+  - Keyboard navigation (built into browser)
+- Custom dropdowns (SearchableDropdown) are best reserved for cases where:
+  - Search/filter functionality is truly needed (e.g., 100+ options)
+  - Parent container has explicit height constraints and won't clip the dropdown
+  - You have full control over z-index and positioning context
+- For most standard form dropdowns with <50 options, native <select> provides better UX out of the box
+
+**UX impact:**
+- All three dropdowns now behave identically (native <select> via DropdownWithFallback)
+- No more blocking issues — dropdowns render above all content automatically
+- Consistent keyboard navigation (arrow keys, Enter, Escape all work the same)
+- Save button remains in sticky footer with proper z-index (100) — always visible when changes exist
+
+**Design consistency:**
+- Team dropdown: DropdownWithFallback ✓
+- Iteration Path dropdown: DropdownWithFallback ✓ (reverted from SearchableDropdown)
+- Default Work Item Type dropdown: DropdownWithFallback ✓ (reverted from SearchableDropdown)
+
+**Build & lint:**
+- Build succeeded: 49 modules transformed, 23.58 KB CSS, 231.92 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No breaking changes to state management or message flow
+
+## 2026-04-29 23:15:15 - Settings View UI Fixes
+
+**Issue 1: Iteration Path Dropdown Overlap**
+- Problem: Iteration Path dropdown was overlapping with Default Work Item Type field
+- Root Cause: .field-row CSS used gap: var(--space-md) (12px) which wasn't enough vertical spacing
+- Solution: Updated .field-row CSS to use gap: var(--space-lg) (16px) and added explicit ow-gap: 24px
+- File Changed: webview-ui/src/styles.css line 439-443
+
+**Issue 2: Save Button Not Visible in Team & Defaults**
+- Problem: Save Settings button only appeared in sticky footer when hasUnsavedChanges || saveSuccess, making it invisible when section first opened
+- Root Cause: No action button inside Team & Defaults section body
+- Solution: Added ction-row with Save Settings button inside Team & Defaults section body (after field-row, before section-body close)
+- File Changed: webview-ui/src/views/SettingsView.tsx lines 445-453
+- The sticky footer still exists and provides additional save access when scrolled
+
+**Key Learnings:**
+1. When using grid layouts with dropdowns/selects that have helper text, ensure adequate row-gap to prevent content overlap
+2. Critical action buttons (like Save) should be visible within their context section, not just in sticky footers
+3. Helper text and error messages in form fields need vertical space consideration in grid layouts
+4. Always test both initial view state and changed state for button visibility
+
+**Build Status:** ✅ Successful (no errors, only pre-existing warnings)
+
+## 2026-04-29 23:25:34 - Conditional Save Button Rendering
+
+**Task:** Hide Save Settings button when no unsaved changes exist (dirty state tracking)
+
+**Implementation:**
+- SettingsView already had hasUnsavedChanges state tracking all form fields
+- Changed save button rendering from always-visible-but-disabled to conditionally rendered
+- Button now only shows when: hasUnsavedChanges === true OR saveSuccess === true
+- The saveSuccess condition ensures button stays visible during success feedback animation
+
+**Key Pattern:**
+`jsx
+{(hasUnsavedChanges || saveSuccess) && (
+  <div style={{ ... }}>
+    <button disabled={savingSettings}>...</button>
+  </div>
+)}
+`
+
+**Why this works:**
+- Dirty state tracking was already comprehensive (tracks orgUrl, projectName, team, iterationPath, defaultWorkItemType, and PAT changes)
+- useEffect on lines 85-100 compares current form state against saved adoSettings
+- isDirty resets to false after successful save (line 209)
+- No additional state needed — leveraged existing hasUnsavedChanges boolean
+
+**UX Impact:**
+- Cleaner UI when no changes exist — no disabled button taking up space
+- Button appears as soon as ANY field is modified
+- Success feedback still displays briefly before button disappears
+- Sticky positioning maintained when button is visible
+
+**Files Changed:**
+- webview-ui/src/views/SettingsView.tsx: Wrapped save button container in conditional render
+
+**Build Status:** ✅ Passed (build succeeded, lint passed with 0 new warnings)
+
+**Key Learning:**
+When implementing conditional rendering for action buttons, check if dirty state tracking already exists before adding new state. The SettingsView had robust form change detection — all that was needed was switching from disabled={!hasUnsavedChanges} to conditional rendering.
+
+
+## 2026-04-29 23:31:43 - Settings UI Enhancements: Searchable Iterations + Relocated Save Button
+
+**Task:** Improve Settings page UX with search functionality for Iteration Path dropdown and better Save button positioning
+
+**Implementation:**
+
+1. **Searchable Iteration Path Dropdown**
+   - Replaced DropdownWithFallback with SearchableDropdown component for Iteration Path field
+   - SearchableDropdown already exists in codebase with full search/filter capabilities
+   - Real-time filtering as user types, keyboard navigation (arrow keys, Enter, Escape)
+   - Shows "No matches found" message when search yields no results
+   - Maintains all existing props: loading state, error handling, disabled state, helper text
+   
+2. **Save Button Relocation**
+   - Moved from sticky top position (lines 249-278) to after Team & Defaults card (line 476+)
+   - Changed from sticky overlay to inline card-styled container
+   - New styling: padding, border, rounded corners, flex layout with gap
+   - Maintains conditional rendering (only shows when hasUnsavedChanges || saveSuccess)
+   - All existing functionality preserved: saving state, success feedback, unsaved changes indicator
+
+**Key Pattern Recognition:**
+- SearchableDropdown already available — no need to build custom solution
+- DropdownWithFallback used for Team field (static, smaller list) 
+- SearchableDropdown better for Iteration Path (dynamic, potentially large list)
+- Consistent with existing component usage patterns
+
+**UX Improvements:**
+- Large iteration lists now filterable — significantly faster navigation
+- Save button positioned with context of fields it affects
+- Reduced visual clutter at page top
+- Better visual hierarchy: Connection → Team & Defaults → Save
+
+**Files Changed:**
+- webview-ui/src/views/SettingsView.tsx
+  - Added SearchableDropdown import (line 12)
+  - Removed sticky save button from top (lines 249-278 deleted)
+  - Changed Iteration Path to SearchableDropdown (line 441)
+  - Added inline save button after Team & Defaults section (lines 477-497)
+
+**Build Status:** ✅ Build succeeded, lint passed with 0 new warnings (11 pre-existing warnings unrelated to changes)
+
+**Key Learnings:**
+1. Always check existing components before building new features — SearchableDropdown already had everything needed
+2. Form action buttons should live near the fields they control, not floating at the top
+3. SearchableDropdown vs DropdownWithFallback: use SearchableDropdown for large, dynamic lists where users benefit from filtering
+4. When moving UI elements, maintain all existing functionality (conditional rendering, states, feedback)
