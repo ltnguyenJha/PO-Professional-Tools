@@ -626,3 +626,30 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 - Danny: Review scope validation approach, decide if cache TTL is appropriate
 - Testing: Verify PAT scope validation with tokens missing required scopes
 
+### 2026-04-29 — Cache + TTL Pattern & Message Handler Coordination (Issue #2)
+
+**Cache & TTL Implementation:**
+- 30-min TTL cache pattern approved for Issue #2 (team selection dropdowns)
+- Cache key structure: `${resource}:${org}:${project}` (e.g., `teams:https://org.dev.azure.com:myProject`)
+- Timestamp validation: `cached.timestamp > Date.now() - 30*60*1000` prevents stale results
+- Pattern reusable for any dependent field cascade (future Org → Project selectors)
+- Benefits: Reduces API calls, improves UX responsiveness, respects rate limits
+
+**Message Handler Pattern:**
+- Three-part handler for each fetch: validate scope → check cache → call ADO API
+- Payload format consistency: `string[]` for success, `{ error: string }` for failure
+- Error detection via `Array.isArray()` in frontend (no need for extra status field)
+- Frontend cascades automatically: Project change → reset team/area/iteration; Team change → reset area/iteration
+
+**Scope Validation Pattern (Issue #2):**
+- Validate prerequisite: Can't fetch areas without project selected, can't fetch iterations without team selected
+- Error messaging: "Select a [resource] first" prevents API calls with incomplete context
+- Backend guards: `if (!team) throw new Error("Team required to fetch areas")`
+
+**Exponential Backoff Retry Logic (Issue #20):**
+- Generic retry wrapper: `retryWithBackoff<T>(fn)` with delays [1s, 2s, 4s], max 3 retries
+- Transient error detection: 500, 502, 503, timeouts, connection resets
+- Rate limit (429) now retries (not immediate fail) — uses same backoff pattern
+- Applied to all AI methods: `refineDraft()`, `generateFullStoryFromSeed()`, `generateTechnicalConsiderations()`
+
+**Key lesson:** Retry logic and caching are orthogonal. Retry handles transient failures (user should retry). Cache handles known-good data within TTL window (user sees instant response). Both improve reliability and UX.

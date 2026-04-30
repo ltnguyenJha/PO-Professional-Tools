@@ -660,3 +660,17 @@ All development must follow strict branch protection:
 **Why:** Protects main branch integrity, ensures code review, maintains audit trail, enables rollback.
 
 ---
+
+### Issue #2 APPROVED FOR MERGE (2026-04-29)
+
+**Author:** Danny (Lead)  
+**Status:** APPROVED FOR MERGE  
+
+Issue #2 complete: team selection dropdowns feature approved for merge.
+
+- Cascading dropdowns (team, area, iteration) in Settings
+- Dynamic ADO API integration with 30-min cache
+- Message type bug fixed (frontend/backend alignment)
+- Build clean, lint clean, Danny approved
+
+---

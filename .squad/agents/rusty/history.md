@@ -505,3 +505,24 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - wizardStates and handler signatures already accounted for the field in types.ts
 - No regressions to existing steps or navigation
 - Data now flows: User enters → state updates → wizard object includes field → handlers receive payload
+
+### 2026-04-29 — Design System & Accessibility Standards (Issue #3)
+
+**Spacing Token System:**
+- Established 8-tier spacing scale (`--space-xs` 4px → `--space-3xl` 32px) replacing 100+ hardcoded pixel values
+- Tokens reduce visual inconsistency and make future design iterations fast (change one variable, all gaps update)
+- Used across components: Sidebar, Topbar, ListEditor, wizard steps, card bodies
+- Naming pattern makes context-driven spacing decision obvious: tiny gaps = `--space-xs`, list rows = `--space-sm`, card gaps = `--space-md`
+
+**Focus & Accessibility Standards:**
+- Implemented `:focus-visible` pattern (not `:focus`) to show focus rings only on keyboard nav, not mouse clicks
+- Added 15+ ARIA labels to icon-only buttons (e.g., "Save PBI", "Delete draft", "Open in Copilot Chat")
+- Enforced minimum touch target heights: 36px default, 44px for primary actions (WCAG 2.1 compliance)
+- Keyboard navigation verified on all interactive elements (Tab, Space/Enter, Escape for modals)
+
+**CSS Architecture:**
+- Introduced `--focus-ring` and `--transition-fast` for consistent interaction states
+- CSS file grew 1.91KB (18.90KB → 20.81KB) from new tokens; reusable pattern saves code long-term
+- Non-breaking: component APIs untouched, visual appearance normalized but not redesigned
+
+**Pattern value:** Separating presentation tokens from implementation reduces cognitive load on future developers. "How much space?" becomes a decision about scale, not pixel values. "How do we show focus?" is now defined once, applied everywhere.
