@@ -102,7 +102,7 @@ export function BugReportWizard({ onGenerate, onOpenInChat }: BugReportWizardPro
           <div>
             <h3 style={{ margin: 0 }}>Bug Report Wizard</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Answer four guided questions — the agent builds a structured bug report using INVEST criteria.
+              Answer six guided questions — the agent builds a structured bug report using INVEST criteria.
             </p>
           </div>
         </div>

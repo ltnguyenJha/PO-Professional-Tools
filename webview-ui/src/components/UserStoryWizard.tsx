@@ -224,7 +224,7 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
           <div>
             <h3 style={{ margin: 0 }}>User Story Wizard</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Answer four guided questions — the agent builds your story using INVEST criteria.
+              Answer six guided questions — the agent builds your story using INVEST criteria.
             </p>
           </div>
         </div>
