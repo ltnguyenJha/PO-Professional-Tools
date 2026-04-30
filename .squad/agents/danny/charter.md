@@ -46,6 +46,28 @@ Before starting work, run `git rev-parse --show-toplevel` to find the repo root,
 
 Read `.squad/decisions.md` before starting. Write decisions to `.squad/decisions/inbox/danny-{slug}.md`.
 
+## Work Practices
+
+### File Organization
+- Never create unnecessary files in the project root
+- All generated reports, documentation, or artifacts must go into appropriate folders:
+  - `docs/` for documentation
+  - `reports/` for reports/summaries (create if needed)
+  - `design-handoff-content.txt` and similar temporary files should use `temp/` or project-specific folders
+- Before committing any new file, ask: "Does this belong in root, or should it be in a folder?"
+- Follow the principle: **root = essentials only** (package.json, README, src/, build output, etc.)
+
+## Before Starting Work
+
+**🚫 NEVER commit to main branch!**
+
+Before ANY file operations:
+1. Check current branch: `git rev-parse --abbrev-ref HEAD`
+2. If on `main`: Run `pwsh .squad/scripts/ensure-feature-branch.ps1` to auto-create feature branch
+3. If already on feature branch: Continue with work
+
+See `.squad/git-workflow.md` for full policy details.
+
 ## Voice
 
 Has strong opinions about what should and shouldn't be built. Will push back on scope creep. Believes a clean architecture is worth the argument upfront. Not interested in heroics — prefers boring, correct solutions over clever ones.

@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
 import { UserStoryWizard } from '../components/UserStoryWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
+import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -85,6 +86,7 @@ export function PbiStudio({
   const [openCopilotChat, setOpenCopilotChat] = useState(false);
   const [openRefineAI, setOpenRefineAI] = useState(false);
   const [openBugRefinement, setOpenBugRefinement] = useState(false);
+  const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -311,12 +313,28 @@ export function PbiStudio({
     }
   };
 
+  const handleWizardSaveDescription = (description: string, userStoryStatement: string, businessRulesAndAssumptions?: string): void => {
+    if (active) {
+      setWorking({ ...active, description, userStoryStatement, businessRulesAndAssumptions });
+    }
+  };
+
   const handleBugGenerate = (input: BugReportInput): void => {
     send({ type: 'GENERATE_BUG_REPORT', payload: input });
   };
 
   const handleBugOpenInChat = (input: BugReportInput): void => {
     send({ type: 'OPEN_BUG_REPORT_IN_CHAT', payload: input });
+  };
+
+  const handleGenerateTechnicalConsiderations = (): void => {
+    if (active) {
+      send({ type: 'GENERATE_TECHNICAL_CONSIDERATIONS', payload: { draftId: active.id } });
+    }
+  };
+
+  const handleUpdateTechnicalConsiderations = (updatedDraft: PbiDraft): void => {
+    setWorking(updatedDraft);
   };
 
   const onPickAttachments = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -423,6 +441,10 @@ export function PbiStudio({
       partial.acceptanceCriteria = suggestion.acceptanceCriteria;
     } else if (field === 'testScenarios' && Array.isArray(suggestion.testScenarios)) {
       partial.testScenarios = suggestion.testScenarios;
+    } else if (field === 'userStoryStatement' && typeof suggestion.userStoryStatement === 'string') {
+      partial.userStoryStatement = suggestion.userStoryStatement;
+    } else if (field === 'businessRulesAndAssumptions' && typeof suggestion.businessRulesAndAssumptions === 'string') {
+      partial.businessRulesAndAssumptions = suggestion.businessRulesAndAssumptions;
     }
     send({ type: 'APPLY_AI_SUGGESTION', payload: { draftId: active.id, suggestion: partial } });
   };
@@ -788,6 +810,28 @@ export function PbiStudio({
                   onChange={(next) => setWorking({ ...active, testScenarios: next })}
                 />
 
+                <label className="field">
+                  User Story Statement (optional)
+                  <textarea
+                    value={active.userStoryStatement ?? ''}
+                    onChange={(e) =>
+                      setWorking({ ...active, userStoryStatement: e.target.value || undefined })
+                    }
+                    placeholder="Concise user story: As a [persona], I want [action], so that [benefit]."
+                  />
+                </label>
+
+                <label className="field">
+                  Business Rules & Assumptions (optional)
+                  <textarea
+                    value={active.businessRulesAndAssumptions ?? ''}
+                    onChange={(e) =>
+                      setWorking({ ...active, businessRulesAndAssumptions: e.target.value || undefined })
+                    }
+                    placeholder="e.g. Only verified users can access; payment gateway integration assumed; data encrypted at rest..."
+                  />
+                </label>
+
                 <input
                   ref={fileAttachInputRef}
                   type="file"
@@ -865,6 +909,7 @@ export function PbiStudio({
                   aiBusy={aiBusy}
                   onGenerate={handleWizardGenerate}
                   onOpenInChat={handleWizardOpenInChat}
+                  onSave={handleWizardSaveDescription}
                 />
               ) : (
                 <BugReportWizard
@@ -934,6 +979,13 @@ export function PbiStudio({
                   </div>
                 </article>
               )}
+
+              <TechnicalConsiderationsSection
+                draft={active}
+                isLoading={aiBusy}
+                onUpdate={handleUpdateTechnicalConsiderations}
+                onGenerate={handleGenerateTechnicalConsiderations}
+              />
 
               <article className="card">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
@@ -1123,6 +1175,32 @@ export function PbiStudio({
                             onClick={() => acceptSuggestedField('testScenarios')}
                           >
                             Apply test scenarios
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {typeof suggestion.userStoryStatement === 'string' && (
+                      <>
+                        <div className="diff-block">{suggestion.userStoryStatement}</div>
+                        <div className="diff-actions">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => acceptSuggestedField('userStoryStatement')}
+                          >
+                            Apply user story statement
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {typeof suggestion.businessRulesAndAssumptions === 'string' && (
+                      <>
+                        <div className="diff-block">{suggestion.businessRulesAndAssumptions}</div>
+                        <div className="diff-actions">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
+                          >
+                            Apply business rules & assumptions
                           </button>
                         </div>
                       </>

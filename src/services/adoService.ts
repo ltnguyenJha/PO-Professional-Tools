@@ -1,5 +1,6 @@
 import * as azdev from 'azure-devops-node-api';
 import { JsonPatchOperation } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
+import { TreeStructureGroup } from 'azure-devops-node-api/interfaces/WorkItemTrackingInterfaces';
 import { Readable } from 'stream';
 import {
   AdoSettings,
@@ -42,6 +43,7 @@ export class AdoService {
     try {
       const project = await core.getProject(wanted);
       if (project?.id) {
+        await this.validatePatScopes(connection, pat, settings.orgUrl);
         return;
       }
       throw new Error(`Project "${wanted}" returned no id.`);
@@ -64,8 +66,158 @@ export class AdoService {
       }
       const base = first instanceof Error ? first.message : String(first);
       throw new Error(
-        `${base} Check Organization URL (e.g. https://dev.azure.com/your-org), project name, and PAT scope (Work Items: Read).${hint}`
+        `${base} Check Organization URL (e.g. https://dev.azure.com/your-org), project name, and PAT scopes (required: vso.work, vso.identity).${hint}`
       );
+    }
+  }
+
+  private async validatePatScopes(
+    connection: azdev.WebApi,
+    pat: string,
+    orgUrl: string
+  ): Promise<void> {
+    try {
+      const authUrl = `${this.trimSlash(orgUrl)}/_apis/tokens/pats?api-version=7.1-preview.1`;
+      const response = await fetch(authUrl, {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`:${pat}`).toString('base64')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        return;
+      }
+      
+      const data = await response.json() as { patToken?: { scope?: string } };
+      const scopes = data?.patToken?.scope?.toLowerCase() || '';
+      
+      const hasWork = scopes.includes('vso.work') || scopes.includes('vso.work_write');
+      const hasIdentity = scopes.includes('vso.identity');
+      
+      if (!hasWork || !hasIdentity) {
+        const missing = [];
+        if (!hasWork) {missing.push('vso.work');}
+        if (!hasIdentity) {missing.push('vso.identity');}
+        throw new Error(
+          `PAT missing required scopes: ${missing.join(', ')}. ` +
+          `These scopes are needed for team selection and area/iteration management. ` +
+          `Current scopes: ${scopes || 'unable to determine'}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('PAT missing required scopes')) {
+        throw error;
+      }
+    }
+  }
+
+  public async fetchTeams(settings: AdoSettings, pat: string): Promise<string[]> {
+    try {
+      const connection = this.createConnection(settings, pat);
+      const core = await connection.getCoreApi();
+      const project = await core.getProject(settings.projectName);
+      
+      if (!project.id) {
+        throw new Error('Project not found');
+      }
+      
+      const teams = await core.getTeams(project.id);
+      return (teams || [])
+        .map((t) => t.name)
+        .filter((n): n is string => typeof n === 'string' && n.length > 0)
+        .sort();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to fetch teams: ${message}`);
+    }
+  }
+
+  public async fetchAreaPaths(
+    settings: AdoSettings,
+    pat: string,
+    _teamId?: string
+  ): Promise<string[]> {
+    try {
+      const connection = this.createConnection(settings, pat);
+      const workApi = await connection.getWorkItemTrackingApi();
+      const core = await connection.getCoreApi();
+      const project = await core.getProject(settings.projectName);
+      
+      if (!project.name) {
+        throw new Error('Project not found');
+      }
+      
+      const rootNode = await workApi.getClassificationNode(
+        project.name,
+        TreeStructureGroup.Areas,
+        undefined,
+        10
+      );
+      
+      const paths: string[] = [];
+      const collectPaths = (node: { name: string; children?: unknown[] }, parentPath: string = '') => {
+        const currentPath = parentPath ? `${parentPath}\\${node.name}` : node.name;
+        paths.push(currentPath);
+        if (node.children && Array.isArray(node.children)) {
+          for (const child of node.children) {
+            collectPaths(child as { name: string; children?: unknown[] }, currentPath);
+          }
+        }
+      };
+      
+      if (rootNode && rootNode.name) {
+        collectPaths(rootNode as { name: string; children?: unknown[] });
+      }
+      
+      return paths.sort();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to fetch area paths: ${message}`);
+    }
+  }
+
+  public async fetchIterations(
+    settings: AdoSettings,
+    pat: string,
+    _teamId?: string
+  ): Promise<string[]> {
+    try {
+      const connection = this.createConnection(settings, pat);
+      const workApi = await connection.getWorkItemTrackingApi();
+      const core = await connection.getCoreApi();
+      const project = await core.getProject(settings.projectName);
+      
+      if (!project.name) {
+        throw new Error('Project not found');
+      }
+      
+      const rootNode = await workApi.getClassificationNode(
+        project.name,
+        TreeStructureGroup.Iterations,
+        undefined,
+        10
+      );
+      
+      const paths: string[] = [];
+      const collectPaths = (node: { name: string; children?: unknown[] }, parentPath: string = '') => {
+        const currentPath = parentPath ? `${parentPath}\\${node.name}` : node.name;
+        paths.push(currentPath);
+        if (node.children && Array.isArray(node.children)) {
+          for (const child of node.children) {
+            collectPaths(child as { name: string; children?: unknown[] }, currentPath);
+          }
+        }
+      };
+      
+      if (rootNode && rootNode.name) {
+        collectPaths(rootNode as { name: string; children?: unknown[] });
+      }
+      
+      return paths.sort();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to fetch iterations: ${message}`);
     }
   }
 
@@ -309,9 +461,48 @@ export class AdoService {
       .join('')}</ul>`;
 
     const descriptionParts = [`<p>${this.escapeHtml(draft.description)}</p>`];
+    
+    // Add User Story Statement section if present
+    if (draft.userStoryStatement) {
+      descriptionParts.push(
+        '<h3>User Story Statement</h3>',
+        `<p>${this.escapeHtml(draft.userStoryStatement)}</p>`
+      );
+    }
+    
+    // Add Business Rules and Assumptions section (immediately after user story)
+    const businessRules = draft.businessRulesAndAssumptions?.trim() || '';
+    const businessRulesValue = businessRules.length > 0 ? businessRules : 'NA';
+    descriptionParts.push(
+      '<h3>Business Rules and Assumptions</h3>',
+      `<p>${this.escapeHtml(businessRulesValue)}</p>`
+    );
+    
     if (draft.testScenarios.length > 0) {
       descriptionParts.push('<h3>Test Scenarios</h3>', testScenariosHtml);
     }
+    
+    // Add Technical Considerations section if present
+    if (draft.technicalConsiderations) {
+      const tcItems: string[] = [];
+      if (draft.technicalConsiderations.technicalDetails) {
+        tcItems.push(draft.technicalConsiderations.technicalDetails);
+      }
+      if (draft.technicalConsiderations.scopedFiles && draft.technicalConsiderations.scopedFiles.length > 0) {
+        tcItems.push(`Scoped Files: ${draft.technicalConsiderations.scopedFiles.join(', ')}`);
+      }
+      if (draft.technicalConsiderations.architectureNotes) {
+        tcItems.push(draft.technicalConsiderations.architectureNotes);
+      }
+      
+      if (tcItems.length > 0) {
+        const tcHtml = `<ul>${tcItems
+          .map((item) => `<li>${this.escapeHtml(item)}</li>`)
+          .join('')}</ul>`;
+        descriptionParts.push('<h3>Technical Considerations</h3>', tcHtml);
+      }
+    }
+    
     descriptionParts.push(
       '<h3>PO Tools Metadata</h3>',
       `<p>Project Id: ${this.escapeHtml(draft.projectId)}</p>`

@@ -12,7 +12,7 @@ const NAV: NavEntry[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '▣' },
   { id: 'projects', label: 'Projects', icon: '❏' },
   { id: 'studio', label: 'PBI Studio', icon: '✎' },
-  { id: 'bulk', label: 'Bulk Breakdown', icon: '≡' },
+  { id: 'bulk', label: 'Feature Creation', icon: '≡' },
   { id: 'settings', label: 'Settings', icon: '⚙' }
 ];
 

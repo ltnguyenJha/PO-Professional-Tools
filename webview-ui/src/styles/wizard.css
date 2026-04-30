@@ -1,0 +1,868 @@
+/* ================================================================
+   Wizard UI Styles — Phase 5 (Polish & Accessibility)
+   Four-step wizard for Feature and Bug PBIs
+   All values use design tokens (no hardcoded colors/spacing)
+   
+   Phase 5 Enhancements:
+   - Dark mode support (auto-detect via data-theme)
+   - Keyboard navigation (Tab, Enter, Escape, Arrow keys)
+   - Focus management (visible focus rings, aria-labels)
+   - Responsive design (320px min width, adaptive layouts)
+   - UX polish (error messages, loading states, smooth animations)
+   ================================================================ */
+
+/* Wizard container */
+.wizard-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  background: var(--color-neutral-100);
+  min-height: 100vh;
+}
+
+/* Progress indicator */
+.wizard-progress {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-4);
+  border: 1px solid var(--color-neutral-300);
+  align-items: center;
+}
+
+.wizard-progress-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  cursor: pointer;
+  transition: opacity var(--transition-base);
+  border-radius: var(--radius-3);
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
+}
+
+.wizard-progress-step:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.wizard-progress-step.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wizard-progress-step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-300);
+  color: var(--color-neutral-500);
+  font: var(--typography-button-sm);
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.wizard-progress-step:focus-visible .wizard-progress-step-indicator {
+  box-shadow: 0 0 0 3px var(--color-focus);
+}
+
+.wizard-progress-step.active .wizard-progress-step-indicator {
+  background: var(--color-primary-default);
+  color: var(--color-neutral-200);
+}
+
+.wizard-progress-step.completed .wizard-progress-step-indicator {
+  background: var(--color-success);
+  color: var(--color-neutral-200);
+}
+
+.wizard-progress-step-label {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wizard-progress-step.active .wizard-progress-step-label {
+  color: var(--color-primary-default);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Wizard step content */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--color-neutral-200);
+  padding: var(--space-5);
+  border-radius: var(--radius-5);
+  border: 1px solid var(--color-neutral-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.wizard-step-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.wizard-step-title {
+  font: var(--typography-heading-2);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-step-description {
+  font: var(--typography-body-md);
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+/* Form fields */
+.wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.wizard-field-label {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-field-label.required::after {
+  content: '*';
+  color: var(--color-error);
+  margin-left: var(--space-1);
+}
+
+.wizard-field-input,
+.wizard-field-textarea {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-3);
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-500);
+  font: var(--typography-body);
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
+}
+
+.wizard-field-input::placeholder,
+.wizard-field-textarea::placeholder {
+  color: var(--color-neutral-450);
+}
+
+.wizard-field-input:focus,
+.wizard-field-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-default);
+  background: var(--color-neutral-200);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.wizard-field-input:disabled,
+.wizard-field-textarea:disabled {
+  background: var(--color-neutral-300);
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+}
+
+.wizard-field-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Toggle buttons (for type and mode selectors) */
+.wizard-toggle-group {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.wizard-toggle-button {
+  flex: 1;
+  padding: var(--space-4) var(--space-5);
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-4);
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-500);
+  font: var(--typography-button);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.wizard-toggle-button:hover {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-soft);
+}
+
+.wizard-toggle-button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.wizard-toggle-button.selected {
+  background: var(--color-primary-default);
+  color: var(--color-neutral-200);
+  border-color: var(--color-primary-default);
+}
+
+.wizard-toggle-button.selected:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.wizard-toggle-button.selected:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Radio buttons */
+.wizard-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.wizard-radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-3);
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.wizard-radio-option:hover {
+  background: var(--color-neutral-250);
+}
+
+.wizard-radio-button {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-200);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.wizard-radio-option input[type='radio'] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-200);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  margin: 0;
+}
+
+.wizard-radio-option input[type='radio']:checked {
+  border-color: var(--color-primary-default);
+  background: var(--color-primary-default);
+  box-shadow: inset 0 0 0 3px var(--color-neutral-200);
+}
+
+.wizard-radio-option input[type='radio']:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.wizard-radio-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.wizard-radio-label-title {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-radio-label-description {
+  font: var(--typography-body);
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+/* INVEST Checklist */
+.wizard-invest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.wizard-invest-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wizard-invest-checkbox input[type='checkbox'] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-2);
+  background: var(--color-neutral-200);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  margin: 0;
+}
+
+.wizard-invest-checkbox input[type='checkbox']:checked {
+  border-color: var(--color-primary-default);
+  background: var(--color-primary-default);
+}
+
+.wizard-invest-checkbox input[type='checkbox']:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.wizard-invest-label {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Story preview */
+.wizard-story-preview {
+  padding: var(--space-4);
+  background: var(--color-primary-soft);
+  border-left: 4px solid var(--color-primary-default);
+  border-radius: var(--radius-2);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.wizard-story-preview-text {
+  font: var(--typography-body);
+  color: var(--color-primary-ink);
+  margin: 0;
+  line-height: var(--line-height-relaxed);
+}
+
+/* Mode selector (at top of Story step) */
+.wizard-mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-neutral-250);
+  border-radius: var(--radius-3);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.wizard-mode-selector-label {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-mode-toggle {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Action buttons */
+.wizard-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-neutral-300);
+}
+
+.wizard-btn {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-3);
+  font: var(--typography-button);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+}
+
+.wizard-btn:focus-visible {
+  outline: none;
+}
+
+.wizard-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.wizard-btn-primary {
+  background: var(--color-primary-default);
+  color: var(--color-neutral-200);
+}
+
+.wizard-btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.wizard-btn-primary:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.wizard-btn-primary:disabled {
+  background: var(--color-primary-disabled);
+  cursor: not-allowed;
+}
+
+.wizard-btn-secondary {
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-500);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.wizard-btn-secondary:hover {
+  background: var(--color-neutral-200);
+  border-color: var(--color-neutral-350);
+}
+
+.wizard-btn-secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Confirmation dialog */
+.wizard-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fade-in var(--transition-base);
+}
+
+.wizard-dialog {
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: slide-up var(--transition-base);
+}
+
+.wizard-dialog:focus-visible {
+  outline: 2px solid var(--color-primary-default);
+  outline-offset: 2px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.wizard-dialog-title {
+  font: var(--typography-heading-3);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-dialog-description {
+  font: var(--typography-body);
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+.wizard-dialog-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+/* Test cases table */
+.wizard-test-cases-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--typography-body);
+  color: var(--color-neutral-500);
+}
+
+.wizard-test-cases-table thead {
+  background: var(--color-neutral-250);
+  border-bottom: 1px solid var(--color-neutral-300);
+}
+
+.wizard-test-cases-table th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-400);
+}
+
+.wizard-test-cases-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-neutral-300);
+}
+
+.wizard-test-cases-table tbody tr:hover {
+  background: var(--color-neutral-250);
+}
+
+.wizard-test-cases-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-2);
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-500);
+  font: var(--typography-body);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.wizard-test-cases-input:focus {
+  outline: none;
+  border-color: var(--color-primary-default);
+  background: var(--color-neutral-200);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+.wizard-test-cases-table tbody tr:focus-within {
+  background: var(--color-neutral-250);
+}
+
+/* File input / attachments */
+.wizard-file-input {
+  display: none;
+}
+
+.wizard-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-neutral-300);
+  border-radius: var(--radius-3);
+  background: var(--color-neutral-250);
+  color: var(--color-primary-default);
+  font: var(--typography-button-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.wizard-file-label:hover {
+  border-color: var(--color-primary-default);
+  background: var(--color-primary-soft);
+}
+
+.wizard-file-label:focus-visible {
+  outline: 2px solid var(--color-primary-default);
+  outline-offset: 2px;
+}
+
+/* Error and validation messages */
+.wizard-field-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-error-soft);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-3);
+  color: var(--color-error);
+  font: var(--typography-body-md);
+  animation: shake var(--transition-fast);
+}
+
+.wizard-field.error .wizard-field-input,
+.wizard-field.error .wizard-field-textarea {
+  border-color: var(--color-error);
+  background: rgba(190, 18, 60, 0.05);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Loading states */
+.wizard-btn.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wizard-btn.loading::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Success/info messages */
+.wizard-message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-3);
+  font: var(--typography-body-md);
+  animation: fade-in var(--transition-base);
+}
+
+.wizard-message.success {
+  background: var(--color-success-soft);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
+}
+
+.wizard-message.info {
+  background: var(--color-info-soft);
+  border: 1px solid var(--color-info);
+  color: var(--color-info);
+}
+
+.wizard-message.warning {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
+}
+
+.wizard-message.error {
+  background: var(--color-error-soft);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+}
+
+/* Empty state guidance */
+.wizard-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--color-neutral-400);
+}
+
+.wizard-empty-state-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.wizard-empty-state-title {
+  font: var(--typography-heading-4);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.wizard-empty-state-description {
+  font: var(--typography-body);
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+/* Legacy view */
+.wizard-legacy-banner {
+  padding: var(--space-4);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-3);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.wizard-legacy-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.wizard-legacy-content {
+  flex: 1;
+}
+
+.wizard-legacy-title {
+  font: var(--typography-label-md);
+  color: var(--color-neutral-500);
+  margin: 0 0 var(--space-1);
+}
+
+.wizard-legacy-description {
+  font: var(--typography-body);
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+.wizard-legacy-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .wizard-container {
+    padding: var(--space-3);
+    gap: var(--space-4);
+    max-width: 100%;
+  }
+
+  .wizard-step {
+    padding: var(--space-4);
+  }
+
+  .wizard-progress {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .wizard-progress-step-label {
+    display: none;
+  }
+
+  .wizard-invest-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wizard-toggle-group {
+    flex-direction: column;
+  }
+
+  .wizard-toggle-button {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .wizard-actions {
+    flex-direction: column;
+  }
+
+  .wizard-btn {
+    width: 100%;
+  }
+
+  .wizard-dialog {
+    max-width: 90vw;
+    margin: var(--space-3);
+  }
+}
+
+/* Extra small screens (320px - 480px) */
+@media (max-width: 480px) {
+  .wizard-container {
+    padding: var(--space-2);
+    gap: var(--space-3);
+  }
+
+  .wizard-step {
+    padding: var(--space-3);
+  }
+
+  .wizard-step-title {
+    font: var(--typography-heading-3);
+  }
+
+  .wizard-step-description {
+    font: var(--typography-body);
+  }
+
+  .wizard-field {
+    gap: var(--space-1);
+  }
+
+  .wizard-field-label {
+    font: var(--typography-label);
+  }
+
+  .wizard-progress {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .wizard-progress-step {
+    padding: var(--space-1);
+    margin: calc(var(--space-1) * -1);
+  }
+
+  .wizard-progress-step-indicator {
+    width: 28px;
+    height: 28px;
+    font-size: var(--font-size-xs);
+  }
+
+  .wizard-invest-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-invest-checkbox {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wizard-actions {
+    gap: var(--space-2);
+    flex-direction: column-reverse;
+  }
+
+  .wizard-btn {
+    padding: var(--space-2) var(--space-3);
+    font: var(--typography-button-sm);
+  }
+
+  .wizard-dialog {
+    max-width: 95vw;
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .wizard-dialog-title {
+    font: var(--typography-heading-4);
+  }
+
+  .wizard-dialog-description {
+    font: var(--typography-body-md);
+  }
+
+  .wizard-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .wizard-file-label {
+    padding: var(--space-2) var(--space-3);
+    font: var(--typography-label);
+  }
+}

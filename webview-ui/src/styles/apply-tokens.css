@@ -1,0 +1,513 @@
+/* ================================================================
+   PO Professional Tools — Token Application Layer
+   Phase 1: Token System Foundation
+   
+   This file maps design tokens from tokens.css to existing component
+   classes. It replaces hard-coded values in the original styles.css
+   with token references.
+   
+   NO HTML STRUCTURE CHANGES — CSS-only refactoring to demonstrate
+   token usage across existing UI.
+   ================================================================ */
+
+/* Import tokens first */
+@import './tokens.css';
+
+/* ============================================================
+   GLOBAL BASE STYLES
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-base);
+  color: var(--color-neutral-500);
+  background:
+    radial-gradient(1200px 700px at 85% -20%, var(--color-primary-soft) 0%, transparent 65%),
+    var(--color-neutral-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ============================================================
+   LEGACY THEME VARIABLE BRIDGE
+   
+   Map old theme variables to new tokens for backward compatibility.
+   These will be removed in Phase 2 when component CSS is refactored.
+   ============================================================ */
+
+[data-theme="light"] {
+  --bg: var(--color-neutral-100);
+  --bg-elev: var(--color-neutral-200);
+  --panel: var(--color-neutral-200);
+  --panel-muted: var(--color-neutral-250);
+  --ink: var(--color-neutral-500);
+  --ink-muted: var(--color-neutral-400);
+  --ink-soft: var(--color-neutral-450);
+  --line: var(--color-neutral-300);
+  --line-strong: var(--color-neutral-350);
+  --accent: var(--color-primary-default);
+  --accent-strong: var(--color-primary-hover);
+  --accent-soft: var(--color-primary-soft);
+  --accent-ink: var(--color-primary-ink);
+  --danger: var(--color-error);
+  --danger-soft: var(--color-error-soft);
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-soft);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --info: var(--color-info);
+  --info-soft: var(--color-info-soft);
+  --sidebar-bg: var(--color-sidebar-bg);
+  --sidebar-ink: var(--color-sidebar-ink);
+  --sidebar-muted: var(--color-sidebar-muted);
+  --sidebar-hover: var(--color-sidebar-hover);
+  --sidebar-active: var(--color-sidebar-active);
+  --chip: var(--color-chip);
+  --overlay: var(--color-backdrop);
+  
+  /* Legacy spacing/radius/shadows mapped to tokens */
+  --font: var(--font-family-base);
+  --mono: var(--font-family-mono);
+  --transition: var(--transition-base);
+  --transition-fast: var(--transition-fast);
+  --focus-ring: var(--shadow-focus);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+[data-theme="dark"] {
+  --bg: var(--color-neutral-900);
+  --bg-elev: var(--color-neutral-800);
+  --panel: var(--color-neutral-800);
+  --panel-muted: var(--color-neutral-850);
+  --ink: var(--color-neutral-600);
+  --ink-muted: var(--color-neutral-700);
+  --ink-soft: var(--color-neutral-450);
+  --line: var(--color-neutral-950);
+  --line-strong: var(--color-neutral-975);
+  --accent: var(--color-primary-default);
+  --accent-strong: var(--color-primary-hover);
+  --accent-soft: var(--color-primary-soft);
+  --accent-ink: var(--color-primary-ink);
+  --danger: var(--color-error);
+  --danger-soft: var(--color-error-soft);
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-soft);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --info: var(--color-info);
+  --info-soft: var(--color-info-soft);
+  --sidebar-bg: var(--color-sidebar-bg);
+  --sidebar-ink: var(--color-sidebar-ink);
+  --sidebar-muted: var(--color-sidebar-muted);
+  --sidebar-hover: var(--color-sidebar-hover);
+  --sidebar-active: var(--color-sidebar-active);
+  --chip: var(--color-chip);
+  --overlay: var(--color-backdrop);
+  
+  /* Legacy mappings */
+  --font: var(--font-family-base);
+  --mono: var(--font-family-mono);
+  --transition: var(--transition-base);
+  --transition-fast: var(--transition-fast);
+  --focus-ring: var(--shadow-focus);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+/* ============================================================
+   DEMONSTRATION: Token Usage Patterns
+   
+   The sections below show how tokens replace hard-coded values
+   in key component classes. The existing styles.css continues
+   to work via the legacy variable bridge above.
+   
+   In Phase 2, these patterns will migrate all components to use
+   tokens directly instead of legacy variables.
+   ============================================================ */
+
+/* ── Button Components ────────────────────────────────────── */
+
+.btn {
+  /* Spacing tokens */
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  min-height: 36px;
+  
+  /* Radius tokens */
+  border-radius: var(--radius-4);
+  
+  /* Typography tokens */
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  
+  /* Color tokens (via legacy bridge) */
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink);
+  
+  /* Transition tokens */
+  transition: background var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+
+.btn-sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  min-height: 32px;
+}
+
+/* ── Input/Field Components ───────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-base);
+  color: var(--ink-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: var(--radius-4);
+  padding: 9px var(--space-3);
+  font-size: var(--font-size-md);
+  min-height: 38px;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.field textarea {
+  min-height: 90px;
+  line-height: var(--line-height-normal);
+}
+
+.field-row {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* ── Card Components ──────────────────────────────────────── */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-5);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.card-subtitle {
+  color: var(--ink-muted);
+  font-size: var(--font-size-md);
+  margin: 0;
+}
+
+/* ── Chip/Tag Components ──────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--chip);
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--line);
+  font-weight: var(--font-weight-medium);
+}
+
+.chip.success { 
+  background: var(--success-soft); 
+  color: var(--success); 
+  border-color: transparent; 
+}
+
+.chip.info { 
+  background: var(--info-soft); 
+  color: var(--info); 
+  border-color: transparent; 
+}
+
+.chip.warning { 
+  background: var(--warning-soft); 
+  color: var(--warning); 
+  border-color: transparent; 
+}
+
+.chip.danger { 
+  background: var(--danger-soft); 
+  color: var(--danger); 
+  border-color: transparent; 
+}
+
+/* ── Wizard Components ────────────────────────────────────── */
+
+.wizard-card {
+  background: var(--panel);
+  border-color: var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 0 0 var(--radius-5) var(--radius-5);
+  box-shadow: var(--shadow-md);
+}
+
+.wizard-step-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  transition: background var(--transition-base), border-color var(--transition-base),
+    color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.wizard-step-label {
+  font-size: var(--font-size-xs);
+  color: var(--ink-soft);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+
+.wizard-question-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+  line-height: var(--line-height-snug);
+}
+
+/* ── Modal/Dialog Components ──────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+}
+
+.dialog {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-5);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  max-width: 440px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog h3 { 
+  margin: 0; 
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dialog .actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+/* ── Sidebar Components ───────────────────────────────────── */
+
+.sidebar {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-ink);
+  padding: var(--space-5) var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+  background: linear-gradient(135deg, var(--accent) 0%, #0ea5a3 100%);
+  display: grid;
+  place-items: center;
+  color: #001f1a;
+  font-weight: var(--font-weight-extrabold);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-4);
+  color: var(--sidebar-ink);
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-base);
+}
+
+/* ── Toast/Notification Components ────────────────────────── */
+
+.toast-stack {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 20;
+  max-width: 380px;
+}
+
+.toast-item {
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--font-size-md);
+  box-shadow: var(--shadow-md);
+  animation: toast-in 180ms ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(var(--space-1)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── KPI Dashboard Components ─────────────────────────────── */
+
+.kpi-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-5);
+  padding: var(--space-3) var(--space-4);
+}
+
+.kpi .label {
+  font-size: var(--font-size-sm);
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+}
+
+.kpi .value {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.kpi .trend {
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+}
+
+/* ============================================================
+   TYPOGRAPHY HELPER CLASSES
+   
+   Optional utility classes showing direct token application.
+   These are NOT used yet but demonstrate the pattern for Phase 2.
+   ============================================================ */
+
+.heading-1 { font: var(--typography-heading-1); }
+.heading-2 { font: var(--typography-heading-2); }
+.heading-3 { font: var(--typography-heading-3); }
+.heading-4 { font: var(--typography-heading-4); }
+.body { font: var(--typography-body); }
+.label { font: var(--typography-label); }
+.caption { font: var(--typography-caption); }
+.code { font: var(--typography-code); }
+
+/* ============================================================
+   SPACING HELPER CLASSES
+   
+   Optional utility classes for rapid prototyping in Phase 2+.
+   ============================================================ */
+
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-5 { gap: var(--space-5); }
+.gap-6 { gap: var(--space-6); }
+
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.p-5 { padding: var(--space-5); }
+.p-6 { padding: var(--space-6); }
+
+.m-1 { margin: var(--space-1); }
+.m-2 { margin: var(--space-2); }
+.m-3 { margin: var(--space-3); }
+.m-4 { margin: var(--space-4); }
+.m-5 { margin: var(--space-5); }
+.m-6 { margin: var(--space-6); }
+
+/* ============================================================
+   NOTES FOR PHASE 2 REFACTORING
+   
+   1. Remove legacy variable bridge (--bg, --ink, etc.)
+   2. Update all component CSS to reference tokens directly
+   3. Use typography composition tokens for text elements
+   4. Apply consistent spacing scale across all components
+   5. Ensure all border-radius values use radius tokens
+   6. Replace all hard-coded colors with semantic color tokens
+   ============================================================ */

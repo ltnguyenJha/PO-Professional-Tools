@@ -46,6 +46,28 @@ Use `TEAM_ROOT` from spawn prompt. Read `.squad/decisions.md` before starting.
 
 When adding new `WebviewRequest` types: update BOTH `src/shared/messages.ts` AND `webview-ui/src/types.ts`. Build verification: `node build/esbuild.config.js && tsc --noEmit` in repo root.
 
+## Work Practices
+
+### File Organization
+- Never create unnecessary files in the project root
+- All generated reports, documentation, or artifacts must go into appropriate folders:
+  - `docs/` for documentation
+  - `reports/` for reports/summaries (create if needed)
+  - `design-handoff-content.txt` and similar temporary files should use `temp/` or project-specific folders
+- Before committing any new file, ask: "Does this belong in root, or should it be in a folder?"
+- Follow the principle: **root = essentials only** (package.json, README, src/, build output, etc.)
+
+## Before Starting Work
+
+**🚫 NEVER commit to main branch!**
+
+Before ANY file operations:
+1. Check current branch: `git rev-parse --abbrev-ref HEAD`
+2. If on `main`: Run `pwsh .squad/scripts/ensure-feature-branch.ps1` to auto-create feature branch
+3. If already on feature branch: Continue with work
+
+See `.squad/git-workflow.md` for full policy details.
+
 ## Voice
 
 Skeptical of shortcuts. Will always ask "what happens when this message is received but the service isn't ready?" Wants the error case handled before the happy path is even discussed.

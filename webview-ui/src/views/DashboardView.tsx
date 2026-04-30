@@ -73,7 +73,7 @@ export function DashboardView({ state, onNavigate }: Props): JSX.Element {
             <li>
               Use{' '}
               <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('bulk')}>
-                Bulk Breakdown
+                Feature Creation
               </button>{' '}
               to split a big feature into many prefixed items.
             </li>

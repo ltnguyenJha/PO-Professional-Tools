@@ -6,6 +6,7 @@ interface Props {
   aiBusy: boolean;
   onGenerate: (wizard: InvestWizardInput) => void;
   onOpenInChat: (wizard: InvestWizardInput) => void;
+  onSave?: (description: string, userStoryStatement: string, businessRulesAndAssumptions?: string) => void;
 }
 
 const STEPS = [
@@ -43,6 +44,18 @@ const STEPS = [
     invest: {
       hint: 'Estimable · Small',
       text: 'Keep the flow narrow enough to estimate in 1–5 days. If it reads like multiple features, split it.',
+    },
+  },
+  {
+    key: 'businessRules' as const,
+    label: 'Business Rules',
+    title: 'Business Rules & Assumptions',
+    description: 'Define specific criteria, conditions, and preconditions for story completion. (Optional)',
+    placeholder:
+      'e.g. Only users with verified email can access this feature; Assumes payment gateway is already integrated; Data must be encrypted at rest...',
+    invest: {
+      hint: 'Testable',
+      text: 'Clear business rules make acceptance criteria easier to write and help prevent scope creep.',
     },
   },
   {
@@ -91,19 +104,36 @@ function isComplete(wizard: Partial<InvestWizardInput>): wizard is InvestWizardI
   );
 }
 
-export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenInChat }: Props): JSX.Element {
+export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenInChat, onSave }: Props): JSX.Element {
   const [step, setStep] = useState(0);
   const [background, setBackground] = useState('');
   const [why, setWhy] = useState('');
   const [how, setHow] = useState('');
+  const [businessRules, setBusinessRules] = useState('');
   const [persona, setPersona] = useState('');
   const [want, setWant] = useState('');
   const [benefit, setBenefit] = useState('');
   const [expanded, setExpanded] = useState(true);
 
-  const wizard: Partial<InvestWizardInput> = { background, why, how, persona, want, benefit };
+  const wizard: Partial<InvestWizardInput> = { 
+    background, 
+    why, 
+    how, 
+    persona, 
+    want, 
+    benefit,
+    businessRulesAndAssumptions: businessRules 
+  };
   const score = investScore(wizard);
   const complete = isComplete(wizard);
+
+  const composedDescription = `As a ${persona}\nI want ${want}\nSo that ${benefit}`;
+
+  const saveDescription = (): void => {
+    if (complete && onSave) {
+      onSave(composedDescription, composedDescription, businessRules.trim() || undefined);
+    }
+  };
 
   const currentStep = STEPS[step]!;
 
@@ -111,6 +141,7 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     }
+    saveDescription();
   };
 
   const handleBack = (): void => {
@@ -129,18 +160,40 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
     if (step === 2) {
       return how.trim().length > 0;
     }
+    if (step === 3) {
+      // Business Rules step is optional
+      return true;
+    }
     return persona.trim().length > 0 && want.trim().length > 0 && benefit.trim().length > 0;
   };
 
   const handleGenerate = (): void => {
     if (complete) {
-      onGenerate({ background, why, how, persona, want, benefit });
+      saveDescription();
+      onGenerate({ 
+        background, 
+        why, 
+        how, 
+        persona, 
+        want, 
+        benefit,
+        businessRulesAndAssumptions: businessRules 
+      });
     }
   };
 
   const handleOpenChat = (): void => {
     if (complete) {
-      onOpenInChat({ background, why, how, persona, want, benefit });
+      saveDescription();
+      onOpenInChat({ 
+        background, 
+        why, 
+        how, 
+        persona, 
+        want, 
+        benefit,
+        businessRulesAndAssumptions: businessRules 
+      });
     }
   };
 
@@ -171,7 +224,7 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
           <div>
             <h3 style={{ margin: 0 }}>User Story Wizard</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Answer four guided questions — the agent builds your story using INVEST criteria.
+              Answer six guided questions — the agent builds your story using INVEST criteria.
             </p>
           </div>
         </div>
@@ -269,6 +322,22 @@ export function UserStoryWizard({ draftId: _draftId, aiBusy, onGenerate, onOpenI
             )}
 
             {step === 3 && (
+              <label className="field">
+                Business Rules & Assumptions (Optional)
+                <textarea
+                  rows={4}
+                  value={businessRules}
+                  onChange={(e) => setBusinessRules(e.target.value)}
+                  placeholder={currentStep.placeholder}
+                  autoFocus
+                />
+                <span className="hint" style={{ marginTop: '4px', fontSize: '0.8rem' }}>
+                  This step is optional. Skip if you don't have specific rules or constraints to document.
+                </span>
+              </label>
+            )}
+
+            {step === 4 && (
               <div className="wizard-story-inputs">
                 <div className="wizard-story-field">
                   <span className="wizard-story-prefix">As a</span>

@@ -1,0 +1,228 @@
+/* ================================================================
+   PO Professional Tools — Design Token System
+   Phase 1: Token System Foundation
+   
+   This file defines all design tokens (CSS custom properties) used
+   throughout the PBI Studio wizard and other views.
+   
+   DO NOT apply tokens directly here — use apply-tokens.css for
+   mapping tokens to component classes.
+   ================================================================ */
+
+:root {
+  /* ============================================================
+     COLOR TOKENS
+     ============================================================ */
+  
+  /* Neutrals — backgrounds, borders, text shades */
+  --color-neutral-100: #f4f7fb;    /* Lightest background (page bg) */
+  --color-neutral-200: #ffffff;    /* Card/panel background */
+  --color-neutral-250: #f8fafc;    /* Muted panel background */
+  --color-neutral-300: #d7e0ea;    /* Border default */
+  --color-neutral-350: #c3cedb;    /* Border strong (focus, active) */
+  --color-neutral-400: #475569;    /* Text secondary (muted labels) */
+  --color-neutral-450: #64748b;    /* Text soft (hints, captions) */
+  --color-neutral-500: #0f172a;    /* Text primary (body, headings) */
+  --color-neutral-600: #e6edf7;    /* Dark mode text primary */
+  --color-neutral-700: #a3b1c6;    /* Dark mode text secondary */
+  --color-neutral-800: #111a2e;    /* Dark mode panel background */
+  --color-neutral-850: #0f1b30;    /* Dark mode muted panel */
+  --color-neutral-900: #0b1220;    /* Dark mode page background */
+  --color-neutral-950: #1f2a44;    /* Dark mode border default */
+  --color-neutral-975: #2c3a5c;    /* Dark mode border strong */
+  
+  /* Status colors — success, warning, error, info */
+  --color-success: #047857;
+  --color-success-soft: #d1fae5;
+  --color-warning: #b45309;
+  --color-warning-soft: #fef3c7;
+  --color-error: #be123c;
+  --color-error-soft: #ffe4e6;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+  
+  /* Interactive — primary accent states */
+  --color-primary-default: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-active: #0ea5a3;
+  --color-primary-disabled: rgba(15, 118, 110, 0.4);
+  --color-primary-soft: #ccfbf1;
+  --color-primary-ink: #065f46;  /* Text on primary-soft bg */
+  
+  /* Semantic — focus, backdrop, overlays */
+  --color-focus: #ccfbf1;          /* Focus ring color (light) */
+  --color-backdrop: rgba(15, 23, 42, 0.36);  /* Modal overlay */
+  --color-chip: #eef2f7;           /* Chip/tag background */
+  
+  /* Sidebar — specialized sidebar colors */
+  --color-sidebar-bg: #0f172a;
+  --color-sidebar-ink: #e2e8f0;
+  --color-sidebar-muted: #94a3b8;
+  --color-sidebar-hover: rgba(148, 163, 184, 0.12);
+  --color-sidebar-active: rgba(45, 212, 191, 0.18);
+  
+  /* ============================================================
+     SPACING TOKENS (base unit: 4px)
+     ============================================================ */
+  
+  --space-1: 4px;    /* Micro spacing (chip padding, tight gaps) */
+  --space-2: 8px;    /* Small spacing (field gaps, button padding) */
+  --space-3: 12px;   /* Medium spacing (card gaps, nav gaps) */
+  --space-4: 16px;   /* Standard spacing (field padding, section gaps) */
+  --space-5: 20px;   /* Large spacing (card padding, content padding) */
+  --space-6: 24px;   /* XL spacing (section margins) */
+  --space-7: 28px;   /* 2XL spacing (hero sections) */
+  --space-8: 32px;   /* 3XL spacing (major dividers) */
+  --space-9: 36px;   /* 4XL spacing (page margins) */
+  --space-10: 40px;  /* 5XL spacing (large section margins) */
+  --space-11: 44px;  /* 6XL spacing (maximum spacing) */
+  
+  /* Legacy aliases (for backward compatibility during Phase 2 migration) */
+  --space-xs: var(--space-1);
+  --space-sm: var(--space-2);
+  --space-md: var(--space-3);
+  --space-lg: var(--space-4);
+  --space-xl: var(--space-5);
+  --space-2xl: var(--space-6);
+  --space-3xl: var(--space-8);
+  
+  /* ============================================================
+     RADIUS TOKENS
+     ============================================================ */
+  
+  --radius-0: 0px;    /* Sharp corners (no radius) */
+  --radius-1: 2px;    /* Minimal radius (small elements) */
+  --radius-2: 4px;    /* Subtle radius (chips, small cards) */
+  --radius-3: 6px;    /* Standard radius (buttons, inputs) */
+  --radius-4: 8px;    /* Medium radius (cards, modals) */
+  --radius-5: 12px;   /* Large radius (hero cards, panels) */
+  --radius-pill: 999px;  /* Full pill shape (tags, toggles) */
+  
+  /* Legacy aliases */
+  --radius-sm: var(--radius-3);
+  --radius: var(--radius-4);
+  --radius-lg: var(--radius-5);
+  
+  /* ============================================================
+     TYPOGRAPHY TOKENS
+     ============================================================ */
+  
+  /* Font families */
+  --font-family-base: "Inter", "IBM Plex Sans", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+  
+  /* Font sizes (11px–24px scale) */
+  --font-size-xs: 0.6875rem;    /* 11px — micro labels, badges */
+  --font-size-sm: 0.75rem;      /* 12px — small labels, captions */
+  --font-size-base: 0.8125rem;  /* 13px — body text, default */
+  --font-size-md: 0.875rem;     /* 14px — standard text, button text */
+  --font-size-lg: 1rem;         /* 16px — heading 4, emphasized text */
+  --font-size-xl: 1.125rem;     /* 18px — heading 3 */
+  --font-size-2xl: 1.25rem;     /* 20px — heading 2 */
+  --font-size-3xl: 1.5rem;      /* 24px — heading 1, page titles */
+  
+  /* Font weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* Line heights */
+  --line-height-tight: 1;
+  --line-height-snug: 1.25;
+  --line-height-normal: 1.45;
+  --line-height-relaxed: 1.6;
+  
+  /* Typography compositions (role-based) */
+  /* Headings */
+  --typography-heading-1: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-snug) var(--font-family-base);
+  --typography-heading-2: var(--font-weight-semibold) var(--font-size-2xl) / var(--line-height-snug) var(--font-family-base);
+  --typography-heading-3: var(--font-weight-semibold) var(--font-size-xl) / var(--line-height-snug) var(--font-family-base);
+  --typography-heading-4: var(--font-weight-semibold) var(--font-size-lg) / var(--line-height-snug) var(--font-family-base);
+  
+  /* Body text */
+  --typography-body: var(--font-weight-regular) var(--font-size-base) / var(--line-height-normal) var(--font-family-base);
+  --typography-body-md: var(--font-weight-regular) var(--font-size-md) / var(--line-height-normal) var(--font-family-base);
+  --typography-body-lg: var(--font-weight-regular) var(--font-size-lg) / var(--line-height-normal) var(--font-family-base);
+  
+  /* Labels and captions */
+  --typography-label: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-normal) var(--font-family-base);
+  --typography-label-md: var(--font-weight-medium) var(--font-size-base) / var(--line-height-normal) var(--font-family-base);
+  --typography-caption: var(--font-weight-regular) var(--font-size-xs) / var(--line-height-normal) var(--font-family-base);
+  
+  /* Button text */
+  --typography-button: var(--font-weight-semibold) var(--font-size-md) / var(--line-height-tight) var(--font-family-base);
+  --typography-button-sm: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-tight) var(--font-family-base);
+  
+  /* Code/monospace */
+  --typography-code: var(--font-weight-regular) var(--font-size-base) / var(--line-height-normal) var(--font-family-mono);
+  
+  /* ============================================================
+     SHADOW TOKENS
+     ============================================================ */
+  
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 48px rgba(15, 23, 42, 0.12);
+  --shadow-focus: 0 0 0 3px var(--color-focus);
+  
+  /* ============================================================
+     TRANSITION TOKENS
+     ============================================================ */
+  
+  --transition-fast: 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-base: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-slow: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ============================================================
+   DARK MODE COLOR OVERRIDES
+   ============================================================ */
+
+[data-theme="dark"] {
+  /* Neutrals (dark mode inversions) */
+  --color-neutral-100: #0b1220;
+  --color-neutral-200: #111a2e;
+  --color-neutral-250: #0f1b30;
+  --color-neutral-300: #1f2a44;
+  --color-neutral-350: #2c3a5c;
+  --color-neutral-400: #a3b1c6;
+  --color-neutral-450: #8391a8;
+  --color-neutral-500: #e6edf7;
+  
+  /* Status (adjusted for dark mode) */
+  --color-success: #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.14);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.14);
+  --color-error: #fb7185;
+  --color-error-soft: rgba(251, 113, 133, 0.14);
+  --color-info: #60a5fa;
+  --color-info-soft: rgba(96, 165, 250, 0.14);
+  
+  /* Primary (adjusted for dark mode) */
+  --color-primary-default: #2dd4bf;
+  --color-primary-hover: #5eead4;
+  --color-primary-active: #0ea5a3;
+  --color-primary-disabled: rgba(45, 212, 191, 0.4);
+  --color-primary-soft: rgba(45, 212, 191, 0.12);
+  --color-primary-ink: #99f6e4;
+  
+  /* Semantic (dark mode adjustments) */
+  --color-focus: rgba(45, 212, 191, 0.3);
+  --color-backdrop: rgba(2, 6, 18, 0.66);
+  --color-chip: #172135;
+  
+  /* Sidebar (dark mode) */
+  --color-sidebar-bg: #080f1d;
+  --color-sidebar-ink: #dbe4f3;
+  --color-sidebar-muted: #7a8aa5;
+  --color-sidebar-hover: rgba(148, 163, 184, 0.1);
+  --color-sidebar-active: rgba(45, 212, 191, 0.18);
+  
+  /* Shadow adjustments for dark mode (subtler, lighter color) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
+}
