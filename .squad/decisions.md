@@ -676,6 +676,55 @@ GitHub Actions workflow (.github/workflows/test.yml) with:
 
 ---
 
+### PBI Studio UX Improvements (2026-04-30)
+
+**Authors:** Rusty (Frontend Dev), Tess (UX Designer), Danny (Lead)  
+**Status:** Completed (PR #40)
+
+Completed three coordinated UX improvements for the PBI Studio wizard and card-based interface:
+
+**1. Wizard Step Reduction (Rusty)**
+- **Removed:** Type and Identity steps from the beginning of FeatureWizard
+- **Result:** Reduced wizard from 7 steps → 5 steps
+- **New flow:** Story → Feature Definition → Business Rules → Details → Technical Considerations
+- **Rationale:** Users wanted to jump straight to writing their story; Type/Identity steps added unnecessary friction without clear value
+- **Implementation:** Removed WizardStep1Type and WizardStep2Identity components; renumbered all step navigation calls
+
+**2. AI Story Generation Button (Rusty)**
+- **Problem:** "AI-Ready" indicator was passive and unclear
+- **Solution:** Added "✨ Generate Story" button with loading state ("⏳ Generating...")
+- **Features:**
+  - Actionable button triggers Copilot to draft persona/want/benefit content
+  - Loading state shows while AI is working
+  - Auto-reload wizard after AI generation completes
+  - useEffect hook parses draft.description back into structured fields
+- **Impact:** Users now have explicit, discoverable way to get AI help
+
+**3. Card Alignment Consistency (Tess)**
+- **Problem:** Multiple card types had inconsistent spacing
+  - `.card` used legacy tokens (`--radius-lg`, `--space-lg`, `--space-md`)
+  - `.wizard-step` used more generous spacing (`--space-5` = 20px vs `--space-4` = 16px)
+  - Visual misalignment made interface feel disconnected
+- **Solution:** Normalized all cards to single design system pattern:
+  - Border radius: `var(--radius-5)` (12px)
+  - Padding: `var(--space-4)` (16px)
+  - Internal gap: `var(--space-3)` (12px)
+  - Shadow: `var(--shadow-sm)`
+  - Border: `1px solid var(--line)`
+- **Files Updated:**
+  - `webview-ui/src/styles.css` — `.card` and `.pbi-type-selector-wrap`
+  - `webview-ui/src/styles/wizard.css` — `.wizard-step`
+- **Impact:** All cards now share cohesive visual rhythm; reduced cognitive load
+
+**4. UI Polish (Rusty)**
+- Renamed PbiStudio button: "🆕 New Feature" → "🆕 New" (cleaner label)
+
+**Build Status:** ✅ TypeScript: 0 errors, ✅ Webview: Successful, ✅ Extension: Successful
+
+**PR Status:** #40 opened, pending review by ltnguyen
+
+---
+
 ### Git Workflow: Feature Branch Requirement & Conflict Resolution (2026-04-29)
 
 **Status:** Adopted  

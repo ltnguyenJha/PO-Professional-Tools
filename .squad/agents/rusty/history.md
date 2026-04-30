@@ -1549,3 +1549,68 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 - webview-ui/src/components/FeatureWizard.tsx (prop wiring)
 - dist/assets/* (rebuilt)
 
+### 2026-04-30 — Wizard Step Reduction & AI Story Button Implementation
+
+**Scope:** Structural redesign of FeatureWizard — remove Type/Identity steps (7→5 steps), add AI story button with loading state, UI polish.
+
+**Problems solved:**
+1. **7-step wizard created friction** — Users wanted to jump straight to writing their story instead of selecting Type/Identity first
+2. **Passive "AI-Ready" indicator** — Users didn't understand how to trigger AI assistance or what it did
+3. **Button label inconsistency** — "🆕 New Feature" button was verbose; "🆕 New" is cleaner
+
+**Solutions implemented:**
+
+**1. Wizard Step Reduction (FeatureWizard.tsx):**
+- Removed `WizardStep1Type` and `WizardStep2Identity` component imports
+- Updated `steps` array from 7 steps to 5 steps
+- Renumbered all step renders:
+  - Step 0: Story (was WizardStep3Story)
+  - Step 1: Feature Definition (was WizardStepFeatureDefinition)
+  - Step 2: Business Rules (was WizardStep3p5BusinessRules)
+  - Step 3: Details (was WizardStep4Details)
+  - Step 4: Technical Considerations (was WizardStep6TechnicalConsiderations)
+- Updated onNext() and onBack() calls in each step component to match new indices
+
+**2. Navigation Fixes (All Step Components):**
+- Updated every wizard step component's navigation:
+  - `onNext()` button calls now use correct step indices
+  - `onBack()` button calls now use correct step indices
+  - Made `onBack` optional on WizardStep3Story (step 0 has no Back button)
+- Pattern: Each step calls `onNext(stepIndex + 1)` to go forward, `onBack(stepIndex - 1)` to go back
+
+**3. AI Story Generation Button (WizardStep3Story.tsx):**
+- Replaced passive "AI-Ready" indicator with actionable "✨ Generate Story" button
+- Added loading state: "⏳ Generating..." while AI is working
+- Button triggers Copilot to draft persona/want/benefit content
+- Implemented `useEffect` hook:
+  - When AI completes and updates `draft.description`, hook parses it back into:
+    - `draft.persona`
+    - `draft.want`
+    - `draft.benefit`
+  - Auto-triggers wizard reload after AI generation completes
+- Button label changes: "Generate Story" (initial) → "Regenerate Story" (when content exists)
+- Disabled during generation to prevent duplicate requests
+
+**4. UI Polish (PbiStudio.tsx):**
+- Renamed button label: "🆕 New Feature" → "🆕 New"
+- Cleaner, shorter label still conveys intent
+
+**Build verification:**
+- ✅ TypeScript: 0 errors
+- ✅ Webview: Successful build (48 modules, CSS/JS assets generated)
+- ✅ Extension: Successful build (2.7MB)
+- Pre-existing TypeScript errors in SettingsView.tsx are not from these changes
+
+**Key learnings:**
+1. **Step indices are tightly coupled** — Changing wizard structure requires updating ALL step components
+2. **useEffect for side-effects on data changes** — Can parse AI-generated content back into structured fields
+3. **Loading states matter for user experience** — "Generating..." text shows AI is working, prevents confusion
+
+**Files modified:**
+- `webview-ui/src/components/FeatureWizard.tsx` (step restructure)
+- `webview-ui/src/components/WizardStep3Story.tsx` (AI button + loading state + field parsing)
+- `webview-ui/src/components/WizardStep*.tsx` (all 5 steps: navigation updates)
+- `webview-ui/src/views/PbiStudio.tsx` (button label rename)
+
+**Outcome:** Faster wizard onboarding, clearer AI integration, streamlined UI
+

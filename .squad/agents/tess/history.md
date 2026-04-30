@@ -79,3 +79,90 @@
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
 - **2026-04-30 [current]:** Fixed card alignment consistency across PBI Studio (Issue: card spacing misalignment).
+
+### 2026-04-30 — Card Alignment Consistency: Token Migration & Spacing Normalization
+
+**Scope:** Design system enforcement — normalize card padding/radius/shadow across `.card`, `.wizard-step`, and `.pbi-type-selector-wrap` using modern design tokens.
+
+**Problem statement:**
+- PBI Studio had multiple card types with inconsistent visual properties
+- `.card` elements (edit panels) used legacy token names: `--radius-lg`, `--space-lg`, `--space-md`
+- `.wizard-step` cards had more generous spacing: `padding: var(--space-5)` (20px) vs `var(--space-4)` (16px) on standard cards
+- `.wizard-step` gap was also larger: `var(--space-5)` vs `var(--space-3)`
+- `.pbi-type-selector-wrap` used legacy margin token: `var(--space-md)`
+- Visual misalignment created cognitive friction: wizard cards felt "puffier" and visually disconnected from edit cards
+
+**Design solution — Unified Card System:**
+
+Established one consistent card pattern across all card types:
+
+| Property | Token | Value | Rationale |
+|----------|-------|-------|-----------|
+| Border radius | `var(--radius-5)` | 12px | Large, friendly corners; modern feel |
+| Padding | `var(--space-4)` | 16px | Sweet spot: spacious without wasting space |
+| Internal gap | `var(--space-3)` | 12px | Creates visual hierarchy (outer > inner) |
+| Shadow | `var(--shadow-sm)` | Subtle | Gentle elevation; not distracting |
+| Border | `1px solid var(--line)` | — | Consistent across all cards |
+
+**CSS changes implemented:**
+
+**1. `.card` in `webview-ui/src/styles.css`**
+- **Before:**
+  - `border-radius: var(--radius-lg)` (legacy alias)
+  - `padding: var(--space-lg)` (legacy alias)
+  - `gap: var(--space-md)` (legacy alias)
+- **After:**
+  - `border-radius: var(--radius-5)` (modern token)
+  - `padding: var(--space-4)` (modern token)
+  - `gap: var(--space-3)` (modern token)
+
+**2. `.wizard-step` in `webview-ui/src/styles/wizard.css`**
+- **Before:**
+  - `padding: var(--space-5)` (20px — too generous)
+  - `gap: var(--space-5)` (20px — too much breathing room)
+- **After:**
+  - `padding: var(--space-4)` (16px — matches standard cards)
+  - `gap: var(--space-3)` (12px — balanced element spacing)
+
+**3. `.pbi-type-selector-wrap` in `webview-ui/src/styles.css`**
+- **Before:** `margin-bottom: var(--space-md)` (legacy alias)
+- **After:** `margin-bottom: var(--space-4)` (modern token)
+
+**Design principles applied:**
+
+1. **Consistency Over Variation** — Single card pattern > multiple competing styles
+2. **Visual Hierarchy Through Spacing** — Outer padding (`--space-4` = 16px) > Inner gap (`--space-3` = 12px)
+3. **Token Migration (Phase 2 Alignment)** — Moving away from legacy aliases to modern names
+4. **Balanced Density** — `--space-4` (16px) is the goldilocks value:
+   - `--space-3` (12px) feels cramped for card padding
+   - `--space-5` (20px) wastes screen real estate
+   - `--space-4` (16px) is the sweet spot
+
+**Validation:**
+- ✅ `npm run build` passed — no CSS errors or warnings
+- ✅ Visual review: All cards now share consistent padding, radius, and shadow
+- ✅ Wizard cards no longer feel disconnected from edit panels
+- ✅ PBI type selector spacing aligns with surrounding cards
+
+**Impact:**
+
+**User Experience:**
+- Reduced cognitive load — one consistent card pattern to learn
+- Interface feels more cohesive and polished
+- Users can focus on content, not visual inconsistencies
+
+**Developer Experience:**
+- Easier to add new card types — clear pattern to follow
+- Modern token names make code more readable and maintainable
+- Future spacing adjustments can be made in one place
+
+**Design System:**
+- Completes token migration for card components
+- Establishes clear spacing hierarchy (outer > inner)
+- Provides a reusable card pattern for future features
+
+**Key learnings:**
+1. **Legacy aliases create confusion** — Modern token names are more readable and maintainable
+2. **Spacing hierarchy matters** — Outer padding > Inner gap creates visual structure
+3. **Token consistency is enforcing** — Users perceive cohesion when visual patterns repeat
+4. **CSS token values are design decisions** — Each token (16px, 12px, 20px) has rationale behind it
