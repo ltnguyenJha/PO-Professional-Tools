@@ -9,7 +9,6 @@ import type {
 } from '../types';
 import { WORK_ITEM_TYPES } from '../types';
 import { DropdownWithFallback } from '../components/DropdownWithFallback';
-import { SearchableDropdown } from '../components/SearchableDropdown';
 
 interface Props {
   adoSettings?: AdoSettings;
@@ -247,6 +246,37 @@ export function SettingsView({
 
   return (
     <div className="content">
+      {/* Save Settings Button - Top of Page - Only shown when there are unsaved changes */}
+      {(hasUnsavedChanges || saveSuccess) && (
+        <div style={{ 
+          position: 'sticky', 
+          top: 0, 
+          zIndex: 100, 
+          background: 'var(--panel)',
+          paddingBottom: '16px',
+          marginBottom: '16px',
+          borderBottom: '1px solid var(--line-strong)'
+        }}>
+          <button 
+            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
+            onClick={save} 
+            disabled={savingSettings}
+          >
+            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
+          </button>
+          {saveSuccess && (
+            <span className="chip success" style={{ marginLeft: '12px' }}>
+              Settings saved successfully
+            </span>
+          )}
+          {hasUnsavedChanges && !saveSuccess && (
+            <small style={{ marginLeft: '12px', color: 'var(--text-secondary)' }}>
+              You have unsaved changes
+            </small>
+          )}
+        </div>
+      )}
+
       {/* Azure DevOps Connection Section */}
       <section className="card settings-section">
         <div className="section-header" onClick={() => setOpenConnection((o) => !o)}>
@@ -346,13 +376,6 @@ export function SettingsView({
         </div>
 
         <div className="action-row" style={{ marginTop: 16 }}>
-          <button 
-            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
-            onClick={save} 
-            disabled={savingSettings}
-          >
-            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
-          </button>
           <button
             className="btn"
             type="button"
@@ -394,6 +417,7 @@ export function SettingsView({
         </div>
 
         <div className={`section-body ${openDefaults ? '' : 'collapsed'}`}>
+        {/* First Row: Team and Iteration Path */}
         <div className="field-row">
           <DropdownWithFallback
             label="Team"
@@ -414,14 +438,14 @@ export function SettingsView({
             }
             onChange={handleTeamChange}
           />
-          <SearchableDropdown
+          <DropdownWithFallback
             label="Iteration Path"
             value={form.iterationPath ?? ''}
             options={dropdownState.iterations}
             loading={dropdownState.iterationsLoading}
             error={dropdownState.iterationsError}
             disabled={!form.team?.trim()}
-            placeholder="Search iteration"
+            placeholder="Select iteration"
             helperText={
               !form.team?.trim() 
                 ? 'Select team first' 
@@ -429,75 +453,27 @@ export function SettingsView({
             }
             onChange={(value) => setForm({ ...form, iterationPath: value })}
           />
-          <SearchableDropdown
-            label="Default Work Item Type"
-            value={form.defaultWorkItemType ?? 'Product Backlog Item'}
-            options={WORK_ITEM_TYPES}
-            loading={false}
-            disabled={false}
-            placeholder="Select work item type"
-            helperText="Used when creating new work items"
-            onChange={(value) =>
-              setForm({ ...form, defaultWorkItemType: value as AdoWorkItemType })
-            }
-          />
+        </div>
+
+        {/* Second Row: Default Work Item Type (full width) */}
+        <div className="field-row" style={{ marginTop: '16px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <DropdownWithFallback
+              label="Default Work Item Type"
+              value={form.defaultWorkItemType ?? 'Product Backlog Item'}
+              options={WORK_ITEM_TYPES}
+              loading={false}
+              disabled={false}
+              placeholder="Select work item type"
+              helperText="Used when creating new work items"
+              onChange={(value) =>
+                setForm({ ...form, defaultWorkItemType: value as AdoWorkItemType })
+              }
+            />
+          </div>
         </div>
         </div>
       </section>
-
-      {/* Sticky Footer - shows when there are unsaved changes or after save */}
-      {(hasUnsavedChanges || saveSuccess) && (
-        <div
-          style={{
-            position: 'sticky',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: 'var(--panel)',
-            borderTop: '1px solid var(--line-strong)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
-            zIndex: 100
-          }}
-        >
-          <button 
-            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
-            onClick={save} 
-            disabled={savingSettings}
-          >
-            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
-          </button>
-          <button
-            className="btn"
-            type="button"
-            disabled={
-              !form.orgUrl.trim() ||
-              !form.projectName.trim() ||
-              (!hasAdoPat && !(form.pat?.trim()))
-            }
-            onClick={() =>
-              send({
-                type: 'TEST_ADO_CONNECTION',
-                payload: {
-                  orgUrl: form.orgUrl.trim(),
-                  projectName: form.projectName.trim(),
-                  pat: form.pat?.trim() || undefined
-                }
-              })
-            }
-          >
-            Test Connection
-          </button>
-          {lastConnectionResult && (
-            <span className={`chip ${lastConnectionResult.ok ? 'success' : 'danger'}`}>
-              {lastConnectionResult.message}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
