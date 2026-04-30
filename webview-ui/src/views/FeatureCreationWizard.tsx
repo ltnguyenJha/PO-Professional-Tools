@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AppStatePayload, PbiDraft, WebviewRequest, FeatureDraft } from '../types';
 import type { ViewId } from '../components/Sidebar';
 import { LoadingBar } from '../components/LoadingBar';
@@ -917,6 +917,16 @@ export function FeatureCreationWizard({
   const [generationBusy, setGenerationBusy] = useState(false);
   const [generationError, setGenerationError] = useState<string | undefined>();
   const [deletedPbiIds, setDeletedPbiIds] = useState<Set<string>>(new Set());
+  const generationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the generation timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (generationTimeoutRef.current !== null) {
+        clearTimeout(generationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Step 4 local edits
   const [localEdits, setLocalEdits] = useState<Record<string, LocalPbiEdit>>({});
@@ -934,9 +944,21 @@ export function FeatureCreationWizard({
     ...manualStories.filter((s) => !deletedPbiIds.has(s.id)),
   ];
 
-  // When generation results arrive, transition to step 4
+  // When generation results arrive, transition to step 4 (or surface an error)
   useEffect(() => {
-    if (generatedPbiIds && generatedPbiIds.length > 0 && generationBusy) {
+    if (generatedPbiIds !== undefined && generationBusy) {
+      // Response received — cancel the 30-second timeout
+      if (generationTimeoutRef.current !== null) {
+        clearTimeout(generationTimeoutRef.current);
+        generationTimeoutRef.current = null;
+      }
+
+      if (generatedPbiIds.length === 0) {
+        setGenerationBusy(false);
+        setGenerationError('No stories were generated — please try again');
+        return;
+      }
+
       setGenerationBusy(false);
       setGenerationError(undefined);
       setLocalEdits((prev) => {
@@ -973,6 +995,18 @@ export function FeatureCreationWizard({
     setGenerationBusy(true);
     setGenerationError(undefined);
     onClearGeneratedPbiIds();
+
+    // Clear any previously running timeout before starting a new one
+    if (generationTimeoutRef.current !== null) {
+      clearTimeout(generationTimeoutRef.current);
+    }
+    // If the backend never responds, surface an error after 30 seconds
+    generationTimeoutRef.current = setTimeout(() => {
+      generationTimeoutRef.current = null;
+      setGenerationBusy(false);
+      setGenerationError('Generation failed — please try again');
+    }, 30_000);
+
     send({
       type: 'GENERATE_USER_STORIES_FROM_FEATURE',
       payload: {
