@@ -477,3 +477,186 @@ All development must follow a strict branch protection model:
 **Rationale:** Enforcing feature branches + PRs protects main branch integrity, ensures code review before production changes, maintains audit trail of all changes, and enables rollback capability. This is standard practice in professional software teams and enterprise development.
 
 ---
+
+## New Decisions (2026-04-29)
+
+### Issue #2: Team Selection Feature — Frontend → Backend Handoff (2026-04-29)
+
+**Status:** Frontend Complete, Backend Pending  
+**Authors:** Rusty (Frontend Dev), Linus (Backend Dev)  
+
+**Frontend Deliverables:**
+1. **DropdownWithFallback.tsx** — Reusable dropdown component with cascading support
+   - Loading state (spinner during fetch)
+   - Error state (chip with fallback text input option)
+   - Disabled state (with helper text explaining why)
+   - Keyboard accessible (native `<select>` element)
+
+2. **SettingsView.tsx Updates** — Replaced 3 text inputs with cascading dropdowns
+   - Cascading logic: Project → Team → Area Path → Iteration
+   - Auto-resets on field changes (project change clears team/area/iteration)
+   - Form validation ensures team selected before area/iteration enabled
+   - Auto-fetches on field changes (when hasAdoPat=true)
+
+3. **Type Definitions** (Synced between webview-ui and extension)
+   - Added `team?: string` on AdoSettings
+   - Request types: `FETCH_ADO_TEAMS`, `FETCH_ADO_AREA_PATHS`, `FETCH_ADO_ITERATIONS`
+   - Response types: `ADO_TEAMS_RESULT`, `ADO_AREA_PATHS_RESULT`, `ADO_ITERATIONS_RESULT`
+   - Payload format: `string[]` (success) or `{ error: string }` (failure)
+
+**Backend Implementation Required (Linus):**
+
+Three message handlers needed in `DashboardPanel.ts`:
+
+1. **FETCH_ADO_TEAMS**
+   - When: User enters Project + has PAT saved
+   - Request: `{ type: 'FETCH_ADO_TEAMS' }`
+   - Response (success): `{ type: 'ADO_TEAMS_RESULT', payload: string[] }` (team names)
+   - Response (failure): `{ type: 'ADO_TEAMS_RESULT', payload: { error: string } }`
+
+2. **FETCH_ADO_AREA_PATHS**
+   - When: User selects Team
+   - Request: `{ type: 'FETCH_ADO_AREA_PATHS', payload: { team: string } }`
+   - Response (success): `{ type: 'ADO_AREA_PATHS_RESULT', payload: string[] }` (area paths)
+   - Response (failure): `{ type: 'ADO_AREA_PATHS_RESULT', payload: { error: string } }`
+
+3. **FETCH_ADO_ITERATIONS**
+   - When: User selects Team
+   - Request: `{ type: 'FETCH_ADO_ITERATIONS', payload: { team: string } }`
+   - Response (success): `{ type: 'ADO_ITERATIONS_RESULT', payload: string[] }` (iteration paths)
+   - Response (failure): `{ type: 'ADO_ITERATIONS_RESULT', payload: { error: string } }`
+
+**Error Handling Guidelines:**
+- Network failure → return `{ error: "Failed to connect to Azure DevOps" }`
+- PAT expired/invalid → return `{ error: "Authentication failed. Update your PAT in Settings." }`
+- Team not found → return `{ error: "Team not found" }`
+- Empty results → return `[]` (empty array, not error)
+
+**Caching Recommendation (Optional):**
+Danny approved 30-min TTL cache in globalState:
+```typescript
+const cacheKey = `teams:${orgUrl}:${projectName}`;
+const cached = globalState.get(cacheKey);
+if (cached && cached.timestamp > Date.now() - 30*60*1000) {
+  return cached.data;
+}
+// ... fetch from ADO ...
+globalState.update(cacheKey, { data: teams, timestamp: Date.now() });
+```
+
+**Build Status:**
+- ✅ Webview: 49 modules, 20.81KB CSS, 229.67KB JS
+- ✅ Extension: 2.7MB, zero errors
+- ✅ All TypeScript types in sync
+
+**Testing Checklist:**
+- [ ] User enters Project → teams dropdown populates
+- [ ] User selects Team → area/iteration dropdowns populate
+- [ ] User changes Project → team/area/iteration reset
+- [ ] User changes Team → area/iteration reset
+- [ ] Network failure → error chip + fallback text input available
+- [ ] Empty results → dropdown shows "No options" or empty list
+- [ ] PAT missing → dropdowns disabled with helper text
+
+**Next Step:** Linus implements handlers → Danny tests end-to-end → Ship to production
+
+---
+
+### Issue #3: UI Refactor — Test Cases & Framework Proposal (2026-04-29)
+
+**Status:** Test Cases Complete, Framework Ready for Approval  
+**Authors:** Livingston (Tester), Rusty (Frontend Dev)  
+
+**Comprehensive Test Strategy Documented:**
+- 65+ test cases covering component rendering, user interactions, edge cases, accessibility, visual consistency, state transitions, and integration
+- Test cases written from user perspective (behavior-driven, not implementation-driven)
+- Anticipatory testing approach (cases written before implementation)
+
+**Test Case Coverage Areas:**
+1. Component Rendering — Happy path for all UI components
+2. User Interaction — Wizard navigation, form validation, CRUD operations, dialogs
+3. Edge Cases — Empty states, extreme inputs, rapid interactions, lifecycle
+4. Accessibility — Keyboard navigation, screen reader compatibility, focus management
+5. Visual Consistency — Theme support, responsive behavior, visual hierarchy
+6. State Transitions — Collapsible sections, loading states, error states
+7. Integration — Wizard-to-draft flow, message passing
+
+**Testing Framework Proposal (Approved by Danny):**
+
+**Stack Selection:**
+- **Vitest** — Native Vite integration, Jest API compatibility, fast execution
+- **React Testing Library** — User-centric testing, excellent a11y support
+- **jest-axe** — Automated WCAG 2.1 compliance checks
+- **jsdom** — DOM environment for component tests
+- **@testing-library/user-event** — Realistic user interaction simulation
+
+**Configuration Provided:**
+- `vitest.config.ts` example with jsdom environment and coverage setup
+- `src/__tests__/setup.ts` with VS Code API mocks and jest-dom matchers
+- Example test file showing component testing, keyboard nav, and accessibility checks
+- NPM scripts: `test`, `test:ui`, `test:coverage`, `test:run`
+
+**CI/CD Integration:**
+GitHub Actions workflow (.github/workflows/test.yml) with:
+- Automated test runs on push/PR
+- Coverage reporting to Codecov
+- Build failure if tests fail (blocks merge)
+
+**Test Coverage Goals:**
+- Phase 1 (Week 1): 80% coverage, 100% happy path — 16 hours
+- Phase 2 (Week 2): 70% coverage, all user workflows — 12 hours
+- Phase 3 (Week 3): 90% coverage, WCAG 2.1 Level AA — 12 hours
+- **Total Effort:** 44 hours (~1 sprint)
+
+**Quality Gates (Must Pass):**
+- [ ] No untested error paths
+- [ ] Keyboard navigation works on all interactive elements
+- [ ] ARIA labels present on dialogs, loading states, form fields
+- [ ] Theme support verified (light and dark)
+- [ ] No console errors or warnings
+- [ ] TypeScript compiles cleanly
+- [ ] Build succeeds
+
+**Critical Issues Flagged for Danny:**
+1. No testing infrastructure → Framework needed ASAP
+2. Inconsistent button states → Tests will enforce consistency
+3. Missing focus management → ConfirmDialog needs focus trap library (e.g., `focus-trap-react`)
+4. No a11y tooling → Tests now include jest-axe
+5. No visual regression testing → Storybook recommended for Phase 3
+
+**Decision for Danny:**
+1. Approve Vitest + RTL? (Recommend YES — perfect for Vite project)
+2. Coverage threshold? (Recommend 80% minimum to block merges)
+3. Storybook for visual regression? (Out of scope for Phase 1)
+4. Timeline: Setup now or after Issue #3 ships? (Recommend parallel)
+
+---
+
+### Git Workflow: Feature Branch Requirement & Conflict Resolution (2026-04-29)
+
+**Status:** Adopted  
+**By:** ltnguyen (via Copilot)  
+
+**Policy: No Direct Pushes to Main — Feature Branch Workflow Mandatory**
+
+All development must follow strict branch protection:
+- No direct commits to `main`
+- All work uses feature branches: `feature/*`, `fix/*`, `refactor/*`, `squad/*`
+- Every feature branch requires PR before merge
+- Only Danny (Lead) may merge PRs to main
+
+**Conflict Resolution Protocol:**
+
+**Feature Branch Wins Policy:** When merge conflicts occur on feature branch PRs, always resolve by keeping the version from the feature branch (not main). Feature branch has latest changes and intent from current work; main is stale.
+
+**Example Workflow:**
+1. Create feature branch: `git checkout -b squad/2-team-selection`
+2. Make commits with co-author: Include `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+3. Push to remote: `git push origin squad/2-team-selection`
+4. Create PR with issue reference: "Fix #2: Team selection dropdown cascade"
+5. If conflicts arise: Resolve using feature branch version (ours)
+6. Danny reviews and merges after approval
+
+**Why:** Protects main branch integrity, ensures code review, maintains audit trail, enables rollback.
+
+---

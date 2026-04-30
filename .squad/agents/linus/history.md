@@ -514,3 +514,115 @@ ADO EXPORT:
 - **Issue #29**: User Story Statement now also captured in draft, and AI can optionally return it in suggestions → applies to draft → exports to ADO
 
 **Build Validation:** TypeScript types updated; message contract extended without breaking changes; backward compatible (all new fields optional).
+
+---
+
+## Issue #2: Team Selection Feature — Backend Implementation (2026-04-29)
+
+**Context:** User needs to select team, area path, and iteration from dropdown menus populated by Azure DevOps API. Settings stored globally with 30-minute cache to reduce API calls.
+
+**Implementation:**
+
+1. **Message Types Extended** (src/shared/messages.ts):
+   - **AdoSettings interface**: Added 	eam?: string field for optional team selection
+   - **WebviewRequest union**: Added three new message types:
+     - FETCH_ADO_TEAMS — Request list of teams for dropdown
+     - FETCH_AREA_PATHS — Request area paths (optionally scoped to team)
+     - FETCH_ITERATIONS — Request iterations (optionally scoped to team)
+   - **ExtensionEvent union**: Added response message types:
+     - TEAMS_LOADED with payload: string[]
+     - AREAS_LOADED with payload: string[]
+     - ITERATIONS_LOADED with payload: string[]
+     - FETCH_FAILED with payload: { type, error }
+
+2. **AdoService Extended** (src/services/adoService.ts):
+   - **testConnection()**: Updated to validate PAT scopes (vso.work + vso.identity)
+     - Calls new alidatePatScopes() helper
+     - Fetches token info via Azure DevOps API
+     - Throws clear error if required scopes missing
+     - Updated error message to reference new scope requirements
+   - **fetchTeams()**: Fetches teams using getCoreApi().getTeams()
+     - Returns sorted array of team names
+     - Handles errors with clear messages
+   - **fetchAreaPaths()**: Fetches area classification nodes
+     - Uses getWorkItemTrackingApi().getClassificationNode()
+     - Recursively collects all area paths (depth 10)
+     - Returns formatted paths: "Project\Area\SubArea"
+     - Compatible with existing iteration format (backslash separator)
+   - **fetchIterations()**: Fetches iteration classification nodes
+     - Same pattern as fetchAreaPaths
+     - Returns paths matching esolveIterationPathForPush() expectations
+     - Format validated against iterationUtils.ts
+
+3. **DashboardPanel Message Handlers** (src/panels/DashboardPanel.ts):
+   - **handleMessage()**: Added switch cases for FETCH_ADO_TEAMS, FETCH_AREA_PATHS, FETCH_ITERATIONS
+   - **handleFetchTeams()**: 
+     - Checks cache first (30-min TTL)
+     - Fetches fresh data if cache stale or missing
+     - Posts TEAMS_LOADED or FETCH_FAILED
+   - **handleFetchAreaPaths()**: Same pattern as teams
+   - **handleFetchIterations()**: Same pattern as teams
+   - **getCachedData()**: Retrieves cached data with age check (30 min = 1800000ms)
+   - **setCachedData()**: Stores data with etchedAt timestamp in globalState
+   - **clearAdoCache()**: Public method to invalidate all three caches
+     - Called automatically in handleSaveAdoSettings() when settings change
+
+4. **Settings Management**:
+   - **BulkSaveInput type**: Added 	eam?: string field
+   - **handleSaveAdoSettings()**: Now saves team field and clears cache on settings update
+
+**Cache Keys:**
+- do.cache.teams → { data: string[], fetchedAt: number }
+- do.cache.areas → { data: string[], fetchedAt: number }
+- do.cache.iterations → { data: string[], fetchedAt: number }
+
+**PAT Scope Validation:**
+- **Required scopes**: so.work, so.identity
+- **Validation method**: Fetches PAT metadata via /_apis/tokens/pats endpoint
+- **Error handling**: Clear error message lists missing scopes
+- **Backward compatibility**: Non-fatal if scope check API fails (continues with warning)
+
+**Iteration Format Compatibility:**
+- Reviewed iterationUtils.ts to ensure format match
+- esolveIterationPathForPush() expects backslash-separated paths
+- etchIterations() returns paths in same format: "ProjectName\Sprint 1\Sprint 2"
+- iterationLeafFromPath() correctly extracts last segment for display
+
+**Integration Pattern:**
+`
+UI (Rusty) → FETCH_ADO_TEAMS → DashboardPanel.handleFetchTeams() 
+           → AdoService.fetchTeams() → Azure DevOps API
+           → Cache in globalState → TEAMS_LOADED → UI updates dropdown
+
+Cache hit: FETCH_ADO_TEAMS → getCachedData() → TEAMS_LOADED (no API call)
+Cache miss: FETCH_ADO_TEAMS → fetchTeams() → API call → setCachedData() → TEAMS_LOADED
+Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers fresh API call
+`
+
+**Error Handling:**
+- Network timeout: Caught by fetch methods, returns error string to UI
+- Empty results: Returns empty array (UI shows "No items found")
+- PAT missing scopes: Clear error message with required scopes listed
+- Connection failure: Existing requireAdoContext() pattern handles missing settings/PAT
+
+**Files Modified:**
+- src/shared/messages.ts — AdoSettings, WebviewRequest, ExtensionEvent
+- src/services/adoService.ts — fetchTeams, fetchAreaPaths, fetchIterations, validatePatScopes
+- src/panels/DashboardPanel.ts — Message handlers, cache implementation, BulkSaveInput
+
+**Coordination with Rusty (Frontend):**
+- Rusty will add dropdowns to Settings UI
+- Rusty sends FETCH_* messages on component mount or settings change
+- Backend responds with *_LOADED or FETCH_FAILED messages
+- Rusty populates dropdowns from payload arrays
+
+**No Iteration Format Issues Found:**
+- Iteration paths use backslash separator (Windows-style)
+- Both fetchIterations() and iterationUtils expect same format
+- No conversion needed between cache and usage
+
+**Next Steps for Team:**
+- Rusty: Add dropdowns to Settings UI, send FETCH_* messages, handle responses
+- Danny: Review scope validation approach, decide if cache TTL is appropriate
+- Testing: Verify PAT scope validation with tokens missing required scopes
+

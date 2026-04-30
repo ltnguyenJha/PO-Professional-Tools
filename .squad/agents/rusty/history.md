@@ -407,6 +407,91 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 
 **Fix:** Added `businessRulesAndAssumptions: businessRules` to all three locations:
 1. Line 118: wizard object construction used by `investScore()` and `isComplete()`
+
+### 2026-05-02 — Issue #2: Team Selection Feature — Frontend Implementation
+
+**Context:** Replaced static text inputs for team/area/iteration with cascading dropdowns populated by ADO API.
+
+**Components Created:**
+1. **DropdownWithFallback.tsx** — Reusable dropdown component with error handling
+   - Props: label, value, options, loading, error, disabled, placeholder, helperText, onChange, onFallback
+   - Features:
+     - Shows loading spinner (⏳) during API fetch
+     - Displays error chip with "Use text input instead" fallback button
+     - Switches to text input when API fails or user explicitly requests it
+     - Helper text guidance for disabled states
+     - Clears error state when user successfully selects an item
+
+**SettingsView.tsx Updates:**
+1. **Added dropdown state management:**
+   - `dropdownState` object tracks: teams[], areaPaths[], iterations[] + loading/error flags for each
+   - Message listener: responds to `ADO_TEAMS_RESULT`, `ADO_AREA_PATHS_RESULT`, `ADO_ITERATIONS_RESULT` events
+   - Payload handling: Array = success (options), Object with `error` = failure (show error chip)
+
+2. **Cascading dropdown logic:**
+   - Project change → resets team, area, iteration + clears all dropdown state
+   - Team change → resets area, iteration + clears their dropdown state
+   - Auto-fetch triggers:
+     - Teams: when projectName changes and hasAdoPat=true
+     - Area/Iteration: when team changes and hasAdoPat=true
+
+3. **UI flow:**
+   - Org URL + Project: text inputs (unchanged)
+   - Team: dropdown, disabled until Project entered + PAT saved
+   - Area Path: dropdown, disabled until Team selected
+   - Iteration Path: dropdown, disabled until Team selected
+   - Helper text: "Enter Project and save PAT first" → "Select your team..." → "Select a team first"
+
+4. **Form state updates:**
+   - Added `team?: string` to AdoSettings and AdoSettingsInput interfaces
+   - handleProjectChange/handleTeamChange cascade reset dependent fields
+   - Save payload includes team (optional field)
+
+**Type Changes:**
+- `webview-ui/src/types.ts`:
+  - Added `team?: string` to AdoSettings interface
+  - Added ExtensionEvent types: `ADO_TEAMS_RESULT`, `ADO_AREA_PATHS_RESULT`, `ADO_ITERATIONS_RESULT`
+  - Added WebviewRequest types: `FETCH_ADO_TEAMS`, `FETCH_ADO_AREA_PATHS`, `FETCH_ADO_ITERATIONS`
+  - Message payload: Array (success) or `{ error: string }` (failure)
+
+**Design Patterns:**
+- **Cascading disable pattern:** Each dropdown disabled until prerequisite field populated
+- **Error fallback pattern:** API failure → show error chip + button → switch to text input
+- **Loading state pattern:** Show loading spinner + disabled dropdown + "Loading..." placeholder
+- **Helper text guidance:** Clear messaging for why dropdown is disabled and what to do next
+- **Reset cascade:** Parent field change clears all child fields + dropdown state
+
+**Keyboard accessibility:**
+- All dropdowns are native `<select>` elements (keyboard navigation built-in)
+- Tab order: Org URL → Project → Team → Area → Iteration → Work Item Type → PAT
+- Focus-visible states already handled by existing `.field` CSS
+
+**Files modified:**
+- `webview-ui/src/components/DropdownWithFallback.tsx` (created)
+- `webview-ui/src/types.ts` (added team field, message types)
+- `webview-ui/src/views/SettingsView.tsx` (replaced inputs with dropdowns, added cascade logic)
+
+**Build status:** Not verified yet (waiting for Linus to implement backend handlers)
+
+**Coordinate with Linus (Backend Dev):**
+- Linus needs to implement: `FETCH_ADO_TEAMS`, `FETCH_ADO_AREA_PATHS`, `FETCH_ITERATIONS` handlers
+- Each handler should:
+  - Fetch data from ADO API (org + project + PAT already available in settings)
+  - Return `{ type: 'ADO_*_RESULT', payload: string[] }` on success
+  - Return `{ type: 'ADO_*_RESULT', payload: { error: string } }` on failure
+- Team fetch: needs org + project (no team required)
+- Area/Iteration fetch: needs org + project + team (passed in payload)
+
+**Key learnings:**
+- **Fallback UX is critical:** When API fails (network issue, PAT expired, etc), user shouldn't be blocked — text input fallback keeps workflow functional
+- **Cascade logic prevents invalid selections:** Can't select area/iteration without team → prevents ADO API errors
+- **Loading states must be explicit:** User sees spinner + disabled state → knows system is working, not broken
+- **Helper text reduces confusion:** Clear messaging about why dropdown is disabled and what prerequisite is missing
+- **Error state recovery:** When user fixes the issue (selects valid item), error state clears automatically
+
+**Pattern established:** This cascading dropdown + fallback pattern can be reused for future dependent field flows (e.g., Org → Project could also become dropdowns if we fetch available projects from ADO API).
+
+
 2. Line 173-181: handleGenerate payload passed to onGenerate callback
 3. Line 188-196: handleOpenInChat payload passed to onOpenInChat callback
 
