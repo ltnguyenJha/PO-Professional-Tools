@@ -46,6 +46,32 @@
 - Bug report workflow complete: UX → message send → service handling → AI generation → result display
 - Repo context improves LM accuracy; model fallback chain ensures org compatibility
 
+### 2026-05-01 — GENERATE_USER_STORIES_FROM_FEATURE Bug Fixes: Payload Sync + Feature Lookup
+
+**Problem:** Feature Creation Wizard Step 3 (AI Generation) spinner never resolved. Two root causes identified and fixed.
+
+**Bug 1 — Payload Field Mismatch (Backend):**
+- Backend sent `generatedPbis: PbiDraft[]`, frontend expected `generatedDraftIds: string[]`
+- Mismatch caused wizard useEffect to never fire → `generationBusy` never cleared → infinite spinner
+- Solution: Expanded GENERATE_USER_STORIES_FROM_FEATURE payload to include full inline feature data (title, description, why, userFlow, businessRules, repoIds) so backend doesn't need to look up unsaved feature. Changed USER_STORIES_GENERATED payload from `generatedPbis` to `generatedDraftIds`
+
+**Bug 2 — Feature Lookup Failure (Backend):**
+- Wizard generates stable `featureDraftId` at mount, but feature not yet saved when GENERATE_USER_STORIES_FROM_FEATURE is called
+- Handler tried `getFeatureDrafts().find(f => f.id === featureId)` → undefined → early return without UI cleanup
+- Solution: Build FeatureDraft from inline payload fields, fall back to global state if already saved. Upsert feature after generation. ALL error paths now emit FEATURE_GENERATION_ERROR + clear AI_PROGRESS busy=false
+
+**Key Learning:**
+- Type contracts must stay in sync end-to-end (messages.ts ↔ webview types.ts)
+- Wizard-generated IDs arrive before persistence; handlers must accept inline data as well as fallback lookups
+- Every handler that sets `AI_PROGRESS busy=true` must guarantee `busy=false` in ALL exit paths (including early returns)
+
+**Files Modified:**
+- `src/shared/messages.ts` — Payload expansion, message type union
+- `src/panels/DashboardPanel.ts` — Handler rewrite with error cleanup
+- `webview-ui/src/types.ts` — FEATURE_GENERATION_ERROR type
+
+---
+
 ### 2026-04-30 — Feature Creation Implementation (Phase 1 Data Layer)
 
 **Scope:** Completed full backend for Feature→PBI hierarchy intake flow

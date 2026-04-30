@@ -12,6 +12,55 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-01 — GENERATE_USER_STORIES_GENERATED Handler Fix: Spinner Resolution
+
+**Problem:** Feature Creation Wizard Step 3 spinner never resolved when user clicks "Generate User Stories". Two root causes identified and fixed:
+
+**Issue 1 — No Timeout:**
+- useEffect only exits when `generatedPbiIds` arrives from extension
+- If backend silently fails or drops the message, spinner spins forever
+- Solution: Added 30-second timeout via `useRef<ReturnType<typeof setTimeout> | null>` (not useState to avoid re-renders)
+- Timeout clears busy flag and shows error "Generation failed — please try again"
+- Timeout is cleared in: success path, empty-response path, unmount cleanup
+- Never double-fires (cleared in ALL resolution paths)
+
+**Issue 2 — Empty-Array Response Not Handled:**
+- Original guard: `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`
+- If backend emits empty `generatedDraftIds: []`, condition fails and spinner never clears
+- Solution: Changed guard to `generatedPbiIds !== undefined && generationBusy`
+  - Empty array now surfaces error "No stories were generated — please try again"
+  - Non-empty array advances to Step 4 normally
+
+**Key Patterns:**
+- Always use `useRef` (not state) for timeout IDs to avoid re-render loops
+- Clean up setTimeout on unmount via effect cleanup return
+- Use `!== undefined` not `.length > 0` to detect response arrival (backend might legitimately return [])
+- Clear timeout in ALL resolution paths to prevent double-firing
+
+**Files Modified:**
+- `webview-ui/src/views/FeatureCreationWizard.tsx` — Added useRef import, generationTimeoutRef, timeout handling, updated guard condition
+
+---
+
+### 2026-05-XX — FeatureCreationWizard Bug Fixes: Generation Timeout & Empty-Response Guard
+
+**Bug 1 (Checkbox multi-select):**
+After thorough code review, the existing `checked={selectedRepoIds.includes(repo.id)}` pattern in `Step2Context` is already correct — one checkbox ↔ one boolean derived from an array. No code change was needed. The bug as described in the task had already been implemented with the right pattern (likely from the original wizard session).
+
+**Bug 2 (Spinner never resolves):**
+Two root causes, both fixed:
+
+1. **No timeout:** The generation `useEffect` only exits when `generatedPbiIds` arrives from the extension. If the backend silently fails or drops the message, the spinner spins forever. Fixed by adding a 30-second `setTimeout` via `useRef<ReturnType<typeof setTimeout>>`. The timeout fires `setGenerationBusy(false)` + `setGenerationError('Generation failed — please try again')`. The timeout is always cleared in the success/empty-response paths and on component unmount (cleanup effect).
+
+2. **Empty-array response not handled:** The original condition was `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`. If the backend emits `USER_STORIES_GENERATED` with an empty `generatedDraftIds: []`, the condition fails and the spinner never clears. Fixed by changing the guard to `generatedPbiIds !== undefined && generationBusy` and then branching: empty array → show error, non-empty → normal advance to step 4.
+
+**Patterns to remember:**
+- Always use `useRef` (not state) for timeout IDs to avoid re-render loops.
+- Clean up `setTimeout` on unmount via a `return () => clearTimeout(ref.current)` effect.
+- When checking "did a response arrive?", use `!== undefined` not `.length > 0` — the backend might legitimately return an empty array, which is also a response worth handling.
+- The `generationTimeoutRef.current` must be cleared in ALL resolution paths (success, empty, timeout itself) to avoid double-firing.
+- App.tsx wiring for `USER_STORIES_GENERATED` → `setFeatureGeneratedPbiIds` was already correct; the bug was purely in the wizard's guard condition and missing timeout.
+
 ### 2026-04-30 — Feature Creation Wizard + Dashboard Hierarchy + PBI Studio Integration
 
 **Problem solved:**

@@ -3704,3 +3704,110 @@ Usage: `className="flex flex-col panel-wide:flex-row gap-4"`
 
 ---
 
+### Bugfix: GENERATE_USER_STORIES_FROM_FEATURE — Two Handler Bugs Fixed (2026-05-01)
+
+**Authors:** Linus (Backend Dev), Rusty (Frontend Dev)  
+**Status:** ✅ COMPLETED  
+**Date:** 2026-04-30 → 2026-05-01  
+**Commits:** 698c4e1 (Linus), build passing (Rusty)  
+**Branch:** feature/saul-tailwind-dashboard-redesign
+
+## Problems Identified
+
+### Bug 1 (Backend): Payload Field Name Mismatch — `generatedPbis` vs `generatedDraftIds`
+
+**Symptom:** User clicks "Generate User Stories" in Feature Creation Wizard (Step 3) → loading spinner never resolves → stuck forever.
+
+**Root Cause:**
+- Backend handler posted `USER_STORIES_GENERATED` event with payload: `{ featureId, generatedPbis: PbiDraft[] }`
+- Frontend (App.tsx) expected: `message.payload.generatedDraftIds` (string[])
+- Expected field was always `undefined` → wizard useEffect condition never fired → `generationBusy` flag never cleared → infinite spinner
+
+**Secondary Issue:** Feature lookup failed because feature not yet saved to state
+- Wizard generates stable `featureDraftId` at mount
+- User calls `GENERATE_USER_STORIES_FROM_FEATURE` before calling `CREATE_FEATURE_DRAFT`
+- Backend handler tried: `getFeatureDrafts().find(f => f.id === featureId)` → returned `undefined` for unsaved feature
+- Early return cleared `AI_PROGRESS` in some paths but not all → inconsistent UI cleanup
+
+## Solutions Implemented
+
+### Linus (Backend Dev) — Fixed Data Model Mismatch
+
+**Changes to `src/shared/messages.ts`:**
+1. Expanded `GENERATE_USER_STORIES_FROM_FEATURE` request payload to include full inline feature data:
+   - `title`, `description`, `why?`, `userFlow?`, `businessRules?`, `repoIds: string[]`
+   - Avoids lookup failures when feature not yet saved
+2. Changed `USER_STORIES_GENERATED` response payload from `generatedPbis: PbiDraft[]` → `generatedDraftIds: string[]`
+   - Matches frontend expectation exactly
+3. Added new `FEATURE_GENERATION_ERROR` event type with error message payload
+
+**Changes to `src/panels/DashboardPanel.ts` handler:**
+1. Constructor now builds `FeatureDraft` from inline payload fields
+2. Falls back to global state lookup if feature already saved
+3. Upserts feature into global state after generation (ensures parentFeatureId persists)
+4. ALL error paths now emit `FEATURE_GENERATION_ERROR` + clear `AI_PROGRESS busy=false`
+   - No early returns without UI cleanup
+   - Prevents stuck loading states
+5. Success path sends `generatedDraftIds` matching frontend contract
+
+**Changes to `webview-ui/src/types.ts`:**
+- Added `FEATURE_GENERATION_ERROR` to `ExtensionEvent` union
+
+### Rusty (Frontend Dev) — Fixed Spinner Resolution + Empty Array Handling
+
+**Changes to `webview-ui/src/views/FeatureCreationWizard.tsx`:**
+
+1. **Added 30-second timeout** (prevents infinite spinner if generation never arrives):
+   - `useRef<ReturnType<typeof setTimeout> | null>` to hold timer ID (not useState to avoid re-renders)
+   - Set timeout when user clicks "Generate" → fires `setGenerationBusy(false)` + error message after 30s
+   - Cleared in: success path, empty response path, unmount cleanup effect
+   - Prevents double-firing (always clear in ALL resolution paths)
+
+2. **Fixed empty-array handling:**
+   - Old guard: `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`
+   - New guard: `generatedPbiIds !== undefined && generationBusy`
+   - Old logic: empty array `[]` would fail length check → spinner never cleared
+   - New logic: empty array is a valid response → surface error "No stories were generated — please try again"
+   - Non-empty array advances to Step 4 as before
+
+3. **Message type alignment:**
+   - `App.tsx` handler now correctly receives and sets `generatedPbiIds` from payload `generatedDraftIds`
+
+## Key Lessons
+
+1. **Type contracts must be verified end-to-end:**
+   - `src/shared/messages.ts` (backend) + `webview-ui/src/types.ts` (frontend) must stay in sync manually
+   - A single property name mismatch causes the entire workflow to fail silently
+   - Recommend: TypeScript incremental checks or shared type generation in future
+
+2. **Wizard-generated IDs arrive before persistence:**
+   - Wizard uses `featureDraftId` from `useState` init at mount
+   - Feature is only saved much later via `CREATE_FEATURE_DRAFT`
+   - Handlers that look up entities must accept inline data as well as global state fallback
+
+3. **Early-return paths must ALWAYS clean up UI state:**
+   - Any handler that sets `AI_PROGRESS busy=true` must also guarantee `busy=false` in all exit paths
+   - Use explicit error emissions on every error path to prevent stuck spinners
+
+4. **Distinguish "response never arrived" from "empty response":**
+   - Use `!== undefined` not `.length > 0` to detect if response was received
+   - Backend might legitimately return `[]`; this is a valid response, not a missing response
+   - Two different UX states: timeout (error) vs empty results (also error but different)
+
+## Verification
+
+- ✅ **Backend:**  Field name corrected (generatedDraftIds), payload expanded with inline feature data
+- ✅ **Frontend:** 30s timeout + guard fixed, spinner now resolves
+- ✅ **Error paths:** All emit FEATURE_GENERATION_ERROR with no stuck UI states
+- ✅ **Build:** Extension + webview both compile cleanly
+- ✅ **Message flow:** App.tsx correctly wired to new payload shape
+
+## Files Modified
+- `src/shared/messages.ts` — Payload structure, message type union
+- `src/panels/DashboardPanel.ts` — Handler rewrite, error cleanup
+- `webview-ui/src/types.ts` — FEATURE_GENERATION_ERROR type
+- `webview-ui/src/views/FeatureCreationWizard.tsx` — Timeout logic, guard condition
+- `webview-ui/src/App.tsx` — Handler alignment (no breaking changes)
+
+---
+
