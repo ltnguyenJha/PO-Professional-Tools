@@ -759,6 +759,26 @@ Created dedicated GENERATE_FEATURE_DEFINITION instead of reusing GENERATE_FULL_S
 - Different prompts (business/product focus vs story format)
 - Clear separation prevents confusion and supports future specialization
 
+### Bugfix: GENERATE_USER_STORIES_FROM_FEATURE spinner never resolves (2026-05-01)
+
+**Commit:** 698c4e1
+
+Two bugs caused the loading state to spin forever when generating user stories from a feature.
+
+**Bug 1 — `generatedPbis` vs `generatedDraftIds` payload field mismatch (primary cause):**
+Backend posted `USER_STORIES_GENERATED` with `generatedPbis: PbiDraft[]` (full objects), but the webview (`App.tsx`) reads `message.payload.generatedDraftIds` (string[]). `generatedDraftIds` was `undefined` at runtime → wizard `useEffect` condition `generatedPbiIds.length > 0` was never true → `generationBusy` never cleared → infinite spinner. Fixed by sending `generatedDraftIds: newPbis.map(p => p.id)`.
+
+**Bug 2 — Feature not in global state at generation time:**
+The wizard creates a stable `featureDraftId` on mount, but only calls `CREATE_FEATURE_DRAFT` when the user clicks "Save as Draft" — much later in the flow. The handler called `getFeatureDrafts().find(...)`, got `undefined`, and returned early. The early-return posted a toast but never cleared `AI_PROGRESS busy=true`. Fixed by constructing a `FeatureDraft` from the inline payload fields (which the webview already sends) and upsert-ing it into global state after generation.
+
+**Pattern: always verify end-to-end payload field names.** `messages.ts` and `webview-ui/src/types.ts` can diverge. A field name mismatch compiles cleanly but breaks at runtime.
+
+**Pattern: wizard-generated stable IDs arrive before persistence.** Any handler that looks up entities from global state must handle the "not yet saved" case by accepting inline payload data as the fallback.
+
+**Pattern: early-return paths must always clean up UI state.** Any early return from a handler that set `AI_PROGRESS busy=true` must also send `AI_PROGRESS busy=false` — put it in the `finally` block or before the return.
+
+**Pattern: always emit an error event on all error paths.** Toast alone doesn't help if the webview is tracking a loading state separately. Post `FEATURE_GENERATION_ERROR` (or equivalent) so the webview can unset `generationBusy` and surface the error message instead of spinning.
+
 - Backend responds with *_LOADED or FETCH_FAILED messages
 - Rusty populates dropdowns from payload arrays
 
