@@ -317,3 +317,19 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - Risk mitigation strategies for both technical and organizational concerns
 
 **Key Learning:** Architecture roadmaps for stakeholders require balancing technical precision with executive accessibility. Use detailed Mermaid diagrams (not minimal sketches) to convey system complexity. Present three-phase approach (foundation → integration → automation) to show compounding value over time. Tie each phase to measurable business outcomes (time savings, adoption rates, quality metrics) rather than technical implementation details.
+
+### PR #40 Opened: PBI Studio UX Improvements (2026-04-30)
+
+**Branch:** feature/pbi-studio-ux-improvements  
+**PR URL:** https://github.com/ltnguyenJha/PO-Professional-Tools/pull/40  
+**Title:** feat(pbi-studio): UX improvements, wizard fixes, and AI-Generated Feature Definition
+
+**Summary of Changes:**
+- **UX Improvements:** Added "PBI Type" label, improved inactive button contrast, polished active pill with box-shadow; added AI-Generated hint label in Step 3
+- **Bug Fixes:** Fixed Business Rules navigation (onNext 4→5), removed Feature gate on Feature Definition step, aligned card padding to 16px
+- **New Feature:** AI-Generated Feature Definition button (generates why, userFlow, businessRules, userStoryStatement fields via Copilot)
+- **CSS Fixes:** Added numeric spacing scale (--space-1 through --space-8), added --color-primary-default and --color-error bridge variables, fixed undefined CSS variables
+
+**Build Status:** ✅ TypeScript: 0 errors, Webview build: green, Extension build: green
+
+**Key Learning:** Complete feature PRs combine UX polish, bug fixes, and new capabilities in a single coherent release. Comprehensive PR bodies with emoji sections (🎨 UX, 🐛 Bugs, ✨ Features, 🔧 Fixes) improve reviewer experience and documentation clarity. AI-Generated pattern (button → message → service → response) is now established across multiple wizard steps.
