@@ -52,3 +52,4 @@
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
+- **2026-04-30 17:00:** Saul (UI Designer) joined roster as design partner to collaborate on component library and Feature Wizard refinement.
