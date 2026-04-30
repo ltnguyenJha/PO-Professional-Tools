@@ -43,6 +43,16 @@
 
 /* VS Code injects vscode-light/vscode-dark/vscode-high-contrast on <body> */
 body.vscode-light {
+  /* Status foreground — must override :root defaults (which are dark-theme values).
+     In light themes, tokens like notificationsInfoIcon-foreground can resolve to
+     #3794ff (light blue, 3:1 on white) — failing WCAG AA for text.
+     Use darker, high-contrast token alternatives as fallbacks. */
+  --tw-vscode-success: var(--vscode-testing-iconPassed,                         #047857);
+  --tw-vscode-warning: var(--vscode-gitDecoration-modifiedResourceForeground,   #92400e);
+  --tw-vscode-info:    var(--vscode-textLink-foreground,                         #1d4ed8);
+  --tw-vscode-error:   var(--vscode-editorError-foreground,                      #be123c);
+
+  /* Status soft backgrounds */
   --tw-vscode-success-bg: rgba(4, 120, 87, 0.12);
   --tw-vscode-warning-bg: rgba(146, 64, 14, 0.12);
   --tw-vscode-info-bg:    rgba(0, 120, 212, 0.12);
