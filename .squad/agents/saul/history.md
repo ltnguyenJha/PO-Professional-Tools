@@ -48,3 +48,4 @@ Status soft backgrounds can't use `color-mix` reliably for all themes — use ha
 
 - **2026-04-30 12:00:** Saul joined the team as UI Designer, partnered with Tess. Charter established, ready for first assignment.
 - **2026-04-30 17:00:** Completed Dashboard Redesign + Tailwind CSS Setup task. Installed Tailwind v3, created bridge variable system, replaced DashboardView with Epic→Feature→Story hierarchy accordion, added StatusBadge component. Build ✅, tests ✅. Branch: `feature/saul-tailwind-dashboard-redesign`.
+- **2026-04-30 21:44:** Team sync: All three agent decisions merged into `.squad/decisions.md` (Danny architecture, Tess UX flows, Saul Tailwind implementation). Orchestration logs + session log written. Decision inbox deleted. Ready for PR + team review. Decisions record updated.

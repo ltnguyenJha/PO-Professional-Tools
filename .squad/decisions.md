@@ -3331,3 +3331,233 @@ Stale builds caused VS Code Insiders to load an old version of the extension, le
 
 ---
 
+### Epic → Feature → User Story Hierarchy Architecture (2026-04-30)
+
+**Author:** Danny (Lead)  
+**Date:** 2026-04-30  
+**Status:** Proposed (awaiting team review)  
+
+**Proposal:** `docs/architecture/epic-feature-story-hierarchy.md`
+
+## Key Decisions Made
+
+### 1. Separate Types (not PbiDraft extension)
+
+`FeatureDraft` and `EpicDraft` are independent types. PbiDraft is already overloaded with bug/feature/story fields. Separate types enable cleaner validation and independent lifecycles.
+
+### 2. ID-based Relationships (not inline)
+
+Parent-child stored via ID references (`childUserStoryIds`, `featureIds`, `parentFeatureId`). Single source of truth, no duplication, enables independent editing in PBI Studio.
+
+### 3. Feature Creation Replaces Bulk Breakdown
+
+The `bulk` ViewId is repurposed: same route, new wizard component. Old `BulkBreakdownView` deprecated over 2 sprints.
+
+### 4. High-Level Edit Only in Feature Wizard
+
+Step 4 (Review) only allows title + effort editing. Detailed story editing redirects to PBI Studio. Enforces separation of concerns.
+
+### 5. ADO Push Uses Hierarchy-Forward Links
+
+Feature → Story relationship uses `System.LinkTypes.Hierarchy-Forward` (standard ADO parent-child). Re-push updates existing work items.
+
+### 6. HierarchyStatus Includes 'partial'
+
+New status `'partial'` covers the case where parent is pushed but some children aren't. Critical for UX feedback.
+
+### 7. Nav Order: Epics & Features Between Dashboard and Projects
+
+High-level planning view logically sits above detail work (Projects, Studio).
+
+## Requires Input From
+
+- **Linus:** Feasibility of multi-repo context assembly for AI prompts
+- **Rusty:** TailwindCSS dashboard rendering approach, wizard step UX patterns
+- **Team:** Open questions in proposal Section 9
+
+## Blocking On
+
+Nothing — this is a greenfield addition. All changes are additive to existing types.
+
+---
+
+### UX Decisions — Feature Creation & Epics (2026-04-30)
+
+**Author:** Tess (UX Designer)  
+**Date:** 2026-04-30  
+**Status:** Proposed (pending team review)  
+
+**Spec:** `webview-ui/design/feature-creation-ux-spec.md`
+
+## Decision 1 — Feature Creation is a Dedicated View (Not Embedded in PBI Studio)
+
+**Decision:** Feature Creation becomes its own top-level view (`'features'` ViewId), replacing the current `'bulk'` view. It is NOT embedded in PBI Studio.
+
+**Rationale:** The user's mental model separates "capturing + breaking down a new feature" from "editing existing User Stories." Keeping them separate reduces cognitive load and prevents accidental deep-editing during the capture flow.
+
+**Impact:**
+- `Sidebar.tsx`: Rename ViewId `'bulk'` → `'features'`; update label to "Feature Creation"
+- `App.tsx`: Route `features` to new `FeatureCreationView` component (not `BulkBreakdownView`)
+- `BulkBreakdownView` may be deprecated or kept as a power-user tool under a different route
+
+## Decision 2 — 4-Step Wizard Structure
+
+**Decision:** Feature Creation uses a 4-step wizard: Feature Details → Repos & AI Context → AI Breakdown (generating) → Review & Push.
+
+**Rationale:** The previous wizard (embedded FeatureWizard in PBI Studio) had 6 steps covering Story + Feature Definition + Business Rules + Technical Details + Test Cases + Summary. That's too heavy for the "capture + breakdown" flow. The new 4-step flow covers capture and AI breakdown only; detailed editing is explicitly deferred to PBI Studio.
+
+**Impact:** New `FeatureCreationWizard` component with 4 step components. Existing `FeatureWizard` remains untouched in PBI Studio.
+
+## Decision 3 — Auto-Advance from AI Generation to Review (No Manual "Next" Click)
+
+**Decision:** When AI story generation completes successfully, the wizard automatically advances to Step 4 (Review) without requiring the user to click "Next."
+
+**Rationale:** The user is waiting passively for generation to complete. Requiring a click after a completed loading state adds unnecessary friction. Auto-advance mirrors modern AI tool UX patterns (similar to how GitHub Copilot chat shows results inline).
+
+## Decision 4 — Story Review Allows Inline Title + Effort Editing Only
+
+**Decision:** In the Review step, only **title** and **effort** are editable inline. All other fields (description, acceptance criteria, test cases, INVEST scoring) require PBI Studio.
+
+**Rationale:**
+1. Keeps the wizard focused on "quick review" not "full editing"
+2. Prevents scope creep — if users can edit everything here, the wizard becomes a second PBI Studio
+3. The "Edit in PBI Studio" CTA redirects users to the right tool for deep work
+
+**CTA labeling:** `✏ Edit in PBI Studio` (not just "Edit") to make the destination explicit.
+
+## Decision 5 — Add "Epics" as a New Sidebar View
+
+**Decision:** Add `'epics'` as a new ViewId in the sidebar. Position it second in the nav order (after Dashboard, before Feature Creation).
+
+**Proposed nav order:**
+1. Dashboard
+2. **Epics** (new)
+3. Feature Creation
+4. PBI Studio
+5. Projects
+6. RDIs
+7. Settings
+
+**Rationale:** Epics is the primary "work hierarchy" view and will be the most-visited view once a user has created Epics. It belongs near the top.
+
+## Decision 6 — Dashboard Removes KPI Grid, Adds Work Hierarchy
+
+**Decision:** Remove the KPI grid (Projects / Drafts / Pushed / ADO count cards) and the "Get Started" card from the Dashboard. Replace with:
+1. A **Work Hierarchy section** showing Epic → Feature → Story in a collapsible tree
+2. A **Quick Actions section** (2–3 compact action cards)
+3. A **conditional ADO banner** (shown only when ADO is not configured)
+
+**Rationale:**
+- KPI counts (Projects: 3, Drafts: 12, Pushed: 5) are low-signal for a Product Owner. A PO needs to know *what* is in flight, not how many items there are.
+- "Get Started" card is first-run content — it becomes noise after the first session. Replace with a first-run guard (`projects.length === 0 && pbiDrafts.length === 0`).
+- The hierarchy section gives immediate situational awareness: what Epics are active, which Features are ready to push, what's in draft.
+
+**Implementation note:** The Work Hierarchy tree on Dashboard should share the same tree component as the Epics view (`<WorkHierarchyTree>`) but in **read-only mode** (no push buttons on dashboard).
+
+## Decision 7 — Status Indicators Always Use Text + Color (Never Color Alone)
+
+**Decision:** Status badges throughout the app (Epics view, Dashboard hierarchy, Review chips) must display both a colored indicator AND a text label. Example: `🟡 Draft`, `🟢 Ready`, `🔵 In Progress`.
+
+**Rationale:** WCAG 2.1 AA — information must not be conveyed by color alone. Users with color-vision deficiency must be able to read status without relying on color.
+
+## Decision 8 — Repo Selection is Multi-Select with Search (Not a Single Dropdown)
+
+**Decision:** Step 2 of the Feature Creation wizard uses a **searchable multi-select list** (checkbox list with search filter) instead of a single `<select>` dropdown.
+
+**Rationale:** The user has many repos. A single dropdown requires scrolling to find and select multiple items. A checkbox list with search is significantly faster for multi-selection on long lists.
+
+**Component:** Either extend existing `<SearchableDropdown>` or build new `<RepoMultiSelect>` component. The list renders all repos from `linkTargets`.
+
+---
+
+### Tailwind CSS Setup + Dashboard Redesign (2026-04-30)
+
+**Author:** Saul (UI Designer)  
+**Date:** 2026-04-30  
+**Status:** Implemented  
+
+**Branch:** `feature/saul-tailwind-dashboard-redesign`
+
+## Decision 1: Tailwind CSS v3 (not v4)
+
+Pin to `tailwindcss@^3.4.0`. Tailwind v4 moves the PostCSS plugin to a separate `@tailwindcss/postcss` package and drops `tailwind.config.js` in favour of CSS-based config. v3 is more stable for our PostCSS + Vite pipeline and gives us the declarative `tailwind.config.js` approach required for the VS Code bridge token strategy.
+
+**install command:** `npm install -D tailwindcss@^3.4.0 postcss autoprefixer`
+
+## Decision 2: VS Code Bridge Variable Pattern
+
+Do not use Tailwind's static colors for theme-sensitive surfaces. Instead:
+
+1. Define `--tw-vscode-*` custom properties in `src/styles/tailwind.css` that delegate to `--vscode-*` runtime tokens with hardcoded fallbacks.
+2. Register those as Tailwind custom color utilities in `tailwind.config.js`.
+3. Use `body.vscode-light` / `body.vscode-dark` selectors (injected by VS Code) for status soft backgrounds that need to vary by theme.
+
+This gives us `bg-tw-bg`, `text-tw-fg`, `border-tw-border`, etc. as Tailwind classes while staying fully theme-adaptive.
+
+## Decision 3: Tailwind preflight disabled
+
+`corePlugins.preflight: false` — VS Code webviews receive base element styles from the host application. Tailwind's CSS reset would conflict with these, causing visual regressions in non-Dashboard views.
+
+## Decision 4: Additive CSS strategy (no big-bang migration)
+
+Existing custom CSS classes (`.card`, `.btn`, `.kpi`, `.studio-item`, `.chip`) remain in `styles.css` and are used by PBI Studio, Settings, and Projects views. Tailwind is used exclusively for new views: Dashboard and Feature Creation. No cross-contamination.
+
+When to use Tailwind vs custom CSS:
+- **New view or new major component** → Tailwind-first
+- **Existing view with incremental improvement** → keep existing classes, add Tailwind for structural layout only if needed
+
+## Decision 5: Dashboard removes KPI cards + "Get started"
+
+Removed:
+- **KPI grid** (Projects count, Routes/APIs scanned, Drafts count, Pushed count) — low information density for experienced users
+- **"Get started" card** — onboarding noise; users already know the workflow
+
+Kept:
+- **ADO status** — compact chip in top-right corner (clickable → Settings)
+- **Recent Activity** — last 5 items across all draft types, sidebar at panel-wide breakpoints
+
+Added:
+- **Epic → Feature → Story hierarchy accordion** — the primary focus; shows work item structure
+- **Empty state CTA** — guides new users without cluttering the experienced user view
+
+## Decision 6: Hierarchy uses workItemType (not future epicId/featureId)
+
+The current `PbiDraft` type has no `epicId` or `featureId` fields. The hierarchy is derived from `workItemType`:
+- `'Epic'` → top-level accordion entries
+- `'Feature'` → grouped under "Uncategorized Features" (no parent link yet)
+- `'User Story' | 'Product Backlog Item' | undefined` → "Standalone Stories"
+
+When `epicId`/`featureId` are added to the type system, the `deriveHierarchy` logic in `DashboardView.tsx` can be updated to build actual parent-child trees without changing the component's visual structure.
+
+## Decision 7: Custom `panel-wide` breakpoint at 700px
+
+VS Code webview panels render at variable widths (as narrow as 200px in split view). Tailwind's default `sm` (640px) is adequate but `panel-wide: 700px` is more semantically correct and gives the two-column layout more breathing room.
+
+```js
+// tailwind.config.js
+screens: { 'panel-wide': '700px' }
+```
+
+Usage: `className="flex flex-col panel-wide:flex-row gap-4"`
+
+## New Components
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| `StatusBadge` | `src/components/StatusBadge.tsx` | Theme-aware status chip. Props: `status: PbiStatus`, `size?: 'sm' \| 'xs'` |
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `webview-ui/package.json` | Added `tailwindcss@^3.4.0`, `postcss`, `autoprefixer` to devDependencies |
+| `webview-ui/postcss.config.js` | New — PostCSS plugin registration |
+| `webview-ui/tailwind.config.js` | New — Tailwind config with VS Code bridge colors |
+| `webview-ui/src/styles/tailwind.css` | New — `@tailwind` directives + bridge variable definitions |
+| `webview-ui/src/main.tsx` | Added `import './styles/tailwind.css'` |
+| `webview-ui/src/views/DashboardView.tsx` | Full replacement — hierarchy accordion layout |
+| `webview-ui/src/components/StatusBadge.tsx` | New — reusable status badge component |
+| `webview-ui/design/tailwind-setup.md` | New — implementation guide for Rusty |
+
+---
+

@@ -49,6 +49,22 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 
 **Manual step required:** After build, open repo in VS Code and press **F5** to launch Extension Development Host.
 
+### Epic → Feature → Story Hierarchy Architecture (2026-04-30)
+
+**Status:** Proposed (awaiting team review)  
+**Proposal:** `docs/architecture/epic-feature-story-hierarchy.md`
+
+Defined complete architectural specification for Epic/Feature/UserStory hierarchy supporting PO workflow. Key outcomes:
+- **Separate Types:** `FeatureDraft` and `EpicDraft` as independent types (not PbiDraft extensions)
+- **ID-based Relationships:** Parent-child via ID references for single source of truth
+- **Feature Creation:** New dedicated view replacing `bulk` ViewId with 4-step wizard
+- **ADO Integration:** Uses standard Hierarchy-Forward links; supports re-push updates
+- **HierarchyStatus:** New `'partial'` status for partially-pushed parents
+- **Navigation:** Epics & Features positioned between Dashboard and Projects
+
+**Decision merged:** `.squad/decisions.md`  
+**Cross-agent dependencies:** Requires input from Linus (context assembly), Rusty (Tailwind patterns), Team (proposal review)
+
 **Audit warnings:** 3 vulnerabilities (1 moderate, 2 high) in both installs. Non-blocking for dev but should be addressed before production packaging (`npm audit fix`).
 
 ### Strategic Framing: Platform Play Over Point Solution (2026-04-25)
