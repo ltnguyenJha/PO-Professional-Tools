@@ -41,6 +41,7 @@ export interface FeatureCreationWizardProps {
   appState: AppStatePayload;
   send: (message: WebviewRequest) => void;
   onNavigate: (view: ViewId) => void;
+  onEditInStudio?: (pbiId: string) => void;
   generatedPbiIds?: string[];
   onClearGeneratedPbiIds: () => void;
   pushProgress?: FeaturePushProgress | null;
@@ -281,11 +282,11 @@ function Step2Context({
       )
     : repos;
 
-  const toggleRepo = (id: string) => {
+  const toggleRepo = (path: string) => {
     setSelectedRepoIds(
-      selectedRepoIds.includes(id)
-        ? selectedRepoIds.filter((x) => x !== id)
-        : [...selectedRepoIds, id]
+      selectedRepoIds.includes(path)
+        ? selectedRepoIds.filter((x) => x !== path)
+        : [...selectedRepoIds, path]
     );
   };
 
@@ -300,7 +301,7 @@ function Step2Context({
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => setSelectedRepoIds(repos.map((r) => r.id))}
+              onClick={() => setSelectedRepoIds(repos.map((r) => r.path))}
             >
               Select all
             </button>
@@ -344,15 +345,15 @@ function Step2Context({
           ) : (
             filtered.map((repo) => (
               <label
-                key={repo.id}
+                key={repo.path}
                 className="flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ borderColor: 'var(--tw-vscode-border)' }}
                 title={repo.path}
               >
                 <input
                   type="checkbox"
-                  checked={selectedRepoIds.includes(repo.id)}
-                  onChange={() => toggleRepo(repo.id)}
+                  checked={selectedRepoIds.includes(repo.path)}
+                  onChange={() => toggleRepo(repo.path)}
                   className="shrink-0"
                 />
                 <span className="flex-1 min-w-0">
@@ -884,6 +885,7 @@ export function FeatureCreationWizard({
   appState,
   send,
   onNavigate,
+  onEditInStudio,
   generatedPbiIds,
   onClearGeneratedPbiIds,
   pushProgress,
@@ -991,6 +993,13 @@ export function FeatureCreationWizard({
 
   const step1Valid = title.trim().length >= 3 && description.trim().length >= 10;
 
+  // selectedRepoIds stores repo.path values (unique) to avoid ID collisions.
+  // This maps them back to repo.id values for API payloads.
+  const getRepoIdPayloads = (): string[] =>
+    linkTargets
+      .filter((r) => selectedRepoIds.includes(r.path))
+      .map((r) => r.id);
+
   const handleGenerate = () => {
     setGenerationBusy(true);
     setGenerationError(undefined);
@@ -1016,12 +1025,12 @@ export function FeatureCreationWizard({
         why: why.trim() || undefined,
         userFlow: userFlow.trim() || undefined,
         businessRules: businessRules.trim() || undefined,
-        repoIds: selectedRepoIds,
+        repoIds: getRepoIdPayloads(),
       },
     });
   };
 
-  const handleDeletePbi = (id: string) => {
+  const handleDeletePbi= (id: string) => {
     setDeletedPbiIds((prev) => new Set([...prev, id]));
     setManualStories((prev) => prev.filter((s) => s.id !== id));
   };
@@ -1055,8 +1064,12 @@ export function FeatureCreationWizard({
     }));
   };
 
-  const handleEditInStudio = (_pbiId: string) => {
-    onNavigate('studio');
+  const handleEditInStudio = (pbiId: string) => {
+    if (onEditInStudio) {
+      onEditInStudio(pbiId);
+    } else {
+      onNavigate('studio');
+    }
   };
 
   const getChildPbiIds = (): string[] => {
@@ -1075,7 +1088,7 @@ export function FeatureCreationWizard({
         why: why.trim() || undefined,
         userFlow: userFlow.trim() || undefined,
         businessRules: businessRules.trim() || undefined,
-        repoIds: selectedRepoIds,
+        repoIds: getRepoIdPayloads(),
         parentEpicId,
         childPbiIds: getChildPbiIds(),
       },
@@ -1093,7 +1106,7 @@ export function FeatureCreationWizard({
         why: why.trim() || undefined,
         userFlow: userFlow.trim() || undefined,
         businessRules: businessRules.trim() || undefined,
-        repoIds: selectedRepoIds,
+        repoIds: getRepoIdPayloads(),
         parentEpicId,
         childPbiIds: getChildPbiIds(),
         includeChildren: true,

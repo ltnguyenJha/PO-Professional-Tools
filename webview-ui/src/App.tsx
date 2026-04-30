@@ -160,6 +160,11 @@ export function App(): JSX.Element {
     setSuggestedChildren(undefined);
   }, []);
 
+  const navigateToStudio = useCallback((draftId?: string) => {
+    if (draftId) setFocusDraftId(draftId);
+    setView('studio');
+  }, []);
+
   const header = useMemo(() => {
     switch (view) {
       case 'dashboard':
@@ -220,7 +225,7 @@ export function App(): JSX.Element {
         <Topbar title={header.title} subtitle={header.subtitle} actions={header.actions} />
 
         {view === 'dashboard' && (
-          <DashboardView state={state} onNavigate={(target) => setView(target)} />
+          <DashboardView state={state} onNavigate={(target) => setView(target)} onNavigateToStudio={navigateToStudio} />
         )}
         {view === 'projects' && (
           <ProjectsView projects={state.projects} adoProgress={adoProgress} send={sendMessage} />
@@ -242,6 +247,7 @@ export function App(): JSX.Element {
             appState={state}
             send={sendMessage}
             onNavigate={setView}
+            onEditInStudio={navigateToStudio}
             generatedPbiIds={featureGeneratedPbiIds}
             onClearGeneratedPbiIds={() => setFeatureGeneratedPbiIds(undefined)}
             pushProgress={featurePushProgress}

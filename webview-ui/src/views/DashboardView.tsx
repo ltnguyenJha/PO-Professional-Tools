@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge';
 interface Props {
   state: AppStatePayload;
   onNavigate: (view: 'projects' | 'studio' | 'bulk' | 'settings') => void;
+  onNavigateToStudio?: (draftId?: string) => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -480,7 +481,7 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function DashboardView({ state, onNavigate }: Props): JSX.Element {
+export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props): JSX.Element {
   const { pbiDrafts, adoSettings, hasAdoPat, featureDrafts: rawFeatureDrafts, epicDrafts: rawEpicDrafts } = state;
   const featureDrafts = rawFeatureDrafts ?? [];
   // epicDrafts used for future expansion
@@ -517,8 +518,12 @@ export function DashboardView({ state, onNavigate }: Props): JSX.Element {
 
   const storyCountFor = (_featureId: string) => 0;
 
-  const navigateToStudio = (_draftId?: string) => {
-    onNavigate('studio');
+  const navigateToStudio = (draftId?: string) => {
+    if (draftId && onNavigateToStudio) {
+      onNavigateToStudio(draftId);
+    } else {
+      onNavigate('studio');
+    }
   };
 
   return (
