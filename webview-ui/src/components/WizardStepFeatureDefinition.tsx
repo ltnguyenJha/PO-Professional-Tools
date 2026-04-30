@@ -6,7 +6,6 @@ interface Props {
   onNext: (nextStep: number) => void;
   onBack: (prevStep: number) => void;
   onSave: (partialDraft: Partial<PbiDraft>) => void;
-  onGenerateAI?: () => void;
 }
 
 export function WizardStepFeatureDefinition({
@@ -14,7 +13,6 @@ export function WizardStepFeatureDefinition({
   onNext,
   onBack,
   onSave,
-  onGenerateAI,
 }: Props) {
   const [featureWhy, setFeatureWhy] = useState(draft.featureWhy || '');
   const [featureUserFlow, setFeatureUserFlow] = useState(draft.featureUserFlow || '');
@@ -61,17 +59,6 @@ export function WizardStepFeatureDefinition({
         <p className="wizard-step-description">
           Define the feature context with two essential questions. This helps align the team on the feature's purpose and user flow. All fields are optional.
         </p>
-        {onGenerateAI && (
-          <div style={{ marginTop: 'var(--space-md)' }}>
-            <button
-              className="wizard-btn wizard-btn-secondary"
-              onClick={onGenerateAI}
-              aria-label="Generate feature definition with AI"
-            >
-              ✨ AI-Generated
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="wizard-field">

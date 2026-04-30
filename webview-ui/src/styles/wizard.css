@@ -51,8 +51,16 @@
 }
 
 .wizard-progress-step.disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+}
+
+.wizard-progress-step.disabled .wizard-progress-step-indicator {
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-450);
+}
+
+.wizard-progress-step.disabled .wizard-progress-step-label {
+  color: var(--color-neutral-450);
 }
 
 .wizard-progress-step-indicator {

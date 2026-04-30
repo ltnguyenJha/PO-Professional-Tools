@@ -140,8 +140,7 @@ export function WizardStep3Story({
 
       {/* AI Mode Selector — at top of Story step (Decision #2) */}
       <div className="wizard-mode-selector">
-        <label className="wizard-mode-selector-label">AI Mode</label>
-        <div className="wizard-mode-toggle" role="radiogroup" aria-label="AI generation mode">
+        <div className="wizard-mode-toggle"role="radiogroup" aria-label="AI generation mode">
           <button
             className={`wizard-toggle-button ${aiMode === 'Manual' ? 'selected' : ''}`}
             onClick={() => setAiMode('Manual')}
@@ -246,8 +245,8 @@ export function WizardStep3Story({
         </div>
       )}
 
-      {/* INVEST checklist */}
-      <div className="wizard-field">
+      {/* INVEST checklist — hidden until functional (issue #49) */}
+      {false && <div className="wizard-field">
         <label className="wizard-field-label">INVEST Checklist</label>
         <div className="wizard-invest-grid" role="group" aria-label="INVEST criteria checklist">
           {investKeys.map(({ key, label, title }) => (
@@ -262,9 +261,8 @@ export function WizardStep3Story({
             </label>
           ))}
         </div>
-      </div>
+      </div>}
 
-      {/* AI generate section */}
       {aiMode === 'AI-Generated' && (
         <div className="ai-generate-section">
           <button
