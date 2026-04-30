@@ -977,13 +977,18 @@ export function PbiStudio({
                 </article>
               )}
 
-              <TechnicalConsiderationsSection
-                draft={active}
-                isLoading={aiBusy}
-                onUpdate={handleUpdateTechnicalConsiderations}
-                onGenerate={handleGenerateTechnicalConsiderations}
-              />
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
+                <TechnicalConsiderationsSection
+                  draft={active}
+                  isLoading={aiBusy}
+                  onUpdate={handleUpdateTechnicalConsiderations}
+                  onGenerate={handleGenerateTechnicalConsiderations}
+                />
+              )}
 
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
               <article className="card">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
@@ -1031,6 +1036,7 @@ export function PbiStudio({
                 </div>
                 </div>{/* end section-body */}
               </article>
+              )}{/* end hidden: Generate full story in-panel */}
 
               <article className="card">
                 <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
@@ -1073,6 +1079,8 @@ export function PbiStudio({
                 </div>{/* end section-body */}
               </article>
 
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
               <article className="card">
                 <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
@@ -1262,6 +1270,7 @@ export function PbiStudio({
                 </div>
                 </div>{/* end section-body */}
               </article>
+              )}{/* end hidden: Refine with AI (in panel) */}
             </>
           )}
         </section>
