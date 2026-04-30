@@ -385,6 +385,71 @@ export class CopilotService {
   }
 
   /**
+   * Generates Gherkin acceptance criteria and test scenarios for a PBI wizard story.
+   * Uses only the story content provided — no linked project context — to avoid
+   * generating criteria that belong to a different story in the editor context.
+   */
+  public async generateAcceptanceCriteria(
+    draft: PbiDraft,
+    token: vscode.CancellationToken
+  ): Promise<{ acceptanceCriteria: string[]; testScenarios: string[] }> {
+    const model = await this.pickModel();
+
+    const systemPrompt = [
+      'You are a senior QA engineer writing Azure DevOps acceptance criteria.',
+      'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+      '',
+      'Schema: { "acceptanceCriteria": string[], "testScenarios": string[] }',
+      '',
+      'ACCEPTANCE CRITERIA:',
+      '- Exactly 4 to 6 items.',
+      '- Each item is ONE verifiable outcome using Gherkin format: "Given [context], when [action], then [observable result]."',
+      '- Cover: primary happy path, key edge cases, and at least one error/failure state.',
+      '- Base ONLY on the story content provided below. Do NOT infer behavior from unrelated context.',
+      '- No vague outcomes like "the system works correctly" or "users can use the feature".',
+      '- Inside JSON strings, do NOT use raw double-quote characters; rephrase if needed.',
+      '',
+      'TEST SCENARIOS: 3 to 6 short labels (e.g. "Happy path — user submits valid form").',
+      '',
+      'CRITICAL: Generate criteria ONLY for the story described below. Ignore all other context.'
+    ].join('\n');
+
+    const storyStatement =
+      draft.featureUserStoryStatement?.trim() || draft.userStoryStatement?.trim() || '';
+    const description = draft.description?.trim() || '';
+    const featureWhy = draft.featureWhy?.trim() || '';
+
+    const userPrompt = [
+      `Story title: ${draft.title}`,
+      '',
+      storyStatement ? `User story statement:\n${storyStatement}` : '',
+      featureWhy ? `\nWhy does this matter:\n${featureWhy}` : '',
+      description ? `\nStory description:\n${description}` : '',
+      '',
+      'Generate acceptance criteria and test scenarios ONLY for the story above.'
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemPrompt),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    return {
+      acceptanceCriteria: Array.isArray(parsed.acceptanceCriteria)
+        ? (parsed.acceptanceCriteria as string[])
+        : [],
+      testScenarios: Array.isArray(parsed.testScenarios)
+        ? (parsed.testScenarios as string[])
+        : []
+    };
+  }
+
+  /**
    * Generates feature definition content (why, user flow, business rules, user story statement) for a PBI.
    * Grounds analysis in linked project context when available.
    */
