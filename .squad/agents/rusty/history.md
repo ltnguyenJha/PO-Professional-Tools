@@ -148,6 +148,102 @@
 
 **Testing notes:**
 - Verified build succeeds with `npm run build` in webview-ui.
+
+### 2026-05-01 — Wizard Step Redesign: Remove Type/Identity Steps, Streamline Flow
+
+**Problem solved:**
+- FeatureWizard had 7 steps including Type (step 0) and Identity (step 1) which added unnecessary friction.
+- Users wanted to jump straight into writing their story.
+- AI-Generated mode had a passive "AI-Ready" indicator instead of an actionable button.
+- Button label "New Feature" was too verbose in PbiStudio UI.
+- After AI generation, story fields didn't auto-reload with generated content.
+
+**Solution implemented:**
+
+**1. Renamed "New Feature" → "New" in PbiStudio (Change 1):**
+- `PbiStudio.tsx` line 894: Changed button text from "🆕 New Feature" to "🆕 New".
+- More concise, cleaner UI.
+
+**2. Removed Steps 0 (Type) and 1 (Identity) from FeatureWizard (Change 2):**
+- `FeatureWizard.tsx`:
+  - Removed imports for `WizardStep1Type` and `WizardStep2Identity`.
+  - Changed `steps` array from 7 to 5 steps: `['Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations']`.
+  - Removed step 0 and 1 render blocks (`currentStep === 0` and `currentStep === 1`).
+  - Renumbered all step renders: Story→0, FeatureDefinition→1, BusinessRules→2, Details→3, TechConsiderations→4.
+  - Removed `disabled` condition `(draft.workItemType === 'Bug' && idx === 0)` from progress bar since Type step is gone.
+  - Added `wasGeneratingRef` useRef to track AI generation state.
+  - Enhanced AI_PROGRESS listener to reload draft when generation finishes on step 0 (Story):
+    ```tsx
+    if (wasGeneratingRef.current && !nowBusy && currentStep === 0) {
+      vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
+    }
+    ```
+
+**3. Fixed all navigation numbers in step components (Change 3):**
+- `WizardStep3Story.tsx`:
+  - Changed `handleNext` from `onNext(3)` to `onNext(1)`.
+  - Made `onBack` optional in Props interface.
+  - Added conditional rendering: only show Back button if `onBack` prop exists.
+  - Added `isGenerating?: boolean` prop for loading state.
+  - Added `useEffect` to parse `draft.description` back into persona/want/benefit fields when AI updates it:
+    ```tsx
+    useEffect(() => {
+      const desc = draft.description || '';
+      const lines = desc.split('\n');
+      const personaLine = lines.find(l => l.startsWith('As a '));
+      const wantLine = lines.find(l => l.startsWith('I want '));
+      const benefitLine = lines.find(l => l.startsWith('So that '));
+      if (personaLine) setPersona(personaLine.replace('As a ', ''));
+      if (wantLine) setWant(wantLine.replace('I want ', ''));
+      if (benefitLine) setBenefit(benefitLine.replace('So that ', ''));
+    }, [draft.description]);
+    ```
+- `WizardStepFeatureDefinition.tsx`:
+  - Changed `onNext(4)` → `onNext(2)`.
+  - Changed `onBack(2)` → `onBack(0)`.
+- `WizardStep3p5BusinessRules.tsx`:
+  - Changed `onNext(5)` → `onNext(3)`.
+  - Changed `onBack(2)` → `onBack(1)`.
+- `WizardStep4Details.tsx`:
+  - Changed `onNext(5)` → `onNext(4)` (appears twice in component).
+  - Changed `onBack(3)` → `onBack(2)`.
+  - Changed button label from "Complete" to "Next".
+- `WizardStep6TechnicalConsiderations.tsx`:
+  - Changed `onBack(4)` → `onBack(3)`.
+
+**4. Made AI-Generated story button functional (Change 4):**
+- `WizardStep3Story.tsx`:
+  - Replaced passive "AI-Ready" indicator with actionable generate button:
+    ```tsx
+    {aiMode === 'AI-Generated' && (
+      <div className="ai-generate-section">
+        <button
+          className="wizard-btn wizard-btn-primary ai-generate-btn"
+          onClick={() => onGenerateAI?.()}
+          disabled={!onGenerateAI || isGenerating}
+          aria-label="Generate story using AI"
+        >
+          {isGenerating ? '⏳ Generating...' : '✨ Generate Story'}
+        </button>
+        <p className="wizard-mode-hint">
+          AI will draft your story based on the fields above. Fill in what you know, then let Copilot complete the rest.
+        </p>
+      </div>
+    )}
+    ```
+  - Added loading state: button shows "⏳ Generating..." when `isGenerating` is true.
+  - Disabled button during generation to prevent duplicate requests.
+
+**Key patterns:**
+- **Wizard step reduction:** Removed friction by starting from Story step, not Type/Identity.
+- **Auto-reload after AI generation:** Use `wasGeneratingRef` to detect generation completion and reload draft data so fields sync.
+- **Parse draft.description back to fields:** When AI updates `draft.description`, parse it back to persona/want/benefit fields so UI stays in sync.
+- **Actionable AI buttons:** Replace passive indicators with clear action buttons that show loading state.
+- **Conditional Back button:** First step doesn't show Back button (made `onBack` optional).
+
+**Testing notes:**
+- Verified build succeeds with `npm run build` from repo root.
+- TypeScript errors in SettingsView.tsx are pre-existing, not from these changes.
 - Changes are purely presentational — no backend message handler updates needed.
 - Feature Definition step now shows content regardless of workItemType selection.
 
