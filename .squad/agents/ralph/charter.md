@@ -20,3 +20,14 @@ Keeps the work moving. Runs the board. Never lets the team sit idle.
 - Act on highest-priority category first
 - Never ask permission to continue — loop until board is clear or explicit stop
 - Report every 3-5 rounds in the board format
+
+## Before Starting Work
+
+**🚫 NEVER commit to main branch!**
+
+Before ANY file operations:
+1. Check current branch: `git rev-parse --abbrev-ref HEAD`
+2. If on `main`: Run `pwsh .squad/scripts/ensure-feature-branch.ps1` to auto-create feature branch
+3. If already on feature branch: Continue with work
+
+See `.squad/git-workflow.md` for full policy details.

@@ -807,3 +807,465 @@ export const htmlStructureTests = [
  * - Verify message flow through extension
  * - Snapshot test HTML output
  */
+
+/**
+ * ============================================================================
+ * ISSUE #2: Team Selection Feature - Backend Tests
+ * ============================================================================
+ * 
+ * Testing Team, Area Path, and Iteration dropdown data fetching from ADO API
+ * with caching, error handling, and scope validation.
+ */
+
+export const teamSelectionBackendTests = [
+  // **fetchTeams() Method Tests**
+  {
+    id: 'TEAM-001',
+    priority: 'P0',
+    title: 'fetchTeams() returns array of team names from ADO API',
+    category: 'Happy Path - fetchTeams',
+    given: 'AdoSettings with valid orgUrl, projectName, and PAT with vso.identity scope',
+    when: 'adoService.fetchTeams(settings, pat) is called',
+    then: [
+      'Azure DevOps Core API getTeams() called with project ID',
+      'Returns array of team names: ["Team A", "Team B", "Team C"]',
+      'Names are strings with length > 0',
+      'Array is sorted alphabetically',
+      'No duplicates in returned array'
+    ],
+    expectedBehavior: 'Teams fetched and formatted correctly'
+  },
+
+  {
+    id: 'TEAM-002',
+    priority: 'P0',
+    title: 'fetchTeams() handles empty team list gracefully',
+    category: 'Edge Case - fetchTeams',
+    given: 'Project with no teams configured',
+    when: 'fetchTeams() called',
+    then: [
+      'Returns empty array []',
+      'No errors thrown',
+      'Logs informational message about empty teams'
+    ],
+    expectedBehavior: 'Empty team list handled without errors'
+  },
+
+  {
+    id: 'TEAM-003',
+    priority: 'P0',
+    title: 'fetchTeams() throws error when org/project missing',
+    category: 'Unhappy Path - fetchTeams',
+    given: 'AdoSettings with empty orgUrl or projectName',
+    when: 'fetchTeams() called',
+    then: [
+      'Error thrown with descriptive message',
+      'Error mentions missing org or project',
+      'No API calls made'
+    ],
+    expectedBehavior: 'Validation prevents invalid API calls'
+  },
+
+  {
+    id: 'TEAM-004',
+    priority: 'P0',
+    title: 'fetchTeams() throws error when PAT lacks vso.identity scope',
+    category: 'Unhappy Path - fetchTeams',
+    given: 'PAT with only vso.work scope (missing vso.identity)',
+    when: 'fetchTeams() called',
+    then: [
+      'Scope validation detects missing vso.identity',
+      'Error thrown: "PAT requires vso.identity scope to fetch teams"',
+      'Error message guides user on token regeneration',
+      'API call prevented if scope validation fails early'
+    ],
+    expectedBehavior: 'Scope validation prevents unauthorized API calls'
+  },
+
+  {
+    id: 'TEAM-005',
+    priority: 'P1',
+    title: 'fetchTeams() timeout after 5 seconds',
+    category: 'Edge Case - fetchTeams',
+    given: 'ADO API hangs or takes >5 seconds to respond',
+    when: 'fetchTeams() called',
+    then: [
+      'Promise rejects after 5 seconds',
+      'Error: "Timeout fetching teams from Azure DevOps"',
+      'Logs timeout event for debugging'
+    ],
+    expectedBehavior: 'Timeout prevents indefinite hangs'
+  },
+
+  {
+    id: 'TEAM-006',
+    priority: 'P1',
+    title: 'fetchTeams() logs API call details',
+    category: 'Observability - fetchTeams',
+    given: 'Any fetchTeams() invocation',
+    when: 'Method executes',
+    then: [
+      'Logs orgUrl and projectName (redacted PAT)',
+      'Logs number of teams returned',
+      'Logs API call duration',
+      'Logs errors with stack trace if any'
+    ],
+    expectedBehavior: 'Debugging information available in logs'
+  },
+
+  // **fetchAreaPaths() Method Tests**
+  {
+    id: 'AREA-001',
+    priority: 'P0',
+    title: 'fetchAreaPaths() returns formatted area paths',
+    category: 'Happy Path - fetchAreaPaths',
+    given: 'Project with area structure: Project > AreaA > SubArea1',
+    when: 'fetchAreaPaths(settings, pat) called without teamId',
+    then: [
+      'Returns array: ["Project", "Project\\\\AreaA", "Project\\\\AreaA\\\\SubArea1"]',
+      'Format matches iterationUtils expectations (double backslash)',
+      'Root area included if present',
+      'Hierarchy preserved in path format'
+    ],
+    expectedBehavior: 'Area paths formatted correctly for dropdown and ADO API'
+  },
+
+  {
+    id: 'AREA-002',
+    priority: 'P0',
+    title: 'fetchAreaPaths() handles empty area list gracefully',
+    category: 'Edge Case - fetchAreaPaths',
+    given: 'Project with no custom areas (only default)',
+    when: 'fetchAreaPaths() called',
+    then: [
+      'Returns array with at least root area: ["ProjectName"]',
+      'No errors thrown',
+      'Logs warning if no custom areas configured'
+    ],
+    expectedBehavior: 'Default area returned when no custom areas exist'
+  },
+
+  {
+    id: 'AREA-003',
+    priority: 'P1',
+    title: 'fetchAreaPaths() filters areas by team when teamId provided',
+    category: 'Filtering - fetchAreaPaths',
+    given: 'Team "Alpha" has areas: Project\\\\Alpha, Project\\\\Alpha\\\\Sub1',
+    when: 'fetchAreaPaths(settings, pat, "alpha-team-id") called',
+    then: [
+      'Returns only areas associated with Team Alpha',
+      'Other team areas excluded from results',
+      'Format remains consistent'
+    ],
+    expectedBehavior: 'Team-specific area filtering works correctly',
+    note: 'Implementation may defer filtering if not supported by ADO API directly'
+  },
+
+  {
+    id: 'AREA-004',
+    priority: 'P0',
+    title: 'fetchAreaPaths() throws error when scope missing',
+    category: 'Unhappy Path - fetchAreaPaths',
+    given: 'PAT missing vso.work scope',
+    when: 'fetchAreaPaths() called',
+    then: [
+      'Error thrown: "PAT requires vso.work scope"',
+      'API call prevented',
+      'User guided to regenerate PAT with correct scopes'
+    ],
+    expectedBehavior: 'Scope validation enforced'
+  },
+
+  {
+    id: 'AREA-005',
+    priority: 'P1',
+    title: 'fetchAreaPaths() works with iterationUtils format expectations',
+    category: 'Integration - fetchAreaPaths',
+    given: 'Area paths returned by fetchAreaPaths()',
+    when: 'Paths passed to iterationUtils or used in ADO push',
+    then: [
+      'Format matches expected structure',
+      'No parsing errors',
+      'Area paths resolve correctly in ADO API calls'
+    ],
+    expectedBehavior: 'Format compatibility verified'
+  },
+
+  {
+    id: 'AREA-006',
+    priority: 'P1',
+    title: 'fetchAreaPaths() logs API call details',
+    category: 'Observability - fetchAreaPaths',
+    given: 'fetchAreaPaths() execution',
+    when: 'Method runs',
+    then: [
+      'Logs project and teamId (if provided)',
+      'Logs number of areas returned',
+      'Logs API call duration'
+    ],
+    expectedBehavior: 'Debugging info available'
+  },
+
+  // **fetchIterations() Method Tests**
+  {
+    id: 'ITER-001',
+    priority: 'P0',
+    title: 'fetchIterations() returns formatted iteration paths',
+    category: 'Happy Path - fetchIterations',
+    given: 'Project with iterations: Sprint 1, Sprint 2, Sprint 3',
+    when: 'fetchIterations(settings, pat) called',
+    then: [
+      'Returns array: ["Project\\\\Sprint 1", "Project\\\\Sprint 2", "Project\\\\Sprint 3"]',
+      'Format matches resolveIterationPathForPush() expectations',
+      'Iterations sorted chronologically or alphabetically',
+      'No duplicates'
+    ],
+    expectedBehavior: 'Iterations formatted correctly for dropdown and ADO push'
+  },
+
+  {
+    id: 'ITER-002',
+    priority: 'P0',
+    title: 'fetchIterations() handles empty iteration list',
+    category: 'Edge Case - fetchIterations',
+    given: 'Project with no iterations configured',
+    when: 'fetchIterations() called',
+    then: [
+      'Returns empty array [] or array with root: ["ProjectName"]',
+      'No errors thrown',
+      'Logs warning about no iterations'
+    ],
+    expectedBehavior: 'Graceful handling of empty iterations'
+  },
+
+  {
+    id: 'ITER-003',
+    priority: 'P1',
+    title: 'fetchIterations() filters by team when teamId provided',
+    category: 'Filtering - fetchIterations',
+    given: 'Team "Beta" has iterations: Sprint 10, Sprint 11',
+    when: 'fetchIterations(settings, pat, "beta-team-id") called',
+    then: [
+      'Returns only iterations for Team Beta',
+      'Other team iterations excluded',
+      'Format consistent'
+    ],
+    expectedBehavior: 'Team-specific iteration filtering works',
+    note: 'Filtering may be deferred if API does not support direct team-based filtering'
+  },
+
+  {
+    id: 'ITER-004',
+    priority: 'P0',
+    title: 'fetchIterations() throws error when scope missing',
+    category: 'Unhappy Path - fetchIterations',
+    given: 'PAT missing vso.work scope',
+    when: 'fetchIterations() called',
+    then: [
+      'Error thrown: "PAT requires vso.work scope"',
+      'API call prevented'
+    ],
+    expectedBehavior: 'Scope validation enforced'
+  },
+
+  {
+    id: 'ITER-005',
+    priority: 'P1',
+    title: 'fetchIterations() timeout handling (5s max)',
+    category: 'Edge Case - fetchIterations',
+    given: 'ADO API hangs',
+    when: 'fetchIterations() called',
+    then: [
+      'Timeout after 5 seconds',
+      'Error: "Timeout fetching iterations"',
+      'Logged for debugging'
+    ],
+    expectedBehavior: 'Timeout prevents hangs'
+  },
+
+  {
+    id: 'ITER-006',
+    priority: 'P1',
+    title: 'fetchIterations() logs API call details',
+    category: 'Observability - fetchIterations',
+    given: 'fetchIterations() execution',
+    when: 'Method runs',
+    then: [
+      'Logs project and teamId',
+      'Logs iteration count',
+      'Logs duration'
+    ],
+    expectedBehavior: 'Debugging info available'
+  },
+
+  // **Scope Validation Tests (testConnection update)**
+  {
+    id: 'SCOPE-001',
+    priority: 'P0',
+    title: 'testConnection validates vso.work scope present',
+    category: 'Scope Validation',
+    given: 'PAT with scopes: vso.work, vso.identity',
+    when: 'testConnection(settings, pat) called',
+    then: [
+      'Scope query API called to retrieve PAT scopes',
+      'Validates vso.work scope present',
+      'Returns success (no error thrown)'
+    ],
+    expectedBehavior: 'Required scope validated'
+  },
+
+  {
+    id: 'SCOPE-002',
+    priority: 'P0',
+    title: 'testConnection validates vso.identity scope present',
+    category: 'Scope Validation',
+    given: 'PAT with vso.work and vso.identity',
+    when: 'testConnection() called',
+    then: [
+      'Validates vso.identity scope present',
+      'Connection succeeds'
+    ],
+    expectedBehavior: 'Identity scope validated'
+  },
+
+  {
+    id: 'SCOPE-003',
+    priority: 'P0',
+    title: 'testConnection returns detailed error when scopes missing',
+    category: 'Scope Validation - Error',
+    given: 'PAT with only vso.code scope (missing vso.work and vso.identity)',
+    when: 'testConnection() called',
+    then: [
+      'Error message: "PAT missing required scopes: vso.work, vso.identity"',
+      'Error includes instructions: "Regenerate PAT with these scopes at [link]"',
+      'Clear, actionable guidance provided',
+      'Connection fails before attempting other operations'
+    ],
+    expectedBehavior: 'Missing scopes detected with clear guidance'
+  },
+
+  {
+    id: 'SCOPE-004',
+    priority: 'P1',
+    title: 'testConnection gracefully handles PAT scope query failures',
+    category: 'Scope Validation - Edge Case',
+    given: 'ADO API scope endpoint returns 403 or 500',
+    when: 'testConnection() attempts scope validation',
+    then: [
+      'Logs warning about scope validation failure',
+      'Continues with connection test (may fail later with less clear error)',
+      'Does not block user completely if scope API is down'
+    ],
+    expectedBehavior: 'Scope validation failure does not hard-fail connection test',
+    note: 'Consider UX: warn user that scope validation was skipped'
+  },
+
+  {
+    id: 'SCOPE-005',
+    priority: 'P0',
+    title: 'testConnection error message guides user on token regeneration',
+    category: 'Scope Validation - UX',
+    given: 'PAT missing required scopes',
+    when: 'Error message displayed',
+    then: [
+      'Message includes: "Go to Azure DevOps > User Settings > Personal Access Tokens"',
+      'Message includes: "Create new token with scopes: vso.work, vso.identity"',
+      'Optionally includes direct link to PAT generation page'
+    ],
+    expectedBehavior: 'User can quickly resolve scope issues'
+  },
+
+  // **Cache Implementation Tests**
+  {
+    id: 'CACHE-001',
+    priority: 'P0',
+    title: 'Teams data cached in globalState with timestamp',
+    category: 'Cache - Storage',
+    given: 'fetchTeams() called for first time',
+    when: 'Data returned from ADO API',
+    then: [
+      'Data stored in globalState with key: "ado.cache.teams"',
+      'Cached object includes: { data: string[], timestamp: number }',
+      'Timestamp is current Unix time in milliseconds'
+    ],
+    expectedBehavior: 'Cache stored correctly'
+  },
+
+  {
+    id: 'CACHE-002',
+    priority: 'P0',
+    title: 'Cache returned if <30 min old',
+    category: 'Cache - Retrieval',
+    given: 'Teams cached 15 minutes ago',
+    when: 'fetchTeams() called again',
+    then: [
+      'Cached data returned immediately',
+      'No API call made',
+      'User sees instant dropdown population'
+    ],
+    expectedBehavior: 'Fresh cache used, API call avoided'
+  },
+
+  {
+    id: 'CACHE-003',
+    priority: 'P0',
+    title: 'Fresh fetch triggered if cache stale (>30 min)',
+    category: 'Cache - Expiration',
+    given: 'Teams cached 31 minutes ago',
+    when: 'fetchTeams() called',
+    then: [
+      'Cache detected as stale (timestamp + 30min < now)',
+      'New API call made',
+      'Cache updated with fresh data',
+      'New timestamp recorded'
+    ],
+    expectedBehavior: 'Stale cache refreshed automatically'
+  },
+
+  {
+    id: 'CACHE-004',
+    priority: 'P0',
+    title: 'Cache cleared when settings saved',
+    category: 'Cache - Invalidation',
+    given: 'User saves ADO settings (org, project, or PAT changed)',
+    when: 'SAVE_ADO_SETTINGS handled',
+    then: [
+      'Cache keys cleared: ado.cache.teams, ado.cache.areas, ado.cache.iterations',
+      'Next fetch triggers fresh API call',
+      'Ensures data matches new settings'
+    ],
+    expectedBehavior: 'Cache invalidated on settings change'
+  },
+
+  {
+    id: 'CACHE-005',
+    priority: 'P1',
+    title: 'Manual cache clear works (if exposed as method)',
+    category: 'Cache - Manual Clear',
+    given: 'Cache clear method exists (e.g., clearAdoCache())',
+    when: 'Method called',
+    then: [
+      'All ado.cache.* keys removed from globalState',
+      'Next fetch triggers API call',
+      'Useful for troubleshooting stale data'
+    ],
+    expectedBehavior: 'Manual cache clear available for debugging'
+  },
+
+  {
+    id: 'CACHE-006',
+    priority: 'P1',
+    title: 'Separate cache keys for teams, areas, iterations',
+    category: 'Cache - Key Management',
+    given: 'Multiple dropdown types',
+    when: 'Data cached',
+    then: [
+      'Teams: ado.cache.teams',
+      'Areas: ado.cache.areas',
+      'Iterations: ado.cache.iterations',
+      'Each cache managed independently',
+      'Clearing one does not affect others unless settings changed'
+    ],
+    expectedBehavior: 'Cache isolation per data type'
+  }
+];

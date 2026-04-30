@@ -2,6 +2,29 @@
 
 ## Active Decisions
 
+### Git Workflow Automation (2025-01-09)
+
+**Author:** Danny (Lead)  
+**Status:** Implemented  
+
+Squad-level enforcement of "never work on main" policy via automation:
+
+**Policy Document:** `.squad/git-workflow.md` — Full documentation of branch workflow, naming conventions, PR requirements, and responsibilities.
+
+**Automation Scripts:**
+- `.squad/scripts/ensure-feature-branch.ps1` (Windows/PowerShell)
+- `.squad/scripts/ensure-feature-branch.sh` (Unix/Bash)
+
+Both scripts check current branch, auto-create timestamped feature branch if on `main`, are idempotent and safe to run multiple times.
+
+**Agent Integration:** All agent charters (Danny, Rusty, Linus, Livingston, Ralph, Scribe) updated with "Before Starting Work" section requiring branch check before ANY file operations.
+
+**Routing Integration:** `.squad/routing.md` updated with Rule 8 (git workflow enforcement) and "Pre-Spawn Checklist" reminding coordinators to verify feature branch before spawning agents.
+
+**Rationale:** Prevents accidental direct commits to main, enforces code review via PRs, ensures CI/CD validation before merge, maintains clean git history. All work flows through feature branches with proper naming conventions and merge authority restricted to Lead.
+
+---
+
 ### Language Model Selection Fallback Chain (2026-04-24)
 
 **Author:** Linus (Backend Dev)  
@@ -472,6 +495,21 @@ All development must follow a strict branch protection model:
 ### 6. Issue Tracking
 - Every PR should reference an issue: `Fixes #N` or `Resolves #N`
 - Ralph monitors backlog and assignment status
+
+---
+
+## File Organization Discipline (2025-01-10)
+
+**Author:** Copilot (via Scribe)  
+**Status:** Adopted
+
+### File Organization Discipline
+- Root folder reserved for: `package.json`, `README.md`, `src/`, `dist/`, `docs/`, `design/`, `eslint.config.js`, `tsconfig.json`, `webview-ui/`, and similar core project files
+- All temporary, report, or generated artifacts must go into folders (`docs/`, `reports/`, `temp/`, or project-specific)
+- Squad members must verify folder placement before creating new files
+- Clutter prevention: if a file doesn't belong in root, find the right folder or create one
+
+**Rationale:** Reduces cognitive load, maintains project navigability, prevents root folder becoming a dumping ground for deployment artifacts, temporary reports, and generated documentation. Enforces discipline through charter updates for all squad agents.
 - Danny triages new issues and assigns to appropriate team members
 
 **Rationale:** Enforcing feature branches + PRs protects main branch integrity, ensures code review before production changes, maintains audit trail of all changes, and enables rollback capability. This is standard practice in professional software teams and enterprise development.

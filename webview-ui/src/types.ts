@@ -61,6 +61,7 @@ export interface PbiDraft {
 export interface AdoSettings {
   orgUrl: string;
   projectName: string;
+  team?: string;
   areaPath?: string;
   iterationPath?: string;
   defaultWorkItemType?: AdoWorkItemType;
@@ -173,7 +174,11 @@ export type ExtensionEvent =
   | { type: 'AI_BREAKDOWN_READY'; payload: { prefix: string; children: BulkChildInput[] } }
   | { type: 'ADO_CONNECTION_RESULT'; payload: { ok: boolean; message: string } }
   | { type: 'WIZARD_DRAFT_LOADED'; payload: { draft: PbiDraft; currentStep: number } }
-  | { type: 'WIZARD_STEP_CHANGED'; payload: { currentStep: number; draft: PbiDraft } };
+  | { type: 'WIZARD_STEP_CHANGED'; payload: { currentStep: number; draft: PbiDraft } }
+  | { type: 'ADO_TEAMS_RESULT'; payload: string[] | { error: string } }
+  | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
+  | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
+  | { type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string } };
 
 export type WebviewRequest =
   | { type: 'APP_READY' }
@@ -232,7 +237,11 @@ export type WebviewRequest =
   | { type: 'OPEN_BUG_REPORT_IN_CHAT'; payload: BugReportInput }
   | { type: 'WIZARD_DRAFT_LOAD'; payload: { draftId: string } }
   | { type: 'WIZARD_STEP_CHANGE'; payload: { draftId: string; targetStep: number } }
-  | { type: 'WIZARD_DRAFT_SAVE'; payload: { draftId: string; partialDraft: Partial<PbiDraft>; currentStep: number } };
+  | { type: 'WIZARD_DRAFT_SAVE'; payload: { draftId: string; partialDraft: Partial<PbiDraft>; currentStep: number } }
+  | { type: 'FETCH_ADO_TEAMS' }
+  | { type: 'FETCH_ADO_AREA_PATHS'; payload: { team: string } }
+  | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
+  | { type: 'VALIDATE_PAT_SCOPES' };
 
 interface VsCodeApi {
   postMessage(message: WebviewRequest): void;

@@ -224,9 +224,7 @@ export function App(): JSX.Element {
           <SettingsView
             adoSettings={state.adoSettings}
             hasAdoPat={state.hasAdoPat}
-            theme={state.uiSettings.theme}
             send={sendMessage}
-            onThemeChange={onThemeChange}
             lastConnectionResult={connectionResult}
           />
         )}

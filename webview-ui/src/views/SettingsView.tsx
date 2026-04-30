@@ -4,155 +4,332 @@ import type {
   AdoSettingsInput,
   AdoWorkItemType,
   ThemePreference,
-  WebviewRequest
+  WebviewRequest,
+  ExtensionEvent
 } from '../types';
 import { WORK_ITEM_TYPES } from '../types';
+import { DropdownWithFallback } from '../components/DropdownWithFallback';
+import { SearchableDropdown } from '../components/SearchableDropdown';
 
 interface Props {
   adoSettings?: AdoSettings;
   hasAdoPat: boolean;
-  theme: ThemePreference;
   send: (message: WebviewRequest) => void;
-  onThemeChange: (theme: ThemePreference) => void;
   lastConnectionResult?: { ok: boolean; message: string };
+}
+
+interface DropdownState {
+  teams: string[];
+  teamsLoading: boolean;
+  teamsError?: string;
+  iterations: string[];
+  iterationsLoading: boolean;
+  iterationsError?: string;
+}
+
+interface PatValidationState {
+  validated: boolean;
+  validating: boolean;
+  error?: string;
 }
 
 export function SettingsView({
   adoSettings,
   hasAdoPat,
-  theme,
   send,
-  onThemeChange,
   lastConnectionResult
 }: Props): JSX.Element {
   const [form, setForm] = useState<AdoSettingsInput>({
     orgUrl: '',
     projectName: '',
-    areaPath: '',
+    team: '',
     iterationPath: '',
     defaultWorkItemType: 'Product Backlog Item',
     pat: ''
   });
   const [editPat, setEditPat] = useState<boolean>(false);
+  const [dropdownState, setDropdownState] = useState<DropdownState>({
+    teams: [],
+    teamsLoading: false,
+    iterations: [],
+    iterationsLoading: false
+  });
+  const [patValidationState, setPatValidationState] = useState<PatValidationState>({
+    validated: false,
+    validating: false
+  });
+  const [savingSettings, setSavingSettings] = useState<boolean>(false);
 
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  
+  const [openConnection, setOpenConnection] = useState<boolean>(true);
+  const [openDefaults, setOpenDefaults] = useState<boolean>(true);
+
+  // Load settings from adoSettings
   useEffect(() => {
     if (adoSettings) {
       setForm((existing) => ({
         ...existing,
         orgUrl: adoSettings.orgUrl ?? '',
         projectName: adoSettings.projectName ?? '',
-        areaPath: adoSettings.areaPath ?? '',
+        team: adoSettings.team ?? '',
         iterationPath: adoSettings.iterationPath ?? '',
         defaultWorkItemType: adoSettings.defaultWorkItemType ?? 'Product Backlog Item'
       }));
     }
   }, [adoSettings]);
 
+  // On Settings tab load, if PAT exists, validate it
+  useEffect(() => {
+    if (hasAdoPat && !patValidationState.validated && !patValidationState.validating) {
+      setPatValidationState((prev) => ({ ...prev, validating: true, error: undefined }));
+      send({ type: 'VALIDATE_PAT_SCOPES' });
+    }
+  }, [hasAdoPat, send]);
+
+  // Listen for dropdown and validation data from extension
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent<ExtensionEvent>): void => {
+      const message = event.data;
+      if (message.type === 'PAT_VALIDATION_RESULT') {
+        setPatValidationState({
+          validated: message.payload.valid,
+          validating: false,
+          error: message.payload.valid ? undefined : message.payload.error
+        });
+      } else if (message.type === 'ADO_TEAMS_RESULT') {
+        if (Array.isArray(message.payload)) {
+          setDropdownState((prev) => ({
+            ...prev,
+            teams: message.payload as string[],
+            teamsLoading: false,
+            teamsError: undefined
+          }));
+        } else {
+          setDropdownState((prev) => ({
+            ...prev,
+            teams: [],
+            teamsLoading: false,
+            teamsError: message.payload.error
+          }));
+        }
+      } else if (message.type === 'ADO_ITERATIONS_RESULT') {
+        if (Array.isArray(message.payload)) {
+          setDropdownState((prev) => ({
+            ...prev,
+            iterations: message.payload as string[],
+            iterationsLoading: false,
+            iterationsError: undefined
+          }));
+        } else {
+          setDropdownState((prev) => ({
+            ...prev,
+            iterations: [],
+            iterationsLoading: false,
+            iterationsError: message.payload.error
+          }));
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Fetch teams when project changes - ONLY if validated
+  useEffect(() => {
+    if (form.projectName.trim() && hasAdoPat && patValidationState.validated) {
+      setDropdownState((prev) => ({
+        ...prev,
+        teamsLoading: true,
+        teamsError: undefined,
+        teams: []
+      }));
+      send({ type: 'FETCH_ADO_TEAMS' });
+    }
+  }, [form.projectName, hasAdoPat, patValidationState.validated, send]);
+
+  // Fetch iterations when team changes - ONLY if validated
+  useEffect(() => {
+    if (form.team?.trim() && hasAdoPat && patValidationState.validated) {
+      setDropdownState((prev) => ({
+        ...prev,
+        iterationsLoading: true,
+        iterationsError: undefined,
+        iterations: []
+      }));
+      send({ type: 'FETCH_ADO_ITERATIONS', payload: { team: form.team } });
+    }
+  }, [form.team, hasAdoPat, patValidationState.validated, send]);
+
   const save = (): void => {
+    setSavingSettings(true);
+    setSaveSuccess(false);
     const payload: AdoSettingsInput = {
       orgUrl: form.orgUrl.trim(),
       projectName: form.projectName.trim(),
-      areaPath: form.areaPath?.trim() || undefined,
+      team: form.team?.trim() || undefined,
       iterationPath: form.iterationPath?.trim() || undefined,
       defaultWorkItemType: form.defaultWorkItemType
     };
-    // Always persist a non-empty PAT from the field (first-time save). When a PAT is already
-    // stored, the field is disabled until "Update"; editPat is not required for that case.
     if (form.pat && form.pat.trim().length > 0) {
       payload.pat = form.pat.trim();
     }
     send({ type: 'SAVE_ADO_SETTINGS', payload });
+    // After save, trigger validation automatically
+    setPatValidationState({ validated: false, validating: true, error: undefined });
+    send({ type: 'VALIDATE_PAT_SCOPES' });
     setEditPat(false);
     setForm((prev) => ({ ...prev, pat: '' }));
+    
+    // Show success feedback
+    setTimeout(() => {
+      setSavingSettings(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }, 500);
+  };
+
+  const handleProjectChange = (value: string): void => {
+    setForm({
+      ...form,
+      projectName: value,
+      team: '',
+      iterationPath: ''
+    });
+    setDropdownState({
+      teams: [],
+      teamsLoading: false,
+      iterations: [],
+      iterationsLoading: false
+    });
+  };
+
+  const handleTeamChange = (value: string): void => {
+    setForm({
+      ...form,
+      team: value,
+      iterationPath: ''
+    });
+    setDropdownState((prev) => ({
+      ...prev,
+      iterations: [],
+      iterationsLoading: false
+    }));
+  };
+
+  const handlePatEdit = (): void => {
+    // Clear validation when PAT field is edited
+    setPatValidationState({ validated: false, validating: false });
   };
 
   return (
     <div className="content">
-      <section className="card">
-        <div className="card-header">
-          <h3>Azure DevOps</h3>
-          <span className={`chip ${hasAdoPat ? 'success' : 'warning'}`}>
-            {hasAdoPat ? 'PAT saved' : 'PAT missing'}
-          </span>
+      {/* Azure DevOps Connection Section */}
+      <section className="card settings-section">
+        <div className="section-header" onClick={() => setOpenConnection((o) => !o)}>
+          <div>
+            <h3 className="settings-section-title">Azure DevOps Connection</h3>
+            <p className="settings-section-subtitle">Configure your Azure DevOps organization and project</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className={`status-badge ${hasAdoPat ? 'status-success' : 'status-warning'}`}>
+              {hasAdoPat ? '✓ PAT Saved' : '⚠ PAT Missing'}
+            </span>
+            <span className={`section-chevron ${openConnection ? 'open' : ''}`}>▾</span>
+          </div>
         </div>
-        <p className="card-subtitle">
-          These fields are used when pushing work items. The PAT is stored in VS Code Secret
-          Storage; it never leaves your machine.
-        </p>
+
+        <div className={`section-body ${openConnection ? '' : 'collapsed'}`}>
+        {/* PAT Validation Status Banner */}
+        {hasAdoPat && (
+          <div className="validation-status-container">
+            {patValidationState.validating && (
+              <div className="validation-banner validation-banner-info">
+                <span className="validation-icon">⏳</span>
+                <span>Validating PAT scopes...</span>
+              </div>
+            )}
+            {patValidationState.validated && !patValidationState.error && !patValidationState.validating && (
+              <div className="validation-banner validation-banner-success">
+                <span className="validation-icon">✅</span>
+                <span>PAT valid and ready for use</span>
+              </div>
+            )}
+            {!patValidationState.validated && patValidationState.error && !patValidationState.validating && (
+              <div className="validation-banner validation-banner-error">
+                <span className="validation-icon">⚠️</span>
+                <span>PAT validation failed: {patValidationState.error}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="field-row">
           <label className="field">
-            Organization URL
+            <span className="field-label">Organization URL</span>
             <input
               value={form.orgUrl}
               onChange={(e) => setForm({ ...form, orgUrl: e.target.value })}
               placeholder="https://dev.azure.com/your-org"
+              className="smooth-input"
             />
           </label>
           <label className="field">
-            Project
+            <span className="field-label">Project Name</span>
             <input
               value={form.projectName}
-              onChange={(e) => setForm({ ...form, projectName: e.target.value })}
-              placeholder="Project Name"
+              onChange={(e) => handleProjectChange(e.target.value)}
+              placeholder="Your Project"
+              className="smooth-input"
             />
           </label>
-          <label className="field">
-            Area Path (optional)
-            <input
-              value={form.areaPath ?? ''}
-              onChange={(e) => setForm({ ...form, areaPath: e.target.value })}
-              placeholder="Project\\Area"
-            />
-          </label>
-          <label className="field">
-            Iteration Path
-            <input
-              value={form.iterationPath ?? ''}
-              onChange={(e) => setForm({ ...form, iterationPath: e.target.value })}
-              placeholder="Project\\Iteration\\Sprint 1"
-            />
-          </label>
-          <label className="field">
-            Default Work Item Type
-            <select
-              value={form.defaultWorkItemType ?? 'Product Backlog Item'}
-              onChange={(e) =>
-                setForm({ ...form, defaultWorkItemType: e.target.value as AdoWorkItemType })
-              }
-            >
-              {WORK_ITEM_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Personal Access Token
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                type="password"
-                value={form.pat ?? ''}
-                placeholder={hasAdoPat ? '•••••••••• (saved)' : 'Paste PAT to save'}
-                disabled={!editPat && hasAdoPat}
-                onChange={(e) => setForm({ ...form, pat: e.target.value })}
-              />
-              {hasAdoPat && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setEditPat((v) => !v)}
-                >
-                  {editPat ? 'Cancel' : 'Update'}
-                </button>
-              )}
+          <label className="field" style={{ gridColumn: '1 / -1' }}>
+            <span className="field-label">Personal Access Token</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                <input
+                  type="password"
+                  value={form.pat ?? ''}
+                  placeholder={hasAdoPat ? '•••••••••• (securely stored)' : 'Paste your PAT here'}
+                  disabled={!editPat && hasAdoPat}
+                  className="smooth-input"
+                  onChange={(e) => {
+                    setForm({ ...form, pat: e.target.value });
+                    if (hasAdoPat && patValidationState.validated) {
+                      handlePatEdit();
+                    }
+                  }}
+                />
+                {hasAdoPat && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setEditPat((v) => !v);
+                      if (patValidationState.validated) {
+                        handlePatEdit();
+                      }
+                    }}
+                  >
+                    {editPat ? 'Cancel' : 'Update'}
+                  </button>
+                )}
+              </div>
+              <small className="field-hint">
+                Stored securely in VS Code Secret Storage. Never leaves your machine.
+              </small>
             </div>
           </label>
         </div>
 
-        <div className="action-row" style={{ marginTop: 6 }}>
-          <button className="btn btn-primary" onClick={save}>
-            Save Settings
+        <div className="action-row" style={{ marginTop: 16 }}>
+          <button 
+            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
+            onClick={save} 
+            disabled={savingSettings}
+          >
+            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
           </button>
           <button
             className="btn"
@@ -181,29 +358,75 @@ export function SettingsView({
             </span>
           )}
         </div>
-        <p className="hint" style={{ marginTop: 10 }}>
-          Test uses the <strong>Organization URL</strong> and <strong>Project</strong> shown above. You
-          can test <strong>before</strong> saving: paste a PAT in the field (or click <strong>Update</strong>{' '}
-          if one is already stored), then Test Connection. Trailing slashes on the org URL are trimmed
-          automatically.
-        </p>
+        </div>
       </section>
 
-      <section className="card">
-        <div className="card-header">
-          <h3>Appearance</h3>
+      {/* Team & Defaults Section */}
+      <section className="card settings-section">
+        <div className="section-header" onClick={() => setOpenDefaults((o) => !o)}>
+          <div>
+            <h3 className="settings-section-title">Team & Defaults</h3>
+            <p className="settings-section-subtitle">Configure team-specific settings and work item defaults</p>
+          </div>
+          <span className={`section-chevron ${openDefaults ? 'open' : ''}`}>▾</span>
         </div>
-        <p className="card-subtitle">Choose a theme for the dashboard.</p>
-        <div className="tabs" role="group" aria-label="Theme">
-          {(['light', 'dark', 'auto'] as const).map((option) => (
-            <button
-              key={option}
-              aria-pressed={theme === option}
-              onClick={() => onThemeChange(option)}
+
+        <div className={`section-body ${openDefaults ? '' : 'collapsed'}`}>
+        <div className="field-row">
+          <DropdownWithFallback
+            label="Team"
+            value={form.team ?? ''}
+            options={dropdownState.teams}
+            loading={dropdownState.teamsLoading}
+            error={dropdownState.teamsError}
+            disabled={!form.projectName.trim() || !hasAdoPat}
+            placeholder="Select team"
+            helperText={
+              !form.projectName.trim() || !hasAdoPat
+                ? 'Save project and PAT first'
+                : patValidationState.validating
+                  ? 'Validating PAT...'
+                  : !patValidationState.validated
+                    ? 'PAT validation pending'
+                    : undefined
+            }
+            onChange={handleTeamChange}
+          />
+          <SearchableDropdown
+            label="Iteration Path"
+            value={form.iterationPath ?? ''}
+            options={dropdownState.iterations}
+            loading={dropdownState.iterationsLoading}
+            error={dropdownState.iterationsError}
+            disabled={!form.team?.trim()}
+            placeholder="Search iteration"
+            helperText={
+              !form.team?.trim() 
+                ? 'Select team first' 
+                : undefined
+            }
+            onChange={(value) => setForm({ ...form, iterationPath: value })}
+          />
+          <label className="field">
+            <span className="field-label">Default Work Item Type</span>
+            <select
+              value={form.defaultWorkItemType ?? 'Product Backlog Item'}
+              className="smooth-input"
+              onChange={(e) =>
+                setForm({ ...form, defaultWorkItemType: e.target.value as AdoWorkItemType })
+              }
             >
-              {option === 'auto' ? 'Auto (follow VS Code)' : option === 'light' ? 'Light' : 'Dark'}
-            </button>
-          ))}
+              {WORK_ITEM_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <small className="field-hint">
+              Used when creating new work items
+            </small>
+          </label>
+        </div>
         </div>
       </section>
     </div>

@@ -670,3 +670,315 @@ export const edgeCaseMessageTests = [
  * - Error paths
  * - Data consistency
  */
+
+/**
+ * ============================================================================
+ * ISSUE #2: Team Selection Feature - Message Handler Tests
+ * ============================================================================
+ * 
+ * Testing FETCH_ADO_TEAMS, FETCH_AREA_PATHS, and FETCH_ITERATIONS message handlers
+ * with cache management, error handling, and proper response formatting.
+ */
+
+export const teamSelectionMessageHandlerTests = [
+  // **FETCH_ADO_TEAMS Handler**
+  {
+    id: 'FETCH-TEAMS-001',
+    priority: 'P0',
+    title: 'FETCH_ADO_TEAMS receives message type correctly',
+    category: 'Message Handling - Fetch Teams',
+    given: 'Webview sends: { type: "FETCH_ADO_TEAMS" }',
+    when: 'DashboardPanel.handleMessage() routes message',
+    then: [
+      'Message type recognized and routed to handleFetchTeams()',
+      'Handler invoked without errors',
+      'No unexpected side effects'
+    ],
+    expectedBehavior: 'Message routing works correctly'
+  },
+
+  {
+    id: 'FETCH-TEAMS-002',
+    priority: 'P0',
+    title: 'FETCH_ADO_TEAMS returns TEAMS_LOADED with string[] payload',
+    category: 'Message Handling - Fetch Teams',
+    given: 'ADO settings configured, PAT valid, teams exist',
+    when: 'handleFetchTeams() executes',
+    then: [
+      'adoService.fetchTeams() called with settings and PAT',
+      'Response posted: { type: "TEAMS_LOADED", payload: ["Team A", "Team B"] }',
+      'Payload is array of strings',
+      'No error messages sent'
+    ],
+    expectedBehavior: 'Teams fetched and sent to webview'
+  },
+
+  {
+    id: 'FETCH-TEAMS-003',
+    priority: 'P0',
+    title: 'FETCH_ADO_TEAMS returns FETCH_FAILED with error message on failure',
+    category: 'Message Handling - Fetch Teams Error',
+    given: 'ADO settings invalid or network error',
+    when: 'handleFetchTeams() executes and adoService throws error',
+    then: [
+      'Error caught in handler',
+      'Response posted: { type: "FETCH_FAILED", payload: { type: "teams", error: "error message" } }',
+      'Error message includes helpful context',
+      'No crash or unhandled rejection'
+    ],
+    expectedBehavior: 'Errors handled gracefully, webview notified'
+  },
+
+  {
+    id: 'FETCH-TEAMS-004',
+    priority: 'P0',
+    title: 'FETCH_ADO_TEAMS uses cache when valid',
+    category: 'Message Handling - Cache',
+    given: 'Teams cached <30 min ago',
+    when: 'handleFetchTeams() executes',
+    then: [
+      'getCachedData("ado.cache.teams") called',
+      'Cached data returned if timestamp < 30 min',
+      'TEAMS_LOADED posted with cached data',
+      'No API call made to adoService'
+    ],
+    expectedBehavior: 'Cache used for fast response'
+  },
+
+  {
+    id: 'FETCH-TEAMS-005',
+    priority: 'P0',
+    title: 'FETCH_ADO_TEAMS fetches fresh when cache stale',
+    category: 'Message Handling - Cache Expiration',
+    given: 'Teams cached >30 min ago',
+    when: 'handleFetchTeams() executes',
+    then: [
+      'Cache detected as stale',
+      'adoService.fetchTeams() called',
+      'setCachedData("ado.cache.teams", newData) called',
+      'TEAMS_LOADED posted with fresh data'
+    ],
+    expectedBehavior: 'Stale cache triggers fresh fetch'
+  },
+
+  // **FETCH_AREA_PATHS Handler**
+  {
+    id: 'FETCH-AREAS-001',
+    priority: 'P0',
+    title: 'FETCH_AREA_PATHS accepts optional teamId parameter',
+    category: 'Message Handling - Fetch Areas',
+    given: 'Webview sends: { type: "FETCH_AREA_PATHS", payload: { teamId: "team-abc" } }',
+    when: 'handleFetchAreaPaths() executes',
+    then: [
+      'teamId extracted from payload',
+      'adoService.fetchAreaPaths(settings, pat, "team-abc") called',
+      'Areas filtered by team (if supported by backend)'
+    ],
+    expectedBehavior: 'TeamId parameter passed correctly'
+  },
+
+  {
+    id: 'FETCH-AREAS-002',
+    priority: 'P0',
+    title: 'FETCH_AREA_PATHS returns AREAS_LOADED with formatted paths',
+    category: 'Message Handling - Fetch Areas',
+    given: 'Areas exist in ADO project',
+    when: 'handleFetchAreaPaths() executes',
+    then: [
+      'adoService.fetchAreaPaths() called',
+      'Response: { type: "AREAS_LOADED", payload: ["Project\\\\Area1", "Project\\\\Area2"] }',
+      'Format matches SettingsView expectations',
+      'Paths properly escaped (double backslash)'
+    ],
+    expectedBehavior: 'Area paths fetched and formatted'
+  },
+
+  {
+    id: 'FETCH-AREAS-003',
+    priority: 'P0',
+    title: 'FETCH_AREA_PATHS handles missing teamId (returns all areas)',
+    category: 'Message Handling - Fetch Areas',
+    given: 'Webview sends: { type: "FETCH_AREA_PATHS" } (no teamId)',
+    when: 'handleFetchAreaPaths() executes',
+    then: [
+      'teamId undefined or null',
+      'adoService.fetchAreaPaths(settings, pat, undefined) called',
+      'All project areas returned',
+      'No filtering applied'
+    ],
+    expectedBehavior: 'Missing teamId returns all areas'
+  },
+
+  {
+    id: 'FETCH-AREAS-004',
+    priority: 'P0',
+    title: 'FETCH_AREA_PATHS returns error on failure',
+    category: 'Message Handling - Fetch Areas Error',
+    given: 'ADO API call fails',
+    when: 'handleFetchAreaPaths() executes',
+    then: [
+      'Error caught',
+      'Response: { type: "FETCH_FAILED", payload: { type: "areas", error: "message" } }',
+      'Webview can display error and fallback to text input'
+    ],
+    expectedBehavior: 'Error handled and communicated'
+  },
+
+  // **FETCH_ITERATIONS Handler**
+  {
+    id: 'FETCH-ITERS-001',
+    priority: 'P0',
+    title: 'FETCH_ITERATIONS accepts optional teamId parameter',
+    category: 'Message Handling - Fetch Iterations',
+    given: 'Webview sends: { type: "FETCH_ITERATIONS", payload: { teamId: "team-xyz" } }',
+    when: 'handleFetchIterations() executes',
+    then: [
+      'teamId extracted from payload',
+      'adoService.fetchIterations(settings, pat, "team-xyz") called',
+      'Iterations filtered by team'
+    ],
+    expectedBehavior: 'TeamId parameter used correctly'
+  },
+
+  {
+    id: 'FETCH-ITERS-002',
+    priority: 'P0',
+    title: 'FETCH_ITERATIONS returns ITERATIONS_LOADED with properly formatted paths',
+    category: 'Message Handling - Fetch Iterations',
+    given: 'Iterations exist in ADO project',
+    when: 'handleFetchIterations() executes',
+    then: [
+      'adoService.fetchIterations() called',
+      'Response: { type: "ITERATIONS_LOADED", payload: ["Project\\\\Sprint 1", "Project\\\\Sprint 2"] }',
+      'Format matches resolveIterationPathForPush() expectations',
+      'Paths properly escaped'
+    ],
+    expectedBehavior: 'Iterations fetched and formatted'
+  },
+
+  {
+    id: 'FETCH-ITERS-003',
+    priority: 'P0',
+    title: 'FETCH_ITERATIONS verifies format matches iterationUtils expectations',
+    category: 'Message Handling - Format Validation',
+    given: 'Iterations returned from handler',
+    when: 'Data passed to resolveIterationPathForPush()',
+    then: [
+      'Format parsing succeeds',
+      'No errors thrown by iterationUtils',
+      'Iteration paths resolve correctly in ADO push'
+    ],
+    expectedBehavior: 'Format compatibility verified'
+  },
+
+  {
+    id: 'FETCH-ITERS-004',
+    priority: 'P0',
+    title: 'FETCH_ITERATIONS returns error on failure',
+    category: 'Message Handling - Fetch Iterations Error',
+    given: 'ADO API call fails',
+    when: 'handleFetchIterations() executes',
+    then: [
+      'Error caught',
+      'Response: { type: "FETCH_FAILED", payload: { type: "iterations", error: "message" } }',
+      'Webview displays error'
+    ],
+    expectedBehavior: 'Error handled'
+  },
+
+  // **Cache Management in Handlers**
+  {
+    id: 'CACHE-HANDLER-001',
+    priority: 'P0',
+    title: 'Cache keys follow pattern: ado.cache.[type]',
+    category: 'Cache - Key Management',
+    given: 'All three handlers',
+    when: 'Cache operations performed',
+    then: [
+      'Teams use key: "ado.cache.teams"',
+      'Areas use key: "ado.cache.areas"',
+      'Iterations use key: "ado.cache.iterations"',
+      'Keys consistent across get/set operations'
+    ],
+    expectedBehavior: 'Cache keys consistent and predictable'
+  },
+
+  {
+    id: 'CACHE-HANDLER-002',
+    priority: 'P0',
+    title: 'Cache cleared on SAVE_ADO_SETTINGS',
+    category: 'Cache - Invalidation',
+    given: 'User saves ADO settings',
+    when: 'SAVE_ADO_SETTINGS handler executes',
+    then: [
+      'clearCache() called for all dropdown caches',
+      'Next fetch triggers fresh API call',
+      'Ensures data consistency with new settings'
+    ],
+    expectedBehavior: 'Cache invalidated on settings change'
+  },
+
+  {
+    id: 'CACHE-HANDLER-003',
+    priority: 'P1',
+    title: 'Cache timestamp stored in globalState',
+    category: 'Cache - Storage',
+    given: 'Data cached by handler',
+    when: 'setCachedData() called',
+    then: [
+      'Object stored: { data: [...], timestamp: Date.now() }',
+      'Timestamp used for expiration check',
+      'Data retrievable via getCachedData()'
+    ],
+    expectedBehavior: 'Cache includes timestamp for expiration'
+  },
+
+  // **Integration with Settings Persistence**
+  {
+    id: 'INTEGRATION-001',
+    priority: 'P0',
+    title: 'SAVE_ADO_SETTINGS includes team/area/iteration values',
+    category: 'Integration - Save',
+    given: 'User selects team, area, iteration in SettingsView',
+    when: 'Save button clicked and SAVE_ADO_SETTINGS message sent',
+    then: [
+      'Payload includes: { team: "Team A", areaPath: "Project\\\\Area1", iterationPath: "Project\\\\Sprint 1" }',
+      'settingsService.saveAdoSettings() called with all fields',
+      'Values persisted to extension storage',
+      'STATE_UPDATED posted to webview with updated settings'
+    ],
+    expectedBehavior: 'Team selection persisted with other settings'
+  },
+
+  {
+    id: 'INTEGRATION-002',
+    priority: 'P0',
+    title: 'Settings persist across view re-renders',
+    category: 'Integration - Persistence',
+    given: 'User saves team selection',
+    when: 'Dashboard closed and reopened',
+    then: [
+      'APP_READY message triggers postState()',
+      'adoSettings includes saved team/area/iteration',
+      'SettingsView pre-populates dropdowns with saved values',
+      'User sees their previous selections'
+    ],
+    expectedBehavior: 'Settings restored on view reload'
+  },
+
+  {
+    id: 'INTEGRATION-003',
+    priority: 'P1',
+    title: 'Error handling does not corrupt existing settings',
+    category: 'Integration - Error Safety',
+    given: 'Fetch fails for teams dropdown',
+    when: 'User manually enters team in fallback input and saves',
+    then: [
+      'Manual entry saved correctly',
+      'Other settings (org, project, PAT) remain intact',
+      'No data loss due to fetch failure',
+      'Next load shows manual entry'
+    ],
+    expectedBehavior: 'Fallback input works without corrupting settings'
+  }
+];

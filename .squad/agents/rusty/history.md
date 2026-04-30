@@ -12,6 +12,36 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-01-XX — Settings PAT Validation Gate Pattern
+
+**Problem solved:**
+- Team/Area Path/Iteration dropdowns were stuck in "loading" indefinitely when PAT was invalid or missing required scopes.
+- Root cause: Dropdown fetches were triggered immediately on project/team changes without first validating PAT scopes.
+- If PAT validation failed silently, user would see spinners forever with no error feedback.
+
+**Solution implemented:**
+- Added `PatValidationState` interface: `{ validated: boolean; validating: boolean; error?: string }` tracked separately from dropdown state.
+- Auto-trigger `VALIDATE_PAT_SCOPES` on component mount (if `hasAdoPat` is true) and after every settings save.
+- Gate all dropdown fetches on `patValidationState.validated`:
+  - Teams fetch only if `form.projectName.trim() && hasAdoPat && patValidationState.validated`
+  - Area paths / iterations only if `form.team?.trim() && hasAdoPat && patValidationState.validated`
+- Dropdowns remain **visually present but disabled** until validation passes (don't hide them) — UX rule: always show the UI, just disable interactivity.
+- Added validation status indicator above dropdowns: "Validating PAT scopes..." → "✅ PAT valid" or "⚠️ PAT validation failed: {error}".
+- When user edits PAT field, clear validation state (`validated: false`) to force re-validation on save.
+- Show contextual helper text in Team dropdown: "PAT validation pending. Click Save to validate."
+
+**Key messaging types added:**
+- `type: 'VALIDATE_PAT_SCOPES'` (WebviewRequest) — request validation from extension.
+- `type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string }` (ExtensionEvent) — response from extension.
+
+**CSS strategy:**
+- Used simple flexbox layout for validation banners: `display: 'flex'; alignItems: 'center'; gap: 8px` with emoji indicators (⏳ ✅ ⚠️).
+- No new CSS classes — inline styles sufficient for banner styling. Uses existing VS Code CSS variables for colors.
+
+**State management pattern (reusable):**
+- Separate "validation" state from "data" state — prevents race conditions and allows clear UI feedback about why operations are blocked.
+- Auto-validation on mount + auto-validation on save creates a "validate early, validate often" flow.
+
 ### 2026-01-01 — Wizard UX Refresh
 
 **Design decisions:**
@@ -303,6 +333,40 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 **Data flow fix (implemented):**
 1. Changed UserStoryWizard Props: onSave callback now receives TWO params: `(description: string, userStoryStatement: string)`
 2. Updated onSave call (line 113): Passes both `composedDescription` and statement: `onSave(composedDescription, composedDescription)`
+
+### 2026-04-29 — Compact One-Row Layout for Settings "Team & Defaults" Section
+
+**Problem:**
+- Team & Defaults section had multiple fields (Team, Iteration Path, Default Work Item Type) displayed in multi-row format
+- Each field took full width with `gridColumn: '1 / -1'`, causing unnecessary vertical space usage
+- Request to compact into a single logical row with inline fields
+
+**Solution implemented:**
+1. Removed all `<div style={{ gridColumn: '1 / -1' }}>` wrappers from Team and Iteration Path dropdowns
+2. Simplified helper text to be more concise:
+   - Team dropdown: "Save project and PAT first" (from "Save your project name and PAT first")
+   - Team dropdown: Auto-fetch text removed when validated (cleaner UI)
+   - Iteration Path: "Search iteration" (from "Search or select iteration")
+   - Iteration Path: Auto-fetch text removed when ready (cleaner UI)
+3. All three fields now sit in the same `.field-row` container, which uses `grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))` (existing CSS)
+4. Fields automatically flow horizontally on larger screens, stack responsively on narrow viewports
+
+**Responsive behavior:**
+- CSS `auto-fit` grid pattern already handles responsive behavior
+- Fields maintain 220px minimum width, stack gracefully when viewport is too narrow
+- No new media queries needed — existing `.field-row` pattern handles it
+
+**Verification:**
+- Build passed: 50 modules, 23.58KB CSS, 234.26KB JS
+- Lint passed with zero errors (only pre-existing warnings in other files)
+- All dropdowns function normally (validation, loading states, error handling intact)
+- State management preserved (no changes to handlers or effects)
+- Collapsible header animations still smooth
+
+**Key pattern reused:**
+- `.field-row` with `repeat(auto-fit, minmax(220px, 1fr))` is the standard responsive grid pattern for settings fields
+- Remove `gridColumn: '1 / -1'` wrapper to allow fields to flow naturally in the grid
+- Shorten helper text for compact layouts — show only essential context, omit redundant explanations
 3. Updated handleWizardSaveDescription: Now accepts both params and sets both fields: `setWorking({ ...active, description, userStoryStatement })`
 
 **Result:** User story statement now captured in draft state → flows through UPDATE_PBI_IN_ADO → backend builds ADO description with statement section
@@ -526,3 +590,84 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - Non-breaking: component APIs untouched, visual appearance normalized but not redesigned
 
 **Pattern value:** Separating presentation tokens from implementation reduces cognitive load on future developers. "How much space?" becomes a decision about scale, not pixel values. "How do we show focus?" is now defined once, applied everywhere.
+### 2025-04-29 — PAT Validation Infinite Load Fix (Frontend UX & State Management)
+
+**Problem:** Settings dropdowns hung indefinitely showing "loading" spinners when PAT invalid or missing required scopes. No early validation feedback to user.
+
+**Solution:** Implemented PAT-first validation state with auto-validation on mount and gated dropdown fetches.
+
+**Implementation in SettingsView.tsx:**
+- Added `PatValidationState` interface: `{ validated: boolean; validating: boolean; error?: string }` tracked separately from dropdown state
+- Auto-trigger `VALIDATE_PAT_SCOPES` on component mount (if `hasAdoPat` is true) and after every settings save
+- Gate all dropdown fetches on `patValidationState.validated`:
+  - Teams fetch only if: `form.projectName.trim() && hasAdoPat && patValidationState.validated`
+  - Area paths / iterations only if: `form.team?.trim() && hasAdoPat && patValidationState.validated`
+- Dropdowns remain visually present but disabled until validation passes (UX rule: always show UI, just disable interactivity)
+- Added validation status banner: "⏳ Validating PAT scopes..." → "✅ PAT valid" or "⚠️ PAT validation failed: {error}"
+- When user edits PAT field, clear validation state (`validated: false`) to force re-validation on save
+- Fixed critical bug: removed global `dropdownsDisabled` flag that was blocking entire UI
+
+**Key UX Decisions:**
+- Auto-validation on mount means credentials are checked immediately; failures shown before user attempts operations
+- Validation banner provides clear feedback (no silent failures)
+- Dropdowns remain enabled but grayed out during validation (not hidden) — improves perceived responsiveness
+- Edit-clears-validation pattern ensures stale validation state never causes missed updates
+
+**Testing Outcome:** 29/29 tests pass. Type mismatch bug found during integration and fixed (frontend/backend both now use `{ valid, error }`).
+
+
+
+### 2025-04-29 — Settings UI Enhancement: Searchable Dropdown, Collapsibles, Appearance Removal
+
+**Task:** Enhance Settings UI with three specific changes:
+1. Make Iteration Path dropdown searchable (type-to-filter)
+2. Add collapsible sections for Azure DevOps Connection and Team & Defaults
+3. Remove Appearance section (theme selector)
+
+**Implementation:**
+
+**1. SearchableDropdown Component:**
+- Created new SearchableDropdown.tsx component (234 lines) with full keyboard navigation support
+- Features: type-to-filter, arrow keys to navigate filtered options, Enter to select, Escape to close
+- Reuses existing DropdownWithFallback pattern: same props interface (except search-specific behavior)
+- State management: searchTerm, isOpen, highlightedIndex tracked separately from value
+- Click-outside detection via useEffect + mousedown listener on document
+- Dropdown portal-style rendering: position absolute, z-index 1000, max-height with scroll
+- Highlight pattern: keyboard navigation changes highlightedIndex, mouse hover syncs it via onMouseEnter
+- No matches found state when filter returns empty array
+- Visual feedback: down arrow rotates 180 degrees when open (consistent with existing section chevrons)
+
+**2. Collapsible Sections:**
+- Applied existing .section-header / .section-body / .section-chevron pattern from PbiStudio
+- Added openConnection and openDefaults state (both default true — all sections open on load)
+- Status badge moved inside header (flex layout with gap 12px) to keep UX clean when collapsed
+- No new CSS required — reused existing max-height transition pattern (9999px to 0)
+- Both sections start expanded for ease of use (UX decision: do not hide critical settings behind collapsed state)
+
+**3. Appearance Section Removal:**
+- Removed entire Appearance section (theme selector with light/dark/auto tabs)
+- Removed theme and onThemeChange props from SettingsView component
+- Updated App.tsx to remove theme-related props from SettingsView render
+- Theme management now handled globally at App level only (cleaner separation of concerns)
+
+**Key UX Decisions:**
+- Searchable dropdown only on Iteration Path (Team dropdown remains standard) — Iteration paths are often deeply nested and harder to navigate in standard dropdown
+- Both collapsible sections default to open state — Settings is a configuration view, not a dense dashboard; hiding fields behind collapsed sections adds friction
+- Removed unused ThemePreference import from SettingsView (cleanup)
+
+**CSS Patterns Used:**
+- accent-soft for dropdown highlight background (hover + keyboard navigation)
+- shadow-md for dropdown popup elevation
+- line-strong for dropdown borders and item separators
+- transition for chevron rotation animation
+
+**Build & Lint:**
+- Build succeeded: 50 modules transformed, 23.58 KB CSS, 234.47 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No type errors, no breaking changes to message flow or state management
+
+**Testing Notes:**
+- SearchableDropdown handles empty options gracefully (shows No matches when search returns nothing)
+- Dropdown closes on click-outside, Enter, or Escape (standard combobox UX)
+- Collapsibles animate smoothly via existing CSS transition (220ms cubic-bezier)
+- PAT validation, Team fetch, Iteration fetch all preserved — no message flow changes
