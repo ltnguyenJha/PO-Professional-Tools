@@ -528,12 +528,12 @@ button {
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
+  border-radius: var(--radius-5);
+  padding: var(--space-4);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-3);
 }
 
 .card-header {
@@ -1328,7 +1328,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-4);
 }
 
 .pbi-type-label {

@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useVsCodeApi } from '../utils/useVsCodeApi';
 import type { PbiDraft } from '../types';
-import { WizardStep1Type } from './WizardStep1Type';
-import { WizardStep2Identity } from './WizardStep2Identity';
 import { WizardStep3Story } from './WizardStep3Story';
 import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
@@ -13,7 +11,7 @@ interface Props {
   draftId: string;
 }
 
-type StepName = 'Type' | 'Identity' | 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -24,8 +22,9 @@ export function FeatureWizard({ draftId }: Props) {
   const [aiGenerating, setAiGenerating] = useState(false);
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
+  const wasGeneratingRef = useRef(false);
 
-  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -45,13 +44,19 @@ export function FeatureWizard({ draftId }: Props) {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (message.type === 'AI_PROGRESS') {
-        setAiGenerating(message.payload.busy);
+        const nowBusy = message.payload.busy;
+        if (wasGeneratingRef.current && !nowBusy && currentStep === 0) {
+          // Generation just finished — reload draft
+          vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
+        }
+        wasGeneratingRef.current = nowBusy;
+        setAiGenerating(nowBusy);
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [currentStep, draftId, vscode]);
 
   // Load draft on mount
   useEffect(() => {
@@ -189,8 +194,8 @@ export function FeatureWizard({ draftId }: Props) {
               onClick={() => idx <= currentStep && handleStepChange(idx)}
               className={`wizard-progress-step ${idx === currentStep ? 'active' : ''} ${
                 idx < currentStep ? 'completed' : ''
-              } ${idx > currentStep || (draft.workItemType === 'Bug' && idx === 0) ? 'disabled' : ''}`}
-              disabled={idx > currentStep || (draft.workItemType === 'Bug' && idx === 0)}
+              } ${idx > currentStep ? 'disabled' : ''}`}
+              disabled={idx > currentStep}
               aria-label={`Step ${idx + 1}: ${stepName}${idx < currentStep ? ' (completed)' : idx === currentStep ? ' (current)' : ''}`}
             >
               <div className="wizard-progress-step-indicator" aria-hidden="true">{idx + 1}</div>
@@ -201,29 +206,16 @@ export function FeatureWizard({ draftId }: Props) {
 
         {/* Step content */}
         {currentStep === 0 && (
-          <WizardStep1Type
-            draft={draft}
-            onNext={(next) => handleStepChange(next)}
-          />
-        )}
-        {currentStep === 1 && (
-          <WizardStep2Identity
-            draft={draft}
-            onNext={(next) => handleStepChange(next)}
-            onBack={(prev) => handleStepChange(prev)}
-          />
-        )}
-        {currentStep === 2 && (
           <WizardStep3Story
             draft={draft}
             onNext={(next) => handleStepChange(next)}
-            onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
             onGenerateAI={handleGenerateAI}
             onOpenInChat={handleOpenInChat}
+            isGenerating={aiGenerating}
           />
         )}
-        {currentStep === 3 && (
+        {currentStep === 1 && (
           <WizardStepFeatureDefinition
             draft={draft}
             onNext={(next) => handleStepChange(next)}
@@ -232,7 +224,7 @@ export function FeatureWizard({ draftId }: Props) {
             onGenerateAI={handleGenerateFeatureDefinition}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep === 2 && (
           <WizardStep3p5BusinessRules
             draft={draft}
             onNext={(next) => handleStepChange(next)}
@@ -240,7 +232,7 @@ export function FeatureWizard({ draftId }: Props) {
             onSave={handleSave}
           />
         )}
-        {currentStep === 5 && (
+        {currentStep === 3 && (
           <WizardStep4Details
             draft={draft}
             onNext={(next) => handleStepChange(next)}
@@ -248,7 +240,7 @@ export function FeatureWizard({ draftId }: Props) {
             onSave={handleSave}
           />
         )}
-        {currentStep === 6 && (
+        {currentStep === 4 && (
           <WizardStep6TechnicalConsiderations
             draft={draft}
             isLoading={aiGenerating}
