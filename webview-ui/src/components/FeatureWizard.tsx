@@ -5,13 +5,14 @@ import { WizardStep3Story } from './WizardStep3Story';
 import { WizardStepFeatureDefinition } from './WizardStepFeatureDefinition';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
-import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
+import { WizardStep5TestCases } from './WizardStep5TestCases';
+import { WizardStep6Summary } from './WizardStep6Summary';
 
 interface Props {
   draftId: string;
 }
 
-type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Details' | 'Technical Considerations';
+type StepName = 'Story' | 'Feature Definition' | 'Business Rules' | 'Technical Details' | 'Test Cases' | 'Summary';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -23,8 +24,11 @@ export function FeatureWizard({ draftId }: Props) {
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
+  // Signals that the next WIZARD_DRAFT_LOADED is an AI-triggered refresh
+  // (should update draft data only, not jump the user's current step)
+  const aiReloadRef = useRef(false);
 
-  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Details', 'Technical Considerations'];
+  const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Technical Details', 'Test Cases', 'Summary'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -44,9 +48,12 @@ export function FeatureWizard({ draftId }: Props) {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (message.type === 'AI_PROGRESS') {
+        // Ignore AI events for other drafts or unrelated global AI tasks
+        if (message.payload.draftId && message.payload.draftId !== draftId) return;
         const nowBusy = message.payload.busy;
-        if (wasGeneratingRef.current && !nowBusy && currentStep === 0) {
-          // Generation just finished — reload draft
+        if (wasGeneratingRef.current && !nowBusy) {
+          // Generation just finished — reload draft data without moving the step
+          aiReloadRef.current = true;
           vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
         }
         wasGeneratingRef.current = nowBusy;
@@ -77,8 +84,14 @@ export function FeatureWizard({ draftId }: Props) {
       if (message.type === 'WIZARD_DRAFT_LOADED') {
         const { draft: loadedDraft, currentStep: savedStep } = message.payload;
         setDraft(loadedDraft);
-        setCurrentStep(savedStep || 0);
-        setLoading(false);
+        if (aiReloadRef.current) {
+          // AI-triggered refresh: only update draft data, keep user on current step
+          aiReloadRef.current = false;
+        } else {
+          // Initial load: restore saved step (clamped to valid range)
+          setCurrentStep(Math.min(savedStep || 0, steps.length - 1));
+          setLoading(false);
+        }
       }
     };
 
@@ -145,6 +158,13 @@ export function FeatureWizard({ draftId }: Props) {
   const handleGenerateTechnicalConsiderations = () => {
     vscode.postMessage({
       type: 'GENERATE_TECHNICAL_CONSIDERATIONS',
+      payload: { draftId },
+    });
+  };
+
+  const handleFinish = () => {
+    vscode.postMessage({
+      type: 'WIZARD_COMPLETE',
       payload: { draftId },
     });
   };
@@ -221,7 +241,6 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerateAI={handleGenerateFeatureDefinition}
           />
         )}
         {currentStep === 2 && (
@@ -238,16 +257,22 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
+            onGenerate={handleGenerateTechnicalConsiderations}
           />
         )}
         {currentStep === 4 && (
-          <WizardStep6TechnicalConsiderations
+          <WizardStep5TestCases
             draft={draft}
-            isLoading={aiGenerating}
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerate={handleGenerateTechnicalConsiderations}
+          />
+        )}
+        {currentStep === 5 && (
+          <WizardStep6Summary
+            draft={draft}
+            onBack={(prev) => handleStepChange(prev)}
+            onFinish={handleFinish}
           />
         )}
       </div>

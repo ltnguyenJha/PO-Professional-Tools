@@ -829,6 +829,10 @@ export class DashboardPanel {
         cts.token,
         { linkedProjectContext }
       );
+      // Persist the "As a…, I want…, so that…" sentence independently of the AI-generated
+      // description so it is never overwritten by future AI refinements or re-generations.
+      const userStoryStatement = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
+      await this.draftService.upsert(this.context.globalState, { ...draft, userStoryStatement });
       await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
       this.postToast(
         'success',
