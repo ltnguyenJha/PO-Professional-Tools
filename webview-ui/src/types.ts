@@ -56,6 +56,11 @@ export interface PbiDraft {
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
+  // Feature definition context (optional, used when child story generated from parent feature)
+  featureWhy?: string;
+  featureUserFlow?: string;
+  featureBusinessRules?: string;
+  featureUserStoryStatement?: string;
 }
 
 export interface AdoSettings {

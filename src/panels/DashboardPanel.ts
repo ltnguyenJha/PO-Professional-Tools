@@ -1001,36 +1001,68 @@ export class DashboardPanel {
     const separator = request.separator || ' - ';
     const projectId = request.projectId || 'bulk';
     const iteration = request.iteration || this.defaultIteration();
+    const featureDef = request.featureDefinition;
+
     return request.children
       .filter((child) => child.suffix && child.suffix.trim().length > 0)
-      .map((child) => ({
-        id: this.draftService.newId(),
-        projectId,
-        title: `${request.prefix}${separator}${child.suffix.trim()}`,
-        description:
-          child.description ||
-          `Child item of "${request.prefix}" focused on: ${child.suffix.trim()}.`,
-        effortDays: child.effortDays ?? 2,
-        iteration,
-        status: 'draft',
-        workItemType: request.childWorkItemType,
-        acceptanceCriteria:
-          child.acceptanceCriteria && child.acceptanceCriteria.length > 0
-            ? child.acceptanceCriteria
-            : [
-                `Given the ${child.suffix.trim()} flow, when exercised, then the expected outcome is delivered.`,
-                'Validation and error states are clear and actionable.',
-                'Happy path is documented and testable.'
-              ],
-        testScenarios:
-          child.testScenarios && child.testScenarios.length > 0
-            ? child.testScenarios
-            : [
-                `${child.suffix.trim()} happy path test`,
-                `${child.suffix.trim()} validation failure test`,
-                `${child.suffix.trim()} error fallback test`
-              ]
-      }));
+      .map((child) => {
+        // Build base description with feature context if available
+        let baseDescription = child.description ||
+          `Child item of "${request.prefix}" focused on: ${child.suffix.trim()}.`;
+
+        if (featureDef && (featureDef.why || featureDef.userFlow || featureDef.businessRules || featureDef.userStoryStatement)) {
+          const contextParts: string[] = [];
+          if (featureDef.why) {
+            contextParts.push(`**Feature Why:** ${featureDef.why}`);
+          }
+          if (featureDef.userFlow) {
+            contextParts.push(`**User Flow:** ${featureDef.userFlow}`);
+          }
+          if (featureDef.businessRules) {
+            contextParts.push(`**Business Rules:** ${featureDef.businessRules}`);
+          }
+          if (featureDef.userStoryStatement) {
+            contextParts.push(`**Feature User Story:** ${featureDef.userStoryStatement}`);
+          }
+          if (contextParts.length > 0) {
+            baseDescription = `${contextParts.join('\n\n')}\n\n---\n\n${baseDescription}`;
+          }
+        }
+
+        return {
+          id: this.draftService.newId(),
+          projectId,
+          title: `${request.prefix}${separator}${child.suffix.trim()}`,
+          description: baseDescription,
+          effortDays: child.effortDays ?? 2,
+          iteration,
+          status: 'draft',
+          workItemType: request.childWorkItemType,
+          acceptanceCriteria:
+            child.acceptanceCriteria && child.acceptanceCriteria.length > 0
+              ? child.acceptanceCriteria
+              : [
+                  `Given the ${child.suffix.trim()} flow, when exercised, then the expected outcome is delivered.`,
+                  'Validation and error states are clear and actionable.',
+                  'Happy path is documented and testable.'
+                ],
+          testScenarios:
+            child.testScenarios && child.testScenarios.length > 0
+              ? child.testScenarios
+              : [
+                  `${child.suffix.trim()} happy path test`,
+                  `${child.suffix.trim()} validation failure test`,
+                  `${child.suffix.trim()} error fallback test`
+                ],
+          // Propagate feature definition fields to child draft
+          ...(featureDef && {
+            featureWhy: featureDef.why,
+            featureUserFlow: featureDef.userFlow,
+            featureBusinessRules: featureDef.businessRules,
+            featureUserStoryStatement: featureDef.userStoryStatement
+          })
+        };
+      });
   }
 
   private defaultIteration(): string {

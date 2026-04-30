@@ -717,3 +717,51 @@ Settings change: SAVE_ADO_SETTINGS → clearAdoCache() → Next fetch triggers f
 
 **Testing Outcome:** All 29 tests passing, zero regressions. Build clean.
 
+
+---
+
+## Issue 38 - Feature Definition Wiring (Backend)
+
+### 2025-04-30 - Feature Definition Context Injection for Child Story Generation
+
+**Problem:** Child stories generated from parent features lack context about parent Why, User Flow, Business Rules, and User Story Statement. Bulk breakdown pipeline needs feature definition propagation.
+
+**Solution:** Wired feature definition through data model and injection logic.
+
+**Implementation:**
+
+1. PbiDraft Interface Extension (webview-ui/src/types.ts):
+   - Added optional fields: featureWhy, featureUserFlow, featureBusinessRules, featureUserStoryStatement
+   - Holds answers from Feature Definition section
+   - Used by child drafts to preserve parent context
+
+2. BulkBreakdownRequest Extension (src/shared/messages.ts):
+   - Added structured featureDefinition object with: why, userFlow, businessRules, userStoryStatement
+   - Chosen Option B (structured object) for clarity and future extensibility
+   - Isolated feature context from flat request surface
+
+3. buildBulkDrafts() Injection Logic (src/panels/DashboardPanel.ts):
+   - Extracts featureDefinition from request
+   - Prepends formatted feature context to child description
+   - Spreads feature definition fields into child draft object
+   - Handles null gracefully: children generate correctly without feature context
+
+**Data Flow:**
+- UI captures feature definition in parent story
+- Passes to backend via BulkBreakdownRequest.featureDefinition
+- buildBulkDrafts() injects context into each childs description
+- Child drafts preserve feature context fields for UI display/editing
+
+**Edge Cases Handled:**
+- Partial feature context (only some fields) - appends available context
+- Missing feature context entirely - child generation unaffected
+- Empty context fields - skipped in output
+
+**Build Status:** Clean build, TypeScript validation passed
+
+### Learnings:
+
+- Structured vs. Flat: Using nested object for feature definition cleaner than flat fields, especially for bulk operations with optional groupings
+- Description Injection: Markdown formatting with separator makes feature context scannable in long descriptions
+- Spread Operator Trick: Using conditional spread elegantly propagates optional fields without conditional branches
+- Backwards Compatibility: Optional fields mean old callers still work, feature context gracefully degrades when absent
