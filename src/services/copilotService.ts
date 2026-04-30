@@ -5,7 +5,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BugReportInput, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft } from '../shared/messages';
+import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -28,6 +28,15 @@ const FULL_STORY_JSON_BRIDGE = [
   '- Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
   '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided: technical, testable, fintech-appropriate.',
   '- Do not create files under reports/.',
+  '---'
+].join('\n');
+
+const TECHNICAL_CONSIDERATIONS_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "technicalDetails": string, "scopedFiles": string[], "architectureNotes": string }',
+  '- Use LINKED PROJECT CONTEXT to ground recommendations in actual codebase structure.',
+  '- Do not speculate; reference real modules, routes, APIs, or database objects.',
   '---'
 ].join('\n');
 
@@ -58,11 +67,15 @@ const FULL_STORY_SYSTEM_PROMPT = [
   'You are a senior Product Owner and business analyst writing Azure DevOps backlog items.',
   'Output must be valid JSON only (no markdown fences, no commentary before or after).',
   '',
-  'Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[] }',
+  'Schema: { "title": string, "description": string, "acceptanceCriteria": string[], "testScenarios": string[], "userStoryStatement"?: string, "businessRulesAndAssumptions"?: string }',
   '',
   'TITLE: Action-oriented, under 120 characters.',
   '',
   'DESCRIPTION: 2–4 short paragraphs. User value first; scope and boundaries clear.',
+  '',
+  'USER STORY STATEMENT (optional): If the INVEST wizard provided a structured story, reflect the core user value back in 1-2 sentences.',
+  '',
+  'BUSINESS RULES & ASSUMPTIONS (optional): If provided in the INVEST input, include critical constraints, preconditions, or domain rules that bound this work.',
   '',
   'ACCEPTANCE CRITERIA (quality bar):',
   '- Exactly 4 to 7 items.',
@@ -75,6 +88,63 @@ const FULL_STORY_SYSTEM_PROMPT = [
   '- Same rule: no raw " inside JSON string values; paraphrase if needed.',
   '',
   'Never output invalid JSON.'
+].join('\n');
+
+const TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT = [
+  'You are a senior backend architect and technical lead reviewing a Product Owner backlog item.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "technicalDetails": string, "scopedFiles": string[], "architectureNotes": string }',
+  '',
+  'TECHNICAL DETAILS: 2–3 sentences identifying the key technical concerns, module dependencies, or implementation patterns required.',
+  'Reference actual codebase elements when LINKED PROJECT CONTEXT is provided.',
+  '',
+  'SCOPED FILES: Array of 1–5 file paths or module names that this work item will likely touch.',
+  'Use real paths from the linked project; be specific (e.g., "src/services/paymentProcessor.ts" not "backend").',
+  '',
+  'ARCHITECTURE NOTES: 1–2 sentences on data flow, external dependencies (APIs, databases), or design patterns.',
+  'Highlight any risks, side effects, or cross-team dependencies.',
+  '',
+  'RULES:',
+  '- Do not add features or scope creep; analyze the PBI as stated.',
+  '- Reference LINKED PROJECT CONTEXT when available; never speculate about code structure.',
+  '- Keep notes actionable for dev teams (not generic architecture philosophy).',
+  '- NEVER use Mermaid, flowchart, diagram syntax, or markdown code fences (```) in any field. Output must be plain text only.',
+  '- Never output invalid JSON.'
+].join('\n');
+
+const FEATURE_DEFINITION_SYSTEM_PROMPT = [
+  'You are a senior Product Owner and business analyst defining features for Azure DevOps backlog items.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
+  '',
+  'WHY (Why does this matter?): 200–500 characters. Explain the business impact and strategic importance.',
+  'Focus on user value, business outcomes, and measurable benefits.',
+  '',
+  'USER FLOW (Describe the user flow): Step-by-step user journey through the feature.',
+  'Be specific about touchpoints, interactions, and user actions. Format as numbered steps or clear narrative.',
+  '',
+  'BUSINESS RULES (Business rules and assumptions): Critical constraints, conditions, compliance requirements, and assumptions.',
+  'Include validation rules, authorization policies, data constraints, and system limits.',
+  '',
+  'USER STORY STATEMENT: Standard "As a [role], I want [capability], so that [benefit]" format.',
+  'Capture the core user story that guides child story generation and acceptance criteria.',
+  '',
+  'RULES:',
+  '- Base content on the draft title, description, and any existing acceptance criteria.',
+  '- Use LINKED PROJECT CONTEXT to ground technical realism (actual APIs, flows, constraints).',
+  '- Keep language clear and stakeholder-friendly.',
+  '- Never output invalid JSON.'
+].join('\n');
+
+const FEATURE_DEFINITION_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
+  '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided.',
+  '- Do not create files or emit markdown reports.',
+  '---'
 ].join('\n');
 
 export class CopilotService {
@@ -263,9 +333,114 @@ export class CopilotService {
   }
 
   /**
-   * Produces a single .mmd attachment from backlog text for Azure DevOps (Push / Update).
-   * Returns undefined if the model fails or output is not valid Mermaid.
+   * Generates technical considerations (architecture, file scope, implementation notes) for a PBI.
+   * Grounds analysis in linked project context when available.
    */
+  public async generateTechnicalConsiderations(
+    draft: PbiDraft,
+    token: vscode.CancellationToken,
+    options?: { linkedProjectContext?: string }
+  ): Promise<TechnicalConsiderations> {
+    const model = await this.pickModel();
+
+    const systemBlock = [
+      TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT,
+      '',
+      TECHNICAL_CONSIDERATIONS_JSON_BRIDGE
+    ].join('\n');
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (use to ground technical recommendations):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userPrompt =
+      linkedPart +
+      [
+        'Analyze this backlog item for technical considerations:',
+        '',
+        `Title: ${draft.title}`,
+        `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+        `Effort (days): ${draft.effortDays}`,
+        '',
+        'PRODUCT OWNER DESCRIPTION:',
+        draft.description?.trim() ? draft.description.trim() : '(empty)',
+        '',
+        'Acceptance criteria:',
+        ...(draft.acceptanceCriteria.length > 0
+          ? draft.acceptanceCriteria.map((item, i) => `${i + 1}. ${item}`)
+          : ['(none)']),
+        '',
+        'Return JSON with keys: technicalDetails, scopedFiles, architectureNotes.'
+      ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    return this.technicalConsiderationsFromParsed(parsed);
+  }
+
+  /**
+   * Generates feature definition content (why, user flow, business rules, user story statement) for a PBI.
+   * Grounds analysis in linked project context when available.
+   */
+  public async generateFeatureDefinition(
+    draft: PbiDraft,
+    token: vscode.CancellationToken,
+    options?: { linkedProjectContext?: string }
+  ): Promise<FeatureDefinition> {
+    const model = await this.pickModel();
+    const rulebook = await this.getProductManagerRulebook();
+
+    const systemBlock = [
+      FEATURE_DEFINITION_SYSTEM_PROMPT,
+      '',
+      FEATURE_DEFINITION_JSON_BRIDGE,
+      rulebook.trim().length > 0
+        ? `---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
+        : '---\n(Product Manager rulebook not found.)'
+    ].join('\n');
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (use to ground technical realism):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userPrompt =
+      linkedPart +
+      [
+        'Generate feature definition content for this backlog item:',
+        '',
+        `Title: ${draft.title}`,
+        `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+        `Effort (days): ${draft.effortDays}`,
+        '',
+        'PRODUCT OWNER DESCRIPTION:',
+        draft.description?.trim() ? draft.description.trim() : '(empty — infer from title and context)',
+        '',
+        'Acceptance criteria (current):',
+        ...(draft.acceptanceCriteria.length > 0
+          ? draft.acceptanceCriteria.map((item, i) => `${i + 1}. ${item}`)
+          : ['(none)']),
+        '',
+        'Generate all four feature definition fields based on this context.',
+        'Return JSON with keys: why, userFlow, businessRules, userStoryStatement.'
+      ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    return this.featureDefinitionFromParsed(parsed);
+  }
+
   public async tryGenerateMermaidAttachment(
     draft: PbiDraft,
     token: vscode.CancellationToken
@@ -510,7 +685,58 @@ export class CopilotService {
         .map((item: string) => item.trim())
         .filter((item: string) => item.length > 0);
     }
+    if (typeof parsed.userStoryStatement === 'string' && parsed.userStoryStatement.trim().length > 0) {
+      suggestion.userStoryStatement = parsed.userStoryStatement.trim();
+    }
+    if (typeof parsed.businessRulesAndAssumptions === 'string' && parsed.businessRulesAndAssumptions.trim().length > 0) {
+      suggestion.businessRulesAndAssumptions = parsed.businessRulesAndAssumptions.trim();
+    }
     return suggestion;
+  }
+
+  private technicalConsiderationsFromParsed(parsed: Record<string, unknown>): TechnicalConsiderations {
+    const rawTechnicalDetails =
+      typeof parsed.technicalDetails === 'string' ? parsed.technicalDetails.trim() : '';
+    const rawArchitectureNotes =
+      typeof parsed.architectureNotes === 'string' ? parsed.architectureNotes.trim() : '';
+    const scopedFiles = this.toStringArray(parsed.scopedFiles) || [];
+
+    // Strip markdown code fences (defensive post-processing)
+    const technicalDetails = this.stripCodeFences(rawTechnicalDetails);
+    const architectureNotes = this.stripCodeFences(rawArchitectureNotes);
+
+    if (!technicalDetails && !architectureNotes) {
+      throw new Error('AI response missing required fields. Try again with more context.');
+    }
+
+    return {
+      technicalDetails,
+      scopedFiles,
+      architectureNotes
+    };
+  }
+
+  private featureDefinitionFromParsed(parsed: Record<string, unknown>): FeatureDefinition {
+    const why = typeof parsed.why === 'string' ? parsed.why.trim() : '';
+    const userFlow = typeof parsed.userFlow === 'string' ? parsed.userFlow.trim() : '';
+    const businessRules = typeof parsed.businessRules === 'string' ? parsed.businessRules.trim() : '';
+    const userStoryStatement = typeof parsed.userStoryStatement === 'string' ? parsed.userStoryStatement.trim() : '';
+
+    if (!why && !userFlow && !businessRules && !userStoryStatement) {
+      throw new Error('AI response missing all feature definition fields. Try again with more context.');
+    }
+
+    return {
+      why,
+      userFlow,
+      businessRules,
+      userStoryStatement
+    };
+  }
+
+  private stripCodeFences(text: string): string {
+    // Remove markdown code fences like ```mermaid...``` or ```...```
+    return text.replace(/^```[\w]*\n?/gm, '').replace(/\n?```$/gm, '').trim();
   }
 
   private async openChatWithPrompt(prompt: string): Promise<void> {
@@ -708,6 +934,13 @@ export class CopilotService {
         `HOW (user flow / interaction):`,
         wizard.how.trim(),
         '',
+        ...(wizard.businessRulesAndAssumptions?.trim() 
+          ? [
+              `BUSINESS RULES & ASSUMPTIONS:`,
+              wizard.businessRulesAndAssumptions.trim(),
+              ''
+            ]
+          : []),
         `USER STORY:`,
         userStory,
         '',
@@ -793,6 +1026,13 @@ export class CopilotService {
       'HOW (user flow / interaction):',
       wizard.how.trim(),
       '',
+      ...(wizard.businessRulesAndAssumptions?.trim()
+        ? [
+            'BUSINESS RULES & ASSUMPTIONS:',
+            wizard.businessRulesAndAssumptions.trim(),
+            ''
+          ]
+        : []),
       'USER STORY:',
       userStory,
       '',

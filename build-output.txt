@@ -1,0 +1,35 @@
+
+> po-professional-tools@0.1.3 build
+> npm run build:extension && npm run build:webview && npm run build:copy-webview
+
+
+> po-professional-tools@0.1.3 build:extension
+> node build/esbuild.config.js
+
+
+  dist\extension.js      2.7mb
+  dist\extension.js.map  4.5mb
+
+Done in 226ms
+
+> po-professional-tools@0.1.3 build:webview
+> npm --prefix webview-ui run build
+
+
+> po-tools-webview@0.0.1 build
+> vite build
+
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 50 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.42 kB[22m[1m[22m[2m Γöé gzip:  0.28 kB[22m
+[2mdist/[22m[35massets/index-CGIw5XGj.css  [39m[1m[2m 23.59 kB[22m[1m[22m[2m Γöé gzip:  5.07 kB[22m
+[2mdist/[22m[36massets/index-3SiQfno9.js   [39m[1m[2m235.14 kB[22m[1m[22m[2m Γöé gzip: 71.52 kB[22m
+[32mΓ£ô built in 803ms[39m
+
+> po-professional-tools@0.1.3 build:copy-webview
+> node build/copy-webview.js
+
+Γ£ô Copied webview assets to dist/

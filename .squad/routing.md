@@ -7,6 +7,8 @@ How to decide who handles what.
 | Work Type | Route To | Examples |
 |-----------|----------|----------|
 | React components, views, styles, webview UX | Rusty | New components, CSS, PbiStudio changes, UserStoryWizard |
+| UX design, wireframes, user flows, accessibility, interaction design | Tess | Design new features, design reviews, WCAG compliance, user flows |
+| Visual design, design tokens, component polish, high-fidelity specs | Saul | Visual specs, design tokens, theme variables, UI polish, visual consistency audits |
 | Extension backend, message handlers, Copilot API | Linus | DashboardPanel, CopilotService, message types, esbuild |
 | Architecture, scope, code review, PR review | Danny | Design decisions, trade-off analysis, reviewing PRs |
 | Tests, quality, edge cases, build validation | Livingston | Writing tests, verifying TypeScript clean, build checks |
@@ -20,6 +22,8 @@ How to decide who handles what.
 | `squad` | Triage: analyze issue, assign `squad:{member}` label | Danny |
 | `squad:danny` | Lead work: architecture, review, scope | Danny |
 | `squad:rusty` | Frontend work: UI, components, styles | Rusty |
+| `squad:tess` | UX Design work: wireframes, interaction design, accessibility, user flows | Tess |
+| `squad:saul` | UI Design work: visual specs, design tokens, component polish, visual consistency | Saul |
 | `squad:linus` | Backend work: extension API, services | Linus |
 | `squad:livingston` | Testing: test cases, quality review | Livingston |
 
@@ -39,6 +43,17 @@ How to decide who handles what.
 5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
 6. **Anticipate downstream work.** If a feature is being built, spawn Livingston to write test cases from requirements simultaneously.
 7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Danny handles all `squad` (base label) triage.
+8. **Git workflow enforcement** — Before spawning ANY agent for work that involves file changes, remind them to check branch (`.squad/git-workflow.md`). All work uses feature branches, never `main`.
+
+## Pre-Spawn Checklist
+
+Before spawning agents for development work:
+
+1. **Verify feature branch**: Ensure the current branch is NOT `main`
+   - If on `main`: Agent MUST run `pwsh .squad/scripts/ensure-feature-branch.ps1` first
+   - See `.squad/git-workflow.md` for complete policy
+2. **Read decisions**: Agent should read `.squad/decisions.md` for context
+3. **Set TEAM_ROOT**: Pass team root path in spawn prompt
 
 ## Branch & PR Workflow (Enforced)
 

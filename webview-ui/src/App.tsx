@@ -17,10 +17,10 @@ import { PbiStudio } from './views/PbiStudio';
 import { BulkBreakdownView } from './views/BulkBreakdownView';
 import { SettingsView } from './views/SettingsView';
 
-const vscode = window.acquireVsCodeApi ? window.acquireVsCodeApi() : undefined;
+import { vscodeApi } from './utils/useVsCodeApi';
 
 function sendMessage(message: WebviewRequest): void {
-  vscode?.postMessage(message);
+  vscodeApi?.postMessage(message);
 }
 
 interface Toast {
@@ -224,9 +224,7 @@ export function App(): JSX.Element {
           <SettingsView
             adoSettings={state.adoSettings}
             hasAdoPat={state.hasAdoPat}
-            theme={state.uiSettings.theme}
             send={sendMessage}
-            onThemeChange={onThemeChange}
             lastConnectionResult={connectionResult}
           />
         )}

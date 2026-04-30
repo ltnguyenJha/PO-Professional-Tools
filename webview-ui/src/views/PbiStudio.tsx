@@ -13,8 +13,9 @@ import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingBar } from '../components/LoadingBar';
-import { UserStoryWizard } from '../components/UserStoryWizard';
+import { FeatureWizard } from '../components/FeatureWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
+import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -85,6 +86,7 @@ export function PbiStudio({
   const [openCopilotChat, setOpenCopilotChat] = useState(false);
   const [openRefineAI, setOpenRefineAI] = useState(false);
   const [openBugRefinement, setOpenBugRefinement] = useState(false);
+  const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -311,12 +313,28 @@ export function PbiStudio({
     }
   };
 
+  const handleWizardSaveDescription = (description: string, userStoryStatement: string, businessRulesAndAssumptions?: string): void => {
+    if (active) {
+      setWorking({ ...active, description, userStoryStatement, businessRulesAndAssumptions });
+    }
+  };
+
   const handleBugGenerate = (input: BugReportInput): void => {
     send({ type: 'GENERATE_BUG_REPORT', payload: input });
   };
 
   const handleBugOpenInChat = (input: BugReportInput): void => {
     send({ type: 'OPEN_BUG_REPORT_IN_CHAT', payload: input });
+  };
+
+  const handleGenerateTechnicalConsiderations = (): void => {
+    if (active) {
+      send({ type: 'GENERATE_TECHNICAL_CONSIDERATIONS', payload: { draftId: active.id } });
+    }
+  };
+
+  const handleUpdateTechnicalConsiderations = (updatedDraft: PbiDraft): void => {
+    setWorking(updatedDraft);
   };
 
   const onPickAttachments = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -423,6 +441,10 @@ export function PbiStudio({
       partial.acceptanceCriteria = suggestion.acceptanceCriteria;
     } else if (field === 'testScenarios' && Array.isArray(suggestion.testScenarios)) {
       partial.testScenarios = suggestion.testScenarios;
+    } else if (field === 'userStoryStatement' && typeof suggestion.userStoryStatement === 'string') {
+      partial.userStoryStatement = suggestion.userStoryStatement;
+    } else if (field === 'businessRulesAndAssumptions' && typeof suggestion.businessRulesAndAssumptions === 'string') {
+      partial.businessRulesAndAssumptions = suggestion.businessRulesAndAssumptions;
     }
     send({ type: 'APPLY_AI_SUGGESTION', payload: { draftId: active.id, suggestion: partial } });
   };
@@ -788,6 +810,28 @@ export function PbiStudio({
                   onChange={(next) => setWorking({ ...active, testScenarios: next })}
                 />
 
+                <label className="field">
+                  User Story Statement (optional)
+                  <textarea
+                    value={active.userStoryStatement ?? ''}
+                    onChange={(e) =>
+                      setWorking({ ...active, userStoryStatement: e.target.value || undefined })
+                    }
+                    placeholder="Concise user story: As a [persona], I want [action], so that [benefit]."
+                  />
+                </label>
+
+                <label className="field">
+                  Business Rules & Assumptions (optional)
+                  <textarea
+                    value={active.businessRulesAndAssumptions ?? ''}
+                    onChange={(e) =>
+                      setWorking({ ...active, businessRulesAndAssumptions: e.target.value || undefined })
+                    }
+                    placeholder="e.g. Only verified users can access; payment gateway integration assumed; data encrypted at rest..."
+                  />
+                </label>
+
                 <input
                   ref={fileAttachInputRef}
                   type="file"
@@ -840,6 +884,7 @@ export function PbiStudio({
               </article>
 
               <div className="pbi-type-selector-wrap">
+                <span className="pbi-type-label">PBI Type</span>
                 <div className="pbi-type-selector">
                   <button
                     type="button"
@@ -859,12 +904,9 @@ export function PbiStudio({
               </div>
 
               {pbiType === 'feature' ? (
-                <UserStoryWizard
+                <FeatureWizard
                   key={`feature-${active.id}`}
                   draftId={active.id}
-                  aiBusy={aiBusy}
-                  onGenerate={handleWizardGenerate}
-                  onOpenInChat={handleWizardOpenInChat}
                 />
               ) : (
                 <BugReportWizard
@@ -935,6 +977,18 @@ export function PbiStudio({
                 </article>
               )}
 
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
+                <TechnicalConsiderationsSection
+                  draft={active}
+                  isLoading={aiBusy}
+                  onUpdate={handleUpdateTechnicalConsiderations}
+                  onGenerate={handleGenerateTechnicalConsiderations}
+                />
+              )}
+
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
               <article className="card">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
@@ -982,6 +1036,7 @@ export function PbiStudio({
                 </div>
                 </div>{/* end section-body */}
               </article>
+              )}{/* end hidden: Generate full story in-panel */}
 
               <article className="card">
                 <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
@@ -1024,6 +1079,8 @@ export function PbiStudio({
                 </div>{/* end section-body */}
               </article>
 
+              {/* Hidden for demo — re-enable when ready (issue #42) */}
+              {false && (
               <article className="card">
                 <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
@@ -1127,6 +1184,32 @@ export function PbiStudio({
                         </div>
                       </>
                     )}
+                    {typeof suggestion.userStoryStatement === 'string' && (
+                      <>
+                        <div className="diff-block">{suggestion.userStoryStatement}</div>
+                        <div className="diff-actions">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => acceptSuggestedField('userStoryStatement')}
+                          >
+                            Apply user story statement
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {typeof suggestion.businessRulesAndAssumptions === 'string' && (
+                      <>
+                        <div className="diff-block">{suggestion.businessRulesAndAssumptions}</div>
+                        <div className="diff-actions">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
+                          >
+                            Apply business rules & assumptions
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1187,6 +1270,7 @@ export function PbiStudio({
                 </div>
                 </div>{/* end section-body */}
               </article>
+              )}{/* end hidden: Refine with AI (in panel) */}
             </>
           )}
         </section>

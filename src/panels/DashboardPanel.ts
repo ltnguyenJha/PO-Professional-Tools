@@ -48,6 +48,7 @@ export class DashboardPanel {
   }
 
   private readonly disposables: vscode.Disposable[] = [];
+  private patValidatedThisSession: boolean = false;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -125,11 +126,29 @@ export class DashboardPanel {
       case 'TEST_ADO_CONNECTION':
         await this.handleTestConnection(message.payload);
         return;
+       case 'VALIDATE_PAT_SCOPES':
+         await this.handleValidatePatScopes();
+         return;
+      case 'FETCH_ADO_TEAMS':
+        await this.handleFetchTeams();
+        return;
+      case 'FETCH_ADO_AREA_PATHS':
+        await this.handleFetchAreaPaths(message.payload?.team);
+        return;
+      case 'FETCH_ADO_ITERATIONS':
+        await this.handleFetchIterations(message.payload?.team);
+        return;
       case 'REFINE_PBI_WITH_AI':
         await this.handleRefine(message.payload.draftId, message.payload.instruction);
         return;
       case 'GENERATE_FULL_STORY_AI':
         await this.handleGenerateFullStory(message.payload.draftId, message.payload.seedText);
+        return;
+      case 'GENERATE_FEATURE_DEFINITION':
+        await this.handleGenerateFeatureDefinition(message.payload.draftId);
+        return;
+      case 'GENERATE_TECHNICAL_CONSIDERATIONS':
+        await this.handleGenerateTechnicalConsiderations(message.payload.draftId);
         return;
       case 'OPEN_IN_COPILOT_CHAT':
         await this.handleOpenInChat(message.payload);
@@ -178,6 +197,19 @@ export class DashboardPanel {
       case 'SET_THEME':
         await this.settingsService.setTheme(message.payload.theme);
         await this.postState();
+        return;
+      case 'WIZARD_DRAFT_LOAD':
+        await this.handleWizardDraftLoad(message.payload.draftId);
+        return;
+      case 'WIZARD_STEP_CHANGE':
+        await this.handleWizardStepChange(message.payload.draftId, message.payload.targetStep);
+        return;
+      case 'WIZARD_DRAFT_SAVE':
+        await this.handleWizardDraftSave(
+          message.payload.draftId,
+          message.payload.partialDraft,
+          message.payload.currentStep
+        );
         return;
       default:
         return;
@@ -495,11 +527,14 @@ export class DashboardPanel {
     const adoSettings: AdoSettings = {
       orgUrl: rest.orgUrl,
       projectName: rest.projectName,
+      team: rest.team || undefined,
       areaPath: rest.areaPath || undefined,
       iterationPath: rest.iterationPath || undefined,
       defaultWorkItemType: rest.defaultWorkItemType || 'Product Backlog Item'
     };
     await this.settingsService.saveAdoSettings(adoSettings);
+    await this.clearAdoCache();
+    this.patValidatedThisSession = false;
     this.postToast('success', 'Azure DevOps settings saved.');
     await this.postState();
   }
@@ -553,6 +588,39 @@ export class DashboardPanel {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.post({ type: 'ADO_CONNECTION_RESULT', payload: { ok: false, message } });
       this.postToast('error', `Connection failed: ${message}`);
+    }
+  }
+
+  private async handleValidatePatScopes(): Promise<void> {
+    const settings = this.settingsService.getAdoSettings();
+    if (!settings || !settings.orgUrl || !settings.projectName) {
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: false, error: 'Azure DevOps settings are incomplete.' }
+      });
+      return;
+    }
+    const pat = await this.secretStorage.getAdoPat();
+    if (!pat) {
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: false, error: 'PAT missing. Save your PAT in Settings first.' }
+      });
+      return;
+    }
+
+    try {
+      await this.adoService.testConnection(settings, pat);
+      this.patValidatedThisSession = true;
+      this.post({
+        type: 'PAT_VALIDATION_RESULT',
+        payload: { valid: true }
+      });
+      this.postToast('success', 'PAT scopes validated.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'PAT_VALIDATION_RESULT', payload: { valid: false, error: message } });
+      this.postToast('error', `PAT validation failed: ${message}`);
     }
   }
 
@@ -638,6 +706,83 @@ export class DashboardPanel {
     }
   }
 
+  private async handleGenerateTechnicalConsiderations(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Scanning codebase & generating technical considerations...', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const considerations = await this.copilotService.generateTechnicalConsiderations(
+        draft,
+        token,
+        { linkedProjectContext }
+      );
+      const updated: PbiDraft = {
+        ...draft,
+        technicalConsiderations: considerations,
+        updatedAt: new Date().toISOString()
+      };
+      await this.draftService.upsert(this.context.globalState, updated);
+      this.postToast('success', 'Technical considerations generated and saved.');
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+    await this.postState();
+  }
+
+  private async handleGenerateFeatureDefinition(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Generating feature definition...', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const featureDefinition = await this.copilotService.generateFeatureDefinition(
+        draft,
+        token,
+        { linkedProjectContext }
+      );
+      const updated: PbiDraft = {
+        ...draft,
+        featureWhy: featureDefinition.why,
+        featureUserFlow: featureDefinition.userFlow,
+        featureBusinessRules: featureDefinition.businessRules,
+        featureUserStoryStatement: featureDefinition.userStoryStatement,
+        updatedAt: new Date().toISOString()
+      };
+      await this.draftService.upsert(this.context.globalState, updated);
+      this.postToast('success', 'Feature definition generated and saved.');
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+    await this.postState();
+  }
+
   private async handleOpenInChat(payload: {
     draftId: string;
     mode?: 'refine' | 'newStory';
@@ -686,8 +831,8 @@ export class DashboardPanel {
       );
       // Persist the "As a…, I want…, so that…" sentence independently of the AI-generated
       // description so it is never overwritten by future AI refinements or re-generations.
-      const userStory = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
-      await this.draftService.upsert(this.context.globalState, { ...draft, userStory });
+      const userStoryStatement = `As a ${wizard.persona}, I want ${wizard.want}, so that ${wizard.benefit}.`;
+      await this.draftService.upsert(this.context.globalState, { ...draft, userStoryStatement });
       await this.handleApplySuggestion(draftId, suggestion, { skipToast: true });
       this.postToast(
         'success',
@@ -758,6 +903,8 @@ export class DashboardPanel {
       description?: string;
       acceptanceCriteria?: string[];
       testScenarios?: string[];
+      userStoryStatement?: string;
+      businessRulesAndAssumptions?: string;
     },
     options?: { skipToast?: boolean }
   ): Promise<void> {
@@ -771,7 +918,9 @@ export class DashboardPanel {
       title: suggestion.title?.trim() ? suggestion.title.trim() : draft.title,
       description: suggestion.description ?? draft.description,
       acceptanceCriteria: suggestion.acceptanceCriteria ?? draft.acceptanceCriteria,
-      testScenarios: suggestion.testScenarios ?? draft.testScenarios
+      testScenarios: suggestion.testScenarios ?? draft.testScenarios,
+      userStoryStatement: suggestion.userStoryStatement ?? draft.userStoryStatement,
+      businessRulesAndAssumptions: suggestion.businessRulesAndAssumptions ?? draft.businessRulesAndAssumptions
     };
     await this.draftService.upsert(this.context.globalState, updated);
     if (!options?.skipToast) {
@@ -899,36 +1048,68 @@ export class DashboardPanel {
     const separator = request.separator || ' - ';
     const projectId = request.projectId || 'bulk';
     const iteration = request.iteration || this.defaultIteration();
+    const featureDef = request.featureDefinition;
+
     return request.children
       .filter((child) => child.suffix && child.suffix.trim().length > 0)
-      .map((child) => ({
-        id: this.draftService.newId(),
-        projectId,
-        title: `${request.prefix}${separator}${child.suffix.trim()}`,
-        description:
-          child.description ||
-          `Child item of "${request.prefix}" focused on: ${child.suffix.trim()}.`,
-        effortDays: child.effortDays ?? 2,
-        iteration,
-        status: 'draft',
-        workItemType: request.childWorkItemType,
-        acceptanceCriteria:
-          child.acceptanceCriteria && child.acceptanceCriteria.length > 0
-            ? child.acceptanceCriteria
-            : [
-                `Given the ${child.suffix.trim()} flow, when exercised, then the expected outcome is delivered.`,
-                'Validation and error states are clear and actionable.',
-                'Happy path is documented and testable.'
-              ],
-        testScenarios:
-          child.testScenarios && child.testScenarios.length > 0
-            ? child.testScenarios
-            : [
-                `${child.suffix.trim()} happy path test`,
-                `${child.suffix.trim()} validation failure test`,
-                `${child.suffix.trim()} error fallback test`
-              ]
-      }));
+      .map((child) => {
+        // Build base description with feature context if available
+        let baseDescription = child.description ||
+          `Child item of "${request.prefix}" focused on: ${child.suffix.trim()}.`;
+
+        if (featureDef && (featureDef.why || featureDef.userFlow || featureDef.businessRules || featureDef.userStoryStatement)) {
+          const contextParts: string[] = [];
+          if (featureDef.why) {
+            contextParts.push(`**Feature Why:** ${featureDef.why}`);
+          }
+          if (featureDef.userFlow) {
+            contextParts.push(`**User Flow:** ${featureDef.userFlow}`);
+          }
+          if (featureDef.businessRules) {
+            contextParts.push(`**Business Rules:** ${featureDef.businessRules}`);
+          }
+          if (featureDef.userStoryStatement) {
+            contextParts.push(`**Feature User Story:** ${featureDef.userStoryStatement}`);
+          }
+          if (contextParts.length > 0) {
+            baseDescription = `${contextParts.join('\n\n')}\n\n---\n\n${baseDescription}`;
+          }
+        }
+
+        return {
+          id: this.draftService.newId(),
+          projectId,
+          title: `${request.prefix}${separator}${child.suffix.trim()}`,
+          description: baseDescription,
+          effortDays: child.effortDays ?? 2,
+          iteration,
+          status: 'draft',
+          workItemType: request.childWorkItemType,
+          acceptanceCriteria:
+            child.acceptanceCriteria && child.acceptanceCriteria.length > 0
+              ? child.acceptanceCriteria
+              : [
+                  `Given the ${child.suffix.trim()} flow, when exercised, then the expected outcome is delivered.`,
+                  'Validation and error states are clear and actionable.',
+                  'Happy path is documented and testable.'
+                ],
+          testScenarios:
+            child.testScenarios && child.testScenarios.length > 0
+              ? child.testScenarios
+              : [
+                  `${child.suffix.trim()} happy path test`,
+                  `${child.suffix.trim()} validation failure test`,
+                  `${child.suffix.trim()} error fallback test`
+                ],
+          // Propagate feature definition fields to child draft
+          ...(featureDef && {
+            featureWhy: featureDef.why,
+            featureUserFlow: featureDef.userFlow,
+            featureBusinessRules: featureDef.businessRules,
+            featureUserStoryStatement: featureDef.userStoryStatement
+          })
+        };
+      });
   }
 
   private defaultIteration(): string {
@@ -979,6 +1160,68 @@ export class DashboardPanel {
     await this.postState();
   }
 
+  private async handleWizardDraftLoad(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    const currentStep = this.getWizardStep(draftId);
+    this.post({
+      type: 'WIZARD_DRAFT_LOADED',
+      payload: { draft, currentStep }
+    });
+  }
+
+  private async handleWizardStepChange(draftId: string, targetStep: number): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.setWizardStep(draftId, targetStep);
+    this.post({
+      type: 'WIZARD_STEP_CHANGED',
+      payload: { currentStep: targetStep, draft }
+    });
+  }
+
+  private async handleWizardDraftSave(
+    draftId: string,
+    partialDraft: Partial<PbiDraft>,
+    currentStep: number
+  ): Promise<void> {
+    const existingDraft = this.findDraft(draftId);
+    if (!existingDraft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    // Merge strategy preserves all fields including technicalConsiderations (Step 6), userStoryStatement (Step 2),
+    // businessRulesAndAssumptions (Step 3), and other fields. Technical Considerations automatically clear on
+    // new story via PbiDraft initialization in createBlankDraft().
+    const mergedDraft = { ...existingDraft, ...partialDraft };
+    await this.draftService.upsert(this.context.globalState, mergedDraft);
+    this.setWizardStep(draftId, currentStep);
+    await this.postState();
+  }
+
+  private getWizardStep(draftId: string): number {
+    const wizardState = this.context.globalState.get<Record<string, number>>(
+      'poTools.wizardSteps',
+      {}
+    );
+    return wizardState[draftId] ?? 0;
+  }
+
+  private setWizardStep(draftId: string, step: number): void {
+    const wizardState = this.context.globalState.get<Record<string, number>>(
+      'poTools.wizardSteps',
+      {}
+    );
+    wizardState[draftId] = step;
+    void this.context.globalState.update('poTools.wizardSteps', wizardState);
+  }
+
   private async requireAdoContext(): Promise<{ settings: AdoSettings; pat: string } | null> {
     const settings = this.settingsService.getAdoSettings();
     if (!settings || !settings.orgUrl || !settings.projectName) {
@@ -1023,6 +1266,137 @@ export class DashboardPanel {
     this.post({ type: 'TOAST', payload: { level, message } });
   }
 
+  private async handleFetchTeams(): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'teams', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'teams', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.teams');
+      if (cached) {
+        this.post({ type: 'ADO_TEAMS_RESULT', payload: cached });
+        return;
+      }
+
+      const teams = await this.adoService.fetchTeams(ctx.settings, ctx.pat);
+      await this.setCachedData('ado.cache.teams', teams);
+      this.post({ type: 'ADO_TEAMS_RESULT', payload: teams });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'teams', error: message } });
+    }
+  }
+
+  private async handleFetchAreaPaths(teamId?: string): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'areas', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'areas', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.areas');
+      if (cached) {
+        this.post({ type: 'ADO_AREA_PATHS_RESULT', payload: cached });
+        return;
+      }
+
+      const areas = await this.adoService.fetchAreaPaths(ctx.settings, ctx.pat, teamId);
+      await this.setCachedData('ado.cache.areas', areas);
+      this.post({ type: 'ADO_AREA_PATHS_RESULT', payload: areas });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'areas', error: message } });
+    }
+  }
+
+  private async handleFetchIterations(teamId?: string): Promise<void> {
+    if (!this.patValidatedThisSession) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'iterations', error: 'Please validate PAT in Settings first.' }
+      });
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      this.post({
+        type: 'FETCH_FAILED',
+        payload: { type: 'iterations', error: 'Azure DevOps settings not configured' }
+      });
+      return;
+    }
+
+    try {
+      const cached = await this.getCachedData('ado.cache.iterations');
+      if (cached) {
+        this.post({ type: 'ADO_ITERATIONS_RESULT', payload: cached });
+        return;
+      }
+
+      const iterations = await this.adoService.fetchIterations(ctx.settings, ctx.pat, teamId);
+      await this.setCachedData('ado.cache.iterations', iterations);
+      this.post({ type: 'ADO_ITERATIONS_RESULT', payload: iterations });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'FETCH_FAILED', payload: { type: 'iterations', error: message } });
+    }
+  }
+
+  private async getCachedData(key: string): Promise<string[] | null> {
+    const cached = this.context.globalState.get<{ data: string[]; fetchedAt: number }>(key);
+    if (!cached) {
+      return null;
+    }
+
+    const age = Date.now() - cached.fetchedAt;
+    const thirtyMinutes = 30 * 60 * 1000;
+    
+    if (age < thirtyMinutes) {
+      return cached.data;
+    }
+
+    return null;
+  }
+
+  private async setCachedData(key: string, data: string[]): Promise<void> {
+    await this.context.globalState.update(key, {
+      data,
+      fetchedAt: Date.now()
+    });
+  }
+
+  public async clearAdoCache(): Promise<void> {
+    await this.context.globalState.update('ado.cache.teams', undefined);
+    await this.context.globalState.update('ado.cache.areas', undefined);
+    await this.context.globalState.update('ado.cache.iterations', undefined);
+  }
+
   private post(event: ExtensionEvent): void {
     this.panel.webview.postMessage(event);
   }
@@ -1062,8 +1436,10 @@ export class DashboardPanel {
 type BulkSaveInput = {
   orgUrl: string;
   projectName: string;
+  team?: string;
   areaPath?: string;
   iterationPath?: string;
   defaultWorkItemType?: AdoSettings['defaultWorkItemType'];
   pat?: string;
 };
+
