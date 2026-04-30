@@ -251,6 +251,13 @@
 - **Maintainability**: Future UI updates can reference spacing tokens instead of hardcoding values — reduces CSS bloat and inconsistency
 - **Professional Polish**: Focus states and touch targets meet WCAG 2.1 AA standards
 
+## Learnings
+
+- PBI Studio toggle UX: inactive button used --ink-muted (looks disabled). Fixed to use --ink with opacity: 0.6 for clear interactivity.
+- CSS architecture: tokens.css and wizard.css in styles/ subdir were NOT imported. Fixed by: importing wizard.css in main.tsx, bridging missing variables in styles.css [data-theme] blocks.
+- Variable bridge pattern: --color-primary-default and --color-error mapped to --accent and --danger respectively in each [data-theme] block so dark/light mode works correctly.
+- Numeric spacing scale (--space-1..8) added to :root in styles.css as convenience aliases = 4px/8px/12px/16px/20px/24px/28px/32px.
+
 ### 2026-04-29 — "Bulk Breakdown" Renamed to "Feature Creation" (Issue #21)
 
 **User-visible text changes:**
