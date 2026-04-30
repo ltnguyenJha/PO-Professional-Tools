@@ -1,5 +1,6 @@
 import * as azdev from 'azure-devops-node-api';
 import { JsonPatchOperation } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
+import { WorkItemExpand } from 'azure-devops-node-api/interfaces/WorkItemTrackingInterfaces';
 import { Readable } from 'stream';
 import {
   AdoSettings,
@@ -199,7 +200,9 @@ export class AdoService {
 
   /**
    * Applies field updates to an existing work item (after initial push).
-   * Optionally uploads and links attachments (diagrams, mermaid exports, etc.).
+   * Removes any previously auto-generated mermaid diagrams (po-tools-ai-diagram-*.mmd)
+   * from the ADO work item before uploading the fresh one.
+   * Manually-added attachments (different naming pattern) are never touched.
    */
   public async updateDraftInAdo(
     settings: AdoSettings,
@@ -209,6 +212,10 @@ export class AdoService {
   ): Promise<void> {
     const connection = this.createConnection(settings, pat);
     const witApi = await connection.getWorkItemTrackingApi();
+
+    // Remove stale auto-generated mermaid attachments before adding the refreshed one.
+    await this.removeAutoMermaidAttachments(witApi, settings, workItemId);
+
     const patch = asPatch(this.buildFieldPatches(settings, draft, 'replace'));
     await witApi.updateWorkItem(undefined, patch, workItemId, settings.projectName);
     if (draft.attachments && draft.attachments.length > 0) {
@@ -219,6 +226,49 @@ export class AdoService {
         throw new Error(`Work item fields were updated but attachment upload failed: ${msg}`);
       }
     }
+  }
+
+  /**
+   * Fetches the work item's current relations and removes any AttachedFile relation
+   * whose URL references an auto-generated PO Tools mermaid diagram
+   * (filename pattern: po-tools-ai-diagram-*.mmd).
+   * Manually-added attachments with other naming conventions are left untouched.
+   */
+  private async removeAutoMermaidAttachments(
+    witApi: Awaited<ReturnType<azdev.WebApi['getWorkItemTrackingApi']>>,
+    settings: AdoSettings,
+    workItemId: number
+  ): Promise<void> {
+    const workItem = await witApi.getWorkItem(
+      workItemId,
+      undefined,
+      undefined,
+      WorkItemExpand.Relations,
+      settings.projectName
+    );
+    const relations = workItem?.relations ?? [];
+
+    // Collect indices of auto-mermaid attachment relations. Remove in descending index order
+    // so that earlier removals do not shift the indices of subsequent ones in the same patch.
+    const indicesToRemove = relations
+      .map((rel, idx) => ({ rel, idx }))
+      .filter(
+        ({ rel }) =>
+          rel.rel === 'AttachedFile' &&
+          typeof rel.url === 'string' &&
+          rel.url.includes('po-tools-ai-diagram-')
+      )
+      .map(({ idx }) => idx)
+      .sort((a, b) => b - a); // descending
+
+    if (indicesToRemove.length === 0) {
+      return;
+    }
+
+    const removePatch = asPatch(
+      indicesToRemove.map((idx) => ({ op: 'remove', path: `/relations/${idx}` }))
+    );
+    await witApi.updateWorkItem(undefined, removePatch, workItemId, settings.projectName);
   }
 
   private async syncAttachments(
