@@ -1299,3 +1299,92 @@ When integrating a new wizard step, the heaviest work is NOT building the compon
 
 The component itself follows a proven formula: state + blur-save debounce + auto-focus + keyboard shortcuts. Reuse these patterns consistently across all wizard steps.
 
+### 2026-05-02 — Wizard Bug Fixes: Business Rules Navigation & AI-Generated Button
+
+**Problem solved:**
+- **BUG 1:** Business Rules step couldn't proceed to next step — clicking Next button didn't advance
+- **BUG 2:** AI-Generated feature in Feature Definition step had no UI to trigger it
+
+**Root cause analysis:**
+
+**BUG 1 - Off-by-one error in step navigation:**
+- In WizardStep3p5BusinessRules.tsx line 38: `onNext(4)` was hardcoded
+- But in FeatureWizard.tsx line 228: `currentStep === 4` renders WizardStep3p5BusinessRules
+- This meant clicking Next was trying to navigate to the SAME step (4), not the next step (5)
+- Navigation guard prevented this, so the button did nothing
+- **Root cause:** Hardcoded step index instead of calculating next step
+
+**BUG 2 - Missing UI component:**
+- WizardStepFeatureDefinition.tsx had no "AI-Generated" button
+- FeatureWizard.tsx already had `handleGenerateAI()` that sends `GENERATE_FULL_STORY_AI` message
+- Message type exists in both `webview-ui/src/types.ts` (line 214) and `src/shared/messages.ts` (line 195)
+- Backend handler exists (Linus's domain) — this was purely a frontend wiring issue
+- **Root cause:** Component prop not passed, no UI to trigger existing functionality
+
+**Solution implemented:**
+
+**1. Fixed Business Rules navigation:**
+- Changed WizardStep3p5BusinessRules.tsx line 38: `onNext(4)` → `onNext(5)`
+- Now correctly advances to Details step (step 5)
+- Navigation flow restored: Business Rules (4) → Details (5) → Technical Considerations (6)
+
+**2. Added AI-Generated button to Feature Definition:**
+- Added `onGenerateAI?: () => void` prop to WizardStepFeatureDefinition interface
+- Added button in wizard-step-header section:
+  ```tsx
+  {onGenerateAI && (
+    <button
+      className="wizard-btn wizard-btn-secondary"
+      onClick={onGenerateAI}
+      aria-label="Generate feature definition with AI"
+    >
+      ✨ AI-Generated
+    </button>
+  )}
+  ```
+- Wired up in FeatureWizard.tsx: passed `onGenerateAI={handleGenerateAI}` to WizardStepFeatureDefinition
+- Button conditionally rendered (only shows if callback provided)
+- Uses existing `handleGenerateAI()` that sends `GENERATE_FULL_STORY_AI` message
+- Backend handler already exists — no backend changes needed
+
+**Build & validation:**
+- `npm run build`: ✅ Succeeded (60 modules, 256.42 KB JS, 926ms)
+- Committed on branch `feature/pbi-studio-ux-improvements`
+- Commit message includes detailed explanation of both fixes
+
+**Key learnings:**
+
+**1. Hardcoded step indices are fragile:**
+- When wizard step order changes (adding/removing steps), hardcoded indices break
+- Better pattern: Calculate next step relative to current: `onNext(currentStep + 1)`
+- Or use named constants/enums for step indices
+- **Action:** Consider refactoring all wizard steps to use relative navigation
+
+**2. Message type alignment is critical:**
+- Always verify message type exists in BOTH:
+  - `webview-ui/src/types.ts` (WebviewRequest union)
+  - `src/shared/messages.ts` (WebviewRequest union)
+- These must be kept in sync manually (no type sharing between webview and extension contexts)
+- Before adding frontend features, check if backend handler already exists
+
+**3. Optional prop pattern for conditional features:**
+- Using `onGenerateAI?: () => void` (optional prop) allows component to work with/without AI feature
+- Button renders only when callback provided: `{onGenerateAI && <button onClick={onGenerateAI}>...}`
+- This pattern makes components reusable in contexts with different feature availability
+
+**Findings for Linus (backend):**
+- AI-Generated button now sends `GENERATE_FULL_STORY_AI` message type with `{ draftId }`
+- This is the same message used in WizardStep3Story.tsx for "Generate Full Story with AI"
+- Backend handler should populate all 4 feature definition fields:
+  - `featureWhy`
+  - `featureUserFlow`
+  - `featureBusinessRules`
+  - `featureUserStoryStatement`
+- Message type already registered in both type systems — no new message needed
+
+**Files modified:**
+- webview-ui/src/components/WizardStep3p5BusinessRules.tsx (navigation fix)
+- webview-ui/src/components/WizardStepFeatureDefinition.tsx (prop interface + button)
+- webview-ui/src/components/FeatureWizard.tsx (prop wiring)
+- dist/assets/* (rebuilt)
+

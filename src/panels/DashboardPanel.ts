@@ -144,6 +144,9 @@ export class DashboardPanel {
       case 'GENERATE_FULL_STORY_AI':
         await this.handleGenerateFullStory(message.payload.draftId, message.payload.seedText);
         return;
+      case 'GENERATE_FEATURE_DEFINITION':
+        await this.handleGenerateFeatureDefinition(message.payload.draftId);
+        return;
       case 'GENERATE_TECHNICAL_CONSIDERATIONS':
         await this.handleGenerateTechnicalConsiderations(message.payload.draftId);
         return;
