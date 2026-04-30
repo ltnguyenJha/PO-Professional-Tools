@@ -9,7 +9,6 @@ import type {
 } from '../types';
 import { WORK_ITEM_TYPES } from '../types';
 import { DropdownWithFallback } from '../components/DropdownWithFallback';
-import { SearchableDropdown } from '../components/SearchableDropdown';
 
 interface Props {
   adoSettings?: AdoSettings;
@@ -408,7 +407,7 @@ export function SettingsView({
             }
             onChange={handleTeamChange}
           />
-          <SearchableDropdown
+          <DropdownWithFallback
             label="Iteration Path"
             value={form.iterationPath ?? ''}
             options={dropdownState.iterations}

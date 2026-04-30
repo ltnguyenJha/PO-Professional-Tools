@@ -438,8 +438,9 @@ button {
 
 .field-row {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  row-gap: 24px;
 }
 
 .chip {
