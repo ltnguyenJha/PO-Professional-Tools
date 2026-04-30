@@ -29,6 +29,22 @@
 
 ## Learnings
 
+### 2026-05-01 — Light Mode Contrast Fix
+
+**Root cause of the bug:** The `body.vscode-light` block in `tailwind.css` only overrode the soft-background vars (`--tw-vscode-*-bg`). It never overrode the status **foreground** vars. The `:root` defaults used tokens like `--vscode-notificationsInfoIcon-foreground` with fallback `#75beff` — a light blue designed for dark themes. In VS Code light mode, the token often resolves to `#3794ff` (still light blue, ~3:1 on white) — failing WCAG AA for text.
+
+**Fix pattern:** When `:root` uses dark-theme-optimized token sources, always pair with a `body.vscode-light` override that selects a darker, equivalent-semantic token. For info/link color in light mode, `--vscode-textLink-foreground` is the safest choice — VS Code guarantees it's AA-contrast in any theme. For warning in light mode, `--vscode-gitDecoration-modifiedResourceForeground` gives a rich amber/brown that beats `editorWarning-foreground` which can be golden yellow.
+
+**Token selection rule for status foreground in light mode:**
+| Status   | Light-mode token                                       | Why                              |
+|----------|--------------------------------------------------------|----------------------------------|
+| success  | `--vscode-testing-iconPassed`                          | Same token, dark green in light  |
+| warning  | `--vscode-gitDecoration-modifiedResourceForeground`    | Darker amber than editorWarning  |
+| info     | `--vscode-textLink-foreground`                         | AA-guaranteed in all themes      |
+| error    | `--vscode-editorError-foreground`                      | Dark red in light themes         |
+
+**StatusBadge.tsx required zero changes** — it already uses the `--tw-vscode-*` bridge vars. Fix was entirely in CSS.
+
 ### 2026-04-30 — Tailwind CSS + Dashboard Redesign
 
 **Tailwind v4 vs v3 gotcha:** Running `npm install tailwindcss` installs v4 (latest) which removes the PostCSS plugin from the main package into `@tailwindcss/postcss`. Since the project needs `tailwind.config.js` (v3 approach), always pin to `tailwindcss@^3.4.0` explicitly.
