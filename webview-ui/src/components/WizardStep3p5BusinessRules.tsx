@@ -35,7 +35,7 @@ export function WizardStep3p5BusinessRules({
   const handleNext = () => {
     if (saveTimer) clearTimeout(saveTimer);
     onSave({ businessRulesAndAssumptions: businessRules });
-    onNext(4);
+    onNext(5);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

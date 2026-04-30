@@ -99,6 +99,59 @@
 - Clean state on successful save + brief success feedback (3s timeout).
 - Sticky footer with conditional rendering (`hasUnsavedChanges || saveSuccess`) keeps UI clean when no action needed.
 
+### 2026-05-01 — Feature Definition Empty State & Card Alignment
+
+**Problem solved:**
+- Feature Definition step (index 3) in FeatureWizard was empty for non-Feature work item types.
+- Cards and wizard container had misaligned horizontal padding causing visual inconsistency.
+
+**Root causes:**
+1. **Empty Feature Definition step:**
+   - `FeatureWizard.tsx` line 219 had conditional rendering: `{currentStep === 3 && draft.workItemType === 'Feature' && (<WizardStepFeatureDefinition />)}`
+   - If `workItemType` wasn't exactly 'Feature', the step content wouldn't render at all, leaving an empty step.
+   - Step 3 was visible in progress indicator but showed nothing when clicked.
+
+2. **Card alignment issue:**
+   - `.card` in `styles.css` uses `padding: var(--space-lg)` = 16px (line 532).
+   - `.wizard-container` in `wizard.css` used `padding: var(--space-5)` = 20px (line 19).
+   - `.pbi-type-selector-wrap` had no margin-bottom, creating inconsistent vertical spacing between sections.
+   - Result: Cards and wizard sections had different left/right insets, breaking visual alignment.
+
+**Solution implemented:**
+
+**1. Remove workItemType condition:**
+- Changed `FeatureWizard.tsx` line 219 from:
+  ```tsx
+  {currentStep === 3 && draft.workItemType === 'Feature' && (
+  ```
+  to:
+  ```tsx
+  {currentStep === 3 && (
+  ```
+- Now `WizardStepFeatureDefinition` renders for all work item types at step 3.
+- The component's fields (`featureWhy`, `featureUserFlow`, etc.) are optional by design in `PbiDraft` type, so they work fine for any work item type.
+
+**2. Align wizard container padding:**
+- Changed `wizard.css` line 19 from `padding: var(--space-5)` to `padding: var(--space-4)`.
+- `var(--space-4)` = 16px, matching `.card` padding.
+- Now wizard and cards have consistent horizontal alignment.
+
+**3. Add vertical spacing to pbi-type-selector:**
+- Added `margin-bottom: var(--space-md)` to `.pbi-type-selector-wrap` in `styles.css`.
+- Creates consistent gap between PBI type selector and the FeatureWizard below it.
+- Uses existing token (12px) for consistency.
+
+**Key patterns:**
+- **Conditional rendering gotcha:** If step UI is conditionally rendered based on draft properties, ensure fallback or make it universal. Empty steps confuse users.
+- **Padding alignment:** When mixing layout containers (`.card`, `.wizard-container`, custom wrappers), audit padding/margin to ensure visual alignment. Use consistent spacing tokens.
+- **PbiDraft flexibility:** Feature-specific fields (featureWhy, featureUserFlow, etc.) are all optional, so Feature Definition step is safe to show for all work item types. Users can skip it if not relevant.
+
+**Testing notes:**
+- Verified build succeeds with `npm run build` in webview-ui.
+- Changes are purely presentational — no backend message handler updates needed.
+- Feature Definition step now shows content regardless of workItemType selection.
+
+
 **CSS strategy:**
 - Inline styles for sticky footer (`position: 'sticky'`, `bottom: 0`) — no new CSS classes needed.
 - Used existing VS Code CSS variables (`--panel`, `--line-strong`) for consistent theming.

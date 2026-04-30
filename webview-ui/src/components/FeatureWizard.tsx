@@ -222,6 +222,7 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
+            onGenerateAI={handleGenerateAI}
           />
         )}
         {currentStep === 4 && (
