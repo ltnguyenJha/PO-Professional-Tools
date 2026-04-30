@@ -1068,6 +1068,9 @@ export class DashboardPanel {
       this.postToast('error', 'Draft not found.');
       return;
     }
+    // Merge strategy preserves all fields including technicalConsiderations (Step 6), userStoryStatement (Step 2),
+    // businessRulesAndAssumptions (Step 3), and other fields. Technical Considerations automatically clear on
+    // new story via PbiDraft initialization in createBlankDraft().
     const mergedDraft = { ...existingDraft, ...partialDraft };
     await this.draftService.upsert(this.context.globalState, mergedDraft);
     this.setWizardStep(draftId, currentStep);

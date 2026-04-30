@@ -6,12 +6,13 @@ import { WizardStep2Identity } from './WizardStep2Identity';
 import { WizardStep3Story } from './WizardStep3Story';
 import { WizardStep3p5BusinessRules } from './WizardStep3p5BusinessRules';
 import { WizardStep4Details } from './WizardStep4Details';
+import { WizardStep6TechnicalConsiderations } from './WizardStep6TechnicalConsiderations';
 
 interface Props {
   draftId: string;
 }
 
-type StepName = 'Type' | 'Identity' | 'Story' | 'Business Rules' | 'Details';
+type StepName = 'Type' | 'Identity' | 'Story' | 'Business Rules' | 'Details' | 'Technical Considerations';
 
 export function FeatureWizard({ draftId }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -19,10 +20,11 @@ export function FeatureWizard({ draftId }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previousStep, setPreviousStep] = useState(-1);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
 
-  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Business Rules', 'Details'];
+  const steps: StepName[] = ['Type', 'Identity', 'Story', 'Business Rules', 'Details', 'Technical Considerations'];
 
   // Announce step changes to screen readers
   useEffect(() => {
@@ -36,6 +38,19 @@ export function FeatureWizard({ draftId }: Props) {
       setPreviousStep(currentStep);
     }
   }, [currentStep, previousStep, steps]);
+
+  // Listen for AI progress events
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.type === 'AI_PROGRESS') {
+        setAiGenerating(message.payload.busy);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // Load draft on mount
   useEffect(() => {
@@ -66,7 +81,7 @@ export function FeatureWizard({ draftId }: Props) {
   }, [draftId, vscode]);
 
   const handleStepChange = (nextStep: number) => {
-    if (nextStep < 0 || nextStep > steps.length) {
+    if (nextStep < 0 || nextStep > steps.length - 1) {
       setError('Invalid step');
       return;
     }
@@ -111,6 +126,13 @@ export function FeatureWizard({ draftId }: Props) {
     vscode.postMessage({
       type: 'OPEN_IN_COPILOT_CHAT',
       payload: { draftId, mode: 'refine' },
+    });
+  };
+
+  const handleGenerateTechnicalConsiderations = () => {
+    vscode.postMessage({
+      type: 'GENERATE_TECHNICAL_CONSIDERATIONS',
+      payload: { draftId },
     });
   };
 
@@ -207,6 +229,16 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
+          />
+        )}
+        {currentStep === 5 && (
+          <WizardStep6TechnicalConsiderations
+            draft={draft}
+            isLoading={aiGenerating}
+            onNext={(next) => handleStepChange(next)}
+            onBack={(prev) => handleStepChange(prev)}
+            onSave={handleSave}
+            onGenerate={handleGenerateTechnicalConsiderations}
           />
         )}
       </div>
