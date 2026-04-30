@@ -27,9 +27,9 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4);
-  background: var(--color-neutral-200);
+  background: var(--panel);
   border-radius: var(--radius-4);
-  border: 1px solid var(--color-neutral-300);
+  border: 1px solid var(--line);
   align-items: center;
 }
 
@@ -55,12 +55,12 @@
 }
 
 .wizard-progress-step.disabled .wizard-progress-step-indicator {
-  background: var(--color-neutral-250);
-  color: var(--color-neutral-450);
+  background: var(--panel-muted);
+  color: var(--ink-muted);
 }
 
 .wizard-progress-step.disabled .wizard-progress-step-label {
-  color: var(--color-neutral-450);
+  color: var(--ink-muted);
 }
 
 .wizard-progress-step-indicator {
@@ -70,8 +70,8 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius-pill);
-  background: var(--color-neutral-300);
-  color: var(--color-neutral-500);
+  background: var(--line);
+  color: var(--ink-muted);
   font: var(--typography-button-sm);
   flex-shrink: 0;
   transition: all var(--transition-base);
@@ -93,7 +93,7 @@
 
 .wizard-progress-step-label {
   font: var(--typography-label-md);
-  color: var(--color-neutral-500);
+  color: var(--ink-muted);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;

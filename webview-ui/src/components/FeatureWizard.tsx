@@ -24,6 +24,9 @@ export function FeatureWizard({ draftId }: Props) {
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
+  // Signals that the next WIZARD_DRAFT_LOADED is an AI-triggered refresh
+  // (should update draft data only, not jump the user's current step)
+  const aiReloadRef = useRef(false);
 
   const steps: StepName[] = ['Story', 'Feature Definition', 'Business Rules', 'Technical Details', 'Test Cases', 'Summary'];
 
@@ -45,9 +48,12 @@ export function FeatureWizard({ draftId }: Props) {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (message.type === 'AI_PROGRESS') {
+        // Ignore AI events for other drafts or unrelated global AI tasks
+        if (message.payload.draftId && message.payload.draftId !== draftId) return;
         const nowBusy = message.payload.busy;
         if (wasGeneratingRef.current && !nowBusy) {
-          // Generation just finished — reload draft
+          // Generation just finished — reload draft data without moving the step
+          aiReloadRef.current = true;
           vscode.postMessage({ type: 'WIZARD_DRAFT_LOAD', payload: { draftId } });
         }
         wasGeneratingRef.current = nowBusy;
@@ -78,8 +84,14 @@ export function FeatureWizard({ draftId }: Props) {
       if (message.type === 'WIZARD_DRAFT_LOADED') {
         const { draft: loadedDraft, currentStep: savedStep } = message.payload;
         setDraft(loadedDraft);
-        setCurrentStep(Math.min(savedStep || 0, steps.length - 1));
-        setLoading(false);
+        if (aiReloadRef.current) {
+          // AI-triggered refresh: only update draft data, keep user on current step
+          aiReloadRef.current = false;
+        } else {
+          // Initial load: restore saved step (clamped to valid range)
+          setCurrentStep(Math.min(savedStep || 0, steps.length - 1));
+          setLoading(false);
+        }
       }
     };
 
