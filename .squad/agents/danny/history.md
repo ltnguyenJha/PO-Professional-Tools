@@ -361,3 +361,22 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - `.squad/decisions/inbox/danny-feature-41-rdi-architecture.md`
 
 **Lasting Pattern:** Architecture for wizard-based ADO features follows a predictable template: (1) define data model as new interface, (2) add WebviewRequest + ExtensionEvent types, (3) create dedicated service, (4) add ADO push method with HTML description builder, (5) create wizard orchestrator + N step components. This pattern should be documented as a feature template for future issues.
+
+### Epic → Feature → User Story Hierarchy Architecture (2026-07-01)
+
+**Task:** Architecture proposal for introducing work item hierarchy (Epic → Feature → User Story) with AI-driven Feature decomposition, multi-repo context, ADO push with parent-child links, and dashboard redesign.
+
+**Key Decisions:**
+- Separate `FeatureDraft` and `EpicDraft` types (not extending PbiDraft — too overloaded already)
+- ID-based relationships (not inline objects) for parent-child; `parentFeatureId` back-reference on PbiDraft
+- `HierarchyStatus` adds `'partial'` state for when parent pushed but children pending
+- Feature Creation wizard replaces BulkBreakdownView at the `bulk` ViewId (no route change)
+- High-level edit only in Feature wizard; detailed editing redirects to PBI Studio
+- ADO push uses `System.LinkTypes.Hierarchy-Forward` for parent→child
+- "Epics & Features" nav item between Dashboard and Projects
+
+**Deliverables:**
+- `docs/architecture/epic-feature-story-hierarchy.md`
+- `.squad/decisions/inbox/danny-epic-feature-architecture.md`
+
+**Lasting Pattern:** When adding a new hierarchy level to the data model, prefer separate dedicated types over extending existing overloaded interfaces. Use ID-based references with back-references for tree rendering. This keeps CRUD operations independent and avoids cascading changes to existing consumers.
