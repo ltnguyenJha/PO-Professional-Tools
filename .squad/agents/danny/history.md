@@ -396,3 +396,26 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - `.squad/decisions/inbox/danny-epic-feature-architecture.md`
 
 **Lasting Pattern:** When adding a new hierarchy level to the data model, prefer separate dedicated types over extending existing overloaded interfaces. Use ID-based references with back-references for tree rendering. This keeps CRUD operations independent and avoids cascading changes to existing consumers.
+
+### Feature Branch Close-Out Workflow Established (2026-04-30)
+
+**Task:** Close feature/saul-tailwind-dashboard-redesign branch with complete PR workflow documentation.
+
+**What Happened:**
+1. Verified branch state — already clean, no unstaged changes
+2. Created PR #61 with comprehensive body: summary, features, bug fixes, CSS/Tailwind changes, ESLint cleanup
+3. Merged via squash (gh pr merge --squash --delete-branch) → clean main history, auto-deleted remote + local branches
+4. Documented standard workflow in decisions.md and created decision drop file
+
+**Workflow Locked In:**
+- All feature branches follow this pattern: PR → squash merge → branch auto-delete → document in decisions.md
+- PR body covers: summary, features, bug fixes, breaking changes, CSS/theme, lint changes
+- Danny reviews and enforces at merge time
+- Squad state (history.md, decisions, skills) committed before branch close
+
+**Key Learning:** Squash merging keeps main history clean and narrative (each main commit = one shipped feature). Auto-delete via --delete-branch eliminates manual cleanup; git pull on main automatically syncs. Standard workflow documented in decisions.md prevents ad-hoc branch management.
+
+**Files Updated:**
+- .squad/decisions.md — added Feature Branch Workflow decision
+- .squad/decisions/inbox/danny-pr-workflow.md — decision drop file
+- .squad/agents/danny/history.md — this entry

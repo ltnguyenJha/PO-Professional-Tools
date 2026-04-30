@@ -3811,3 +3811,19 @@ Usage: `className="flex flex-col panel-wide:flex-row gap-4"`
 
 ---
 
+
+### [2026-04-30]: Feature Branch Workflow — PR, Merge, and Cleanup
+
+**Decision:** When a feature branch is complete, the team follows this standard close-out sequence:
+
+1. **Commit all squad state** — stage and commit any remaining .squad/ changes (history.md, decisions inbox, skill files)
+2. **Create a PR** — use gh pr create with a descriptive title and body covering: summary, features, bug fixes, and any breaking changes
+3. **Merge via squash** — gh pr merge <N> --squash --delete-branch for a clean main history
+4. **Clean up local** — git checkout main && git pull && git branch -d <branch>
+5. **Document in decisions.md** — record what shipped in this PR
+
+**Why:** Keeps main clean (squash history), auto-removes remote branches, and ensures squad state (learnings, decisions, skill files) is captured before the branch is gone.
+
+**Applies to:** All agents. Danny enforces at PR review time.
+
+**Implemented:** Closed feature/saul-tailwind-dashboard-redesign (PR #61) using this workflow.
