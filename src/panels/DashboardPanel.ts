@@ -743,6 +743,46 @@ export class DashboardPanel {
     await this.postState();
   }
 
+  private async handleGenerateFeatureDefinition(draftId: string): Promise<void> {
+    const draft = this.findDraft(draftId);
+    if (!draft) {
+      this.postToast('error', 'Draft not found.');
+      return;
+    }
+    this.post({
+      type: 'AI_PROGRESS',
+      payload: { draftId, message: 'Generating feature definition...', busy: true }
+    });
+    const token = new vscode.CancellationTokenSource().token;
+    try {
+      const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+      const featureDefinition = await this.copilotService.generateFeatureDefinition(
+        draft,
+        token,
+        { linkedProjectContext }
+      );
+      const updated: PbiDraft = {
+        ...draft,
+        featureWhy: featureDefinition.why,
+        featureUserFlow: featureDefinition.userFlow,
+        featureBusinessRules: featureDefinition.businessRules,
+        featureUserStoryStatement: featureDefinition.userStoryStatement,
+        updatedAt: new Date().toISOString()
+      };
+      await this.draftService.upsert(this.context.globalState, updated);
+      this.postToast('success', 'Feature definition generated and saved.');
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Unknown error';
+      this.postToast('error', messageText);
+    } finally {
+      this.post({
+        type: 'AI_PROGRESS',
+        payload: { draftId, message: '', busy: false }
+      });
+    }
+    await this.postState();
+  }
+
   private async handleOpenInChat(payload: {
     draftId: string;
     mode?: 'refine' | 'newStory';

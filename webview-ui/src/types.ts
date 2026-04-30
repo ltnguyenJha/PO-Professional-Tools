@@ -212,6 +212,7 @@ export type WebviewRequest =
     }
   | { type: 'REFINE_PBI_WITH_AI'; payload: { draftId: string; instruction?: string } }
   | { type: 'GENERATE_FULL_STORY_AI'; payload: { draftId: string; seedText?: string } }
+  | { type: 'GENERATE_FEATURE_DEFINITION'; payload: { draftId: string } }
   | { type: 'GENERATE_TECHNICAL_CONSIDERATIONS'; payload: { draftId: string } }
   | {
       type: 'OPEN_IN_COPILOT_CHAT';

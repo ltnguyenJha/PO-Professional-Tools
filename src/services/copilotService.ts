@@ -5,7 +5,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BugReportInput, BulkChildInput, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
+import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -111,6 +111,40 @@ const TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT = [
   '- Keep notes actionable for dev teams (not generic architecture philosophy).',
   '- NEVER use Mermaid, flowchart, diagram syntax, or markdown code fences (```) in any field. Output must be plain text only.',
   '- Never output invalid JSON.'
+].join('\n');
+
+const FEATURE_DEFINITION_SYSTEM_PROMPT = [
+  'You are a senior Product Owner and business analyst defining features for Azure DevOps backlog items.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
+  '',
+  'WHY (Why does this matter?): 200–500 characters. Explain the business impact and strategic importance.',
+  'Focus on user value, business outcomes, and measurable benefits.',
+  '',
+  'USER FLOW (Describe the user flow): Step-by-step user journey through the feature.',
+  'Be specific about touchpoints, interactions, and user actions. Format as numbered steps or clear narrative.',
+  '',
+  'BUSINESS RULES (Business rules and assumptions): Critical constraints, conditions, compliance requirements, and assumptions.',
+  'Include validation rules, authorization policies, data constraints, and system limits.',
+  '',
+  'USER STORY STATEMENT: Standard "As a [role], I want [capability], so that [benefit]" format.',
+  'Capture the core user story that guides child story generation and acceptance criteria.',
+  '',
+  'RULES:',
+  '- Base content on the draft title, description, and any existing acceptance criteria.',
+  '- Use LINKED PROJECT CONTEXT to ground technical realism (actual APIs, flows, constraints).',
+  '- Keep language clear and stakeholder-friendly.',
+  '- Never output invalid JSON.'
+].join('\n');
+
+const FEATURE_DEFINITION_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
+  '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided.',
+  '- Do not create files or emit markdown reports.',
+  '---'
 ].join('\n');
 
 export class CopilotService {
@@ -349,6 +383,64 @@ export class CopilotService {
     const parsed = this.parseJsonWithRepair(text);
     return this.technicalConsiderationsFromParsed(parsed);
   }
+
+  /**
+   * Generates feature definition content (why, user flow, business rules, user story statement) for a PBI.
+   * Grounds analysis in linked project context when available.
+   */
+  public async generateFeatureDefinition(
+    draft: PbiDraft,
+    token: vscode.CancellationToken,
+    options?: { linkedProjectContext?: string }
+  ): Promise<FeatureDefinition> {
+    const model = await this.pickModel();
+    const rulebook = await this.getProductManagerRulebook();
+
+    const systemBlock = [
+      FEATURE_DEFINITION_SYSTEM_PROMPT,
+      '',
+      FEATURE_DEFINITION_JSON_BRIDGE,
+      rulebook.trim().length > 0
+        ? `---\nPRODUCT_MANAGER_RULEBOOK:\n${rulebook}`
+        : '---\n(Product Manager rulebook not found.)'
+    ].join('\n');
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (use to ground technical realism):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userPrompt =
+      linkedPart +
+      [
+        'Generate feature definition content for this backlog item:',
+        '',
+        `Title: ${draft.title}`,
+        `Work Item Type: ${draft.workItemType ?? 'Product Backlog Item'}`,
+        `Effort (days): ${draft.effortDays}`,
+        '',
+        'PRODUCT OWNER DESCRIPTION:',
+        draft.description?.trim() ? draft.description.trim() : '(empty — infer from title and context)',
+        '',
+        'Acceptance criteria (current):',
+        ...(draft.acceptanceCriteria.length > 0
+          ? draft.acceptanceCriteria.map((item, i) => `${i + 1}. ${item}`)
+          : ['(none)']),
+        '',
+        'Generate all four feature definition fields based on this context.',
+        'Return JSON with keys: why, userFlow, businessRules, userStoryStatement.'
+      ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+    return this.featureDefinitionFromParsed(parsed);
+  }
+
   public async tryGenerateMermaidAttachment(
     draft: PbiDraft,
     token: vscode.CancellationToken
@@ -621,6 +713,24 @@ export class CopilotService {
       technicalDetails,
       scopedFiles,
       architectureNotes
+    };
+  }
+
+  private featureDefinitionFromParsed(parsed: Record<string, unknown>): FeatureDefinition {
+    const why = typeof parsed.why === 'string' ? parsed.why.trim() : '';
+    const userFlow = typeof parsed.userFlow === 'string' ? parsed.userFlow.trim() : '';
+    const businessRules = typeof parsed.businessRules === 'string' ? parsed.businessRules.trim() : '';
+    const userStoryStatement = typeof parsed.userStoryStatement === 'string' ? parsed.userStoryStatement.trim() : '';
+
+    if (!why && !userFlow && !businessRules && !userStoryStatement) {
+      throw new Error('AI response missing all feature definition fields. Try again with more context.');
+    }
+
+    return {
+      why,
+      userFlow,
+      businessRules,
+      userStoryStatement
     };
   }
 

@@ -123,6 +123,13 @@ export function FeatureWizard({ draftId }: Props) {
     });
   };
 
+  const handleGenerateFeatureDefinition = () => {
+    vscode.postMessage({
+      type: 'GENERATE_FEATURE_DEFINITION',
+      payload: { draftId },
+    });
+  };
+
   const handleOpenInChat = () => {
     vscode.postMessage({
       type: 'OPEN_IN_COPILOT_CHAT',
@@ -222,7 +229,7 @@ export function FeatureWizard({ draftId }: Props) {
             onNext={(next) => handleStepChange(next)}
             onBack={(prev) => handleStepChange(prev)}
             onSave={handleSave}
-            onGenerateAI={handleGenerateAI}
+            onGenerateAI={handleGenerateFeatureDefinition}
           />
         )}
         {currentStep === 4 && (

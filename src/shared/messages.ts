@@ -112,6 +112,13 @@ export interface TechnicalConsiderations {
   architectureNotes: string;
 }
 
+export interface FeatureDefinition {
+  why: string;
+  userFlow: string;
+  businessRules: string;
+  userStoryStatement: string;
+}
+
 export interface BugReportInput {
   /** Component, area, or page where the bug occurs. */
   whereLocation: string;
