@@ -27,6 +27,25 @@
 - Visual specs must be implementation-ready: annotated with exact values for Rusty
 - Visual design reviews happen after Rusty implements, before Livingston tests
 
+## Cross-Team Work
+
+### 2026-04-30 — Feature Creation Implementation (with Linus, Rusty)
+
+**Team Coordination:**
+- **Rusty (Frontend):** Built FeatureCreationWizard with 5-step flow, Dashboard FeatureDraftCard with status badges, "Part of Feature" badge in PBI Studio
+- **Linus (Backend):** Implemented data layer (FeatureDraft type, message handlers), ADO service (parent-child linking via System.LinkTypes.Hierarchy-Reverse), CopilotService (AI story generation)
+- **Saul (UI):** Fixed light-mode contrast for status badges (info/warning/success/error) — all now WCAG AA compliant
+
+**Integration Point:**
+- All three agents working on feature/saul-tailwind-dashboard-redesign branch simultaneously
+- Saul's light-mode fix applies to all status badges rendered by Rusty's FeatureDraftCard and Linus's HierarchyStatusBadge
+- Message contract fully synced: webview types (Rusty) ↔ extension messages (Linus)
+- Commits: 8d70088 (Saul), 78d5ee1 (Linus), 1235d3e (Rusty)
+
+**Design Pattern Learned:**
+- When mixing multiple color tokens in light theme, test each token individually for contrast; don't assume dark-theme tokens work in light (they often don't)
+- `--vscode-textLink-foreground` is the most reliable light-mode info color — VS Code guarantees AA contrast
+
 ## Learnings
 
 ### 2026-05-01 — Light Mode Contrast Fix

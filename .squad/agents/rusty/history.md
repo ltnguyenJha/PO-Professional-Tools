@@ -42,6 +42,12 @@
 - Added 5 new message event handlers: FEATURE_DRAFT_CREATED, FEATURE_DRAFT_UPDATED, USER_STORIES_GENERATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED.
 - Fixed EMPTY_STATE to include `rdiDrafts: []`, `featureDrafts: []`, `epicDrafts: []`.
 
+**Cross-Team Work (2026-04-30):**
+- Coordinated with Linus on message types (`GENERATE_USER_STORIES_FROM_FEATURE`, `CREATE_FEATURE_DRAFT`, etc.) and state shape (`FeatureDraft`, `HierarchyStatus`)
+- Coordinated with Saul on light-mode token mapping for status badges — all status colors now WCAG AA compliant in all themes
+- Established pattern: stable `featureDraftId` generated at wizard mount, reused for generation and save
+- Full type sync: `webview-ui/src/types.ts` mirrors all types from `src/shared/messages.ts`
+
 **4. `DashboardView.tsx` updates:**
 - Added `HierarchyStatusBadge` (draft/ready/pushed/partial with color coding).
 - Added `FeatureDraftCard` component: accordion with child PBI list, push button, status rollup.

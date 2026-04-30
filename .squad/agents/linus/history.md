@@ -46,6 +46,46 @@
 - Bug report workflow complete: UX → message send → service handling → AI generation → result display
 - Repo context improves LM accuracy; model fallback chain ensures org compatibility
 
+### 2026-04-30 — Feature Creation Implementation (Phase 1 Data Layer)
+
+**Scope:** Completed full backend for Feature→PBI hierarchy intake flow
+
+**Messages & Types:**
+- Added `FeatureDraft`, `HierarchyStatus` types to `src/shared/messages.ts`
+- Extended `PbiDraft` with optional `parentFeatureId: string`
+- Added `featureDrafts?: FeatureDraft[]`, `epicDrafts?: EpicDraft[]` to `AppStatePayload`
+- Added all FEATURE_* message types: GENERATE_USER_STORIES_FROM_FEATURE, CREATE_FEATURE_DRAFT, UPDATE_FEATURE_DRAFT, DELETE_FEATURE_DRAFT, PUSH_FEATURE_TO_ADO, plus 5 event types
+
+**ADO Service (`src/services/adoService.ts`):**
+- `createFeatureInAdo()` — creates Feature work item, returns ID
+- `linkPbiToFeature()` — establishes `System.LinkTypes.Hierarchy-Reverse` link on PBI
+- Updated bulk create to accept `parentFeatureId` and link each PBI to parent
+- Graceful partial failure on link errors
+
+**Copilot Service (`src/services/copilotService.ts`):**
+- `generateUserStoriesFromFeature()` — AI-powered story generation from feature details
+- Input: feature title, description, why, userFlow, businessRules
+- Output: array of PbiDraft with auto-generated titles, effort estimates (INVEST-aligned), `parentFeatureId` set
+- Uses repo context (package.json, README, git log, file list) to inform generation
+
+**DashboardPanel Handlers (`src/panels/DashboardPanel.ts`):**
+- CREATE_FEATURE_DRAFT — stores to state, emits event
+- UPDATE_FEATURE_DRAFT — updates feature properties + status rollup
+- DELETE_FEATURE_DRAFT — removes feature and children
+- PUSH_FEATURE_TO_ADO — orchestrates: create Feature → create PBIs → link PBIs → emit progress/success
+- GENERATE_USER_STORIES_FROM_FEATURE — dispatches to CopilotService, emits USER_STORIES_GENERATED
+
+**Cross-Team Integration:**
+- Coordinated with Rusty (Frontend) on message types and `featureDraftId` stable ID pattern
+- Coordinated with Saul (UI) on status badge colors (light-mode tokens applied to all badge types)
+- TypeScript strict mode compliant, all types synced webview↔extension
+
+**Commit:** 78d5ee1
+
+**Pattern Learned:**
+- ADO hierarchy links use `System.LinkTypes.Hierarchy-Reverse` from child to parent
+- Generate stable feature IDs at UI mount time (Rusty's pattern) so backend can link generations to eventual Feature before it's saved
+
 ### Project Reorganization: Build Config Migration (2026-04-28)
 
 Completed full project directory reorganization with file migrations and build configuration updates. 

@@ -2922,6 +2922,149 @@ Update git-workflow.md with step 6: "Update GitHub Issue — Ensure issue is clo
 
 ---
 
+# Feature Creation Implementation — Key Decisions (2026-04-30)
+
+**Session:** Feature Creation Wizard + Dashboard Integration + Phase 1 Data Layer  
+**Date:** 2026-04-30  
+**Agents:** Saul (UI Designer), Linus (Backend Dev), Rusty (Frontend Dev)  
+**Commits:** 8d70088, 78d5ee1, 1235d3e  
+
+## 1. Work Item Types Are FIXED (Feature → PBI Hierarchy)
+
+**Decision:** Feature parent type and Product Backlog Item child type are non-editable labels. The `WorkItemHierarchyBox` component renders them as read-only info badges with the caption "(These types are fixed and cannot be changed)".
+
+**Rationale:** ADO parent-child relationships are enforced by the backend via `System.LinkTypes.Hierarchy-Reverse`. Allowing UI affordances to change these types would create confusion when ADO rejects the modification. Better to make constraints visible.
+
+**Implementation:** `webview-ui/src/components/FeatureCreationWizard.tsx` (Step 1), `webview-ui/src/components/WorkItemHierarchyBox.tsx` (styled chip display).
+
+---
+
+## 2. Feature Creation Intake: 5-Step Wizard (Single File)
+
+**Decision:** Implemented as a single `FeatureCreationWizard.tsx` file with step sub-components (`Step1Details`, `Step2Context`, `Step3Generate`, `Step4Review`, `Step5SavePush`) rather than separate files per step.
+
+**Rationale:** For first iteration, single-file architecture reduces inter-file coordination overhead and keeps all wizard state in one place. Can be split if file grows >600 lines.
+
+**Steps:**
+1. **Details:** Title, description, why, userFlow, businessRules + WorkItemHierarchyBox showing non-editable hierarchy
+2. **Context:** Multi-select linkTargets with search, epic assignment dropdown (graceful if epicDrafts empty)
+3. **AI Generation:** Dispatch `GENERATE_USER_STORIES_FROM_FEATURE`, loading state, auto-advances on `USER_STORIES_GENERATED` event
+4. **Review:** Inline title editing (auto-resize textarea), effort dropdown [1,2,3,5,8,13], collapsible descriptions, "Edit in PBI Studio" button, delete with confirm, manual "Add story" entries
+5. **Save & Push:** `CREATE_FEATURE_DRAFT` (dashboard) or `PUSH_FEATURE_TO_ADO` (with progress bar, success/partial state)
+
+---
+
+## 3. Auto-Advance from Step 3 (Generation) to Step 4 (Review)
+
+**Decision:** When `USER_STORIES_GENERATED` event arrives (detected via `generatedPbiIds` prop change), wizard automatically advances from Step 3 to Step 4 without requiring user click.
+
+**Rationale:** Per UX spec: "On success: Automatically transitions to Step 4 (Review) with a subtle fade-in. Do not require user to click 'Next'." Reduces friction post-generation.
+
+**Implementation:** `useEffect` in FeatureCreationWizard watches `generatedPbiIds` and calls `setCurrentStep(4)` when array becomes non-empty.
+
+---
+
+## 4. Local PBI Edits in Wizard State (Not Dispatched Until Save)
+
+**Decision:** Title and effort edits in Step 4 are stored in local wizard state (`localEdits: Record<string, LocalPbiEdit>`) keyed by PBI ID. They are NOT dispatched to extension until user clicks "Save as Draft" or "Push to ADO".
+
+**Rationale:** Avoids spamming extension with partial updates while user reviews. Final `CREATE_FEATURE_DRAFT` or `PUSH_FEATURE_TO_ADO` payload includes all data in one atomic request.
+
+**Implementation:** Step 4 textarea and effort dropdown update `localEdits` state; on Step 5, `localEdits` are merged into PbiDraft objects before dispatch.
+
+---
+
+## 5. Manual Story Addition with Temporary IDs
+
+**Decision:** "Add story" button in Step 4 creates local `PbiDraft` objects with `manual-*` prefix IDs, stored only in `manualStories` wizard state. These are submitted with `CREATE_FEATURE_DRAFT`/`PUSH_FEATURE_TO_ADO`.
+
+**Rationale:** Avoids creating orphan drafts in extension state if user abandons wizard. IDs are temporary; backend assigns real IDs on push.
+
+**Implementation:** onClick handler generates `manual-${Date.now()}-${Math.random()}` ID, stores in `manualStories` array, renders in Step 4 list alongside AI-generated stories.
+
+---
+
+## 6. FeatureDraftCard Separate from Legacy PbiDraft Features
+
+**Decision:** Added `FeatureDraftCard` component for `FeatureDraft` objects on Dashboard. Legacy PbiDraft objects with `workItemType='Feature'` continue to render via existing `FeatureGroup` component.
+
+**Rationale:** Non-breaking. Existing PbiDraft-based features (created via old BulkBreakdownView) remain visible. New wizard-created FeatureDraft objects appear in separate section with child PBIs shown in accordion.
+
+**Implementation:** `webview-ui/src/views/DashboardView.tsx` conditionally renders `<FeatureDraftCard>` for items in `appState.featureDrafts`, `<FeatureGroup>` for items in `appState.pbiDrafts` with `workItemType='Feature'`.
+
+---
+
+## 7. "Part of Feature" Badge in PBI Studio (Non-Interactive)
+
+**Decision:** In PBI Studio sidebar PBI list, when PBI has `parentFeatureId` set, an inline badge shows truncated feature title (28 chars). Badge is non-interactive (doesn't navigate).
+
+**Rationale:** Provides traceability without requiring feature detail view. Badge is read-only for now; can be upgraded to navigate to feature detail when that view exists.
+
+**Implementation:** `webview-ui/src/views/PbiStudio.tsx` checks `pbi.parentFeatureId` and renders conditional badge element with feature title text.
+
+---
+
+## 8. Stable featureDraftId Per Wizard Session
+
+**Decision:** `featureDraftId` is generated once at component mount using `useState(() => generateId())`. This ID is used in `GENERATE_USER_STORIES_FROM_FEATURE` so backend can link generated PBIs to it via `parentFeatureId`.
+
+**Rationale:** Ensures all PBIs generated in a session are linked to same (eventual) Feature, even before Feature is formally saved. React unmounts wizard on navigation away, so re-opening gives fresh ID.
+
+**Implementation:** FeatureCreationWizard init state: `const [featureDraftId] = useState(() => generateId())`. Passed to `GENERATE_USER_STORIES_FROM_FEATURE` payload and used as `FeatureDraft.featureDraftId` on create.
+
+---
+
+## 9. Light-Mode Status Foreground Token Mapping
+
+**Decision:** In `body.vscode-light`, override both soft-background AND foreground text variables for status colors. The `:root` block uses dark-theme-optimized source tokens (e.g., `--vscode-notificationsInfoIcon-foreground = #75beff`) with poor contrast on white backgrounds.
+
+**Rationale:** VS Code light-mode tokens need high-contrast overrides. Selected tokens:
+- Success: `--vscode-testing-iconPassed` (7.0:1 ✅)
+- Warning: `--vscode-gitDecoration-modifiedResourceForeground` (7.6:1 ✅)
+- Info: `--vscode-textLink-foreground` (5.9:1 ✅)
+- Error: `--vscode-editorError-foreground` (5.1:1 ✅)
+
+**Implementation:** `webview-ui/src/styles/tailwind.css` extended `body.vscode-light` block with 10-line CSS overrides for `--tw-vscode-*` bridge variables.
+
+**Files Changed:** `webview-ui/src/styles/tailwind.css` (Saul, Commit 8d70088).
+
+---
+
+## 10. ADO Hierarchy Link Type: System.LinkTypes.Hierarchy-Reverse
+
+**Decision:** Parent-child ADO link is established via `System.LinkTypes.Hierarchy-Reverse` on the PBI (child work item). The Feature (parent) remains unlinked from PBI perspective.
+
+**Rationale:** ADO hierarchy links are directional. Hierarchy-Reverse links from child to parent, establishing containment relationship. This pattern is standard in Azure DevOps for work item hierarchies.
+
+**Implementation:** `src/services/adoService.ts` `linkPbiToFeature()` method creates link with direction Hierarchy-Reverse from PBI to Feature.
+
+**Files Changed:** `src/services/adoService.ts` (Linus, Commit 78d5ee1).
+
+---
+
+## 11. All PBIs Created via Feature Intake Have parentFeatureId Set
+
+**Decision:** Every PbiDraft created via Feature Creation Wizard (AI-generated or manual) has `parentFeatureId` set to the containing Feature's ID. This is set immediately, even before Feature is saved to ADO.
+
+**Rationale:** Enables frontend to show PBI→Feature relationship in PBI Studio ("Part of Feature" badge) and Dashboard (child PBI accordion). Backend uses `parentFeatureId` to create ADO link on push.
+
+**Implementation:** 
+- Wizard Step 4: Auto-populate `parentFeatureId` on AI-generated PBIs and manual entries
+- Backend: `src/panels/DashboardPanel.ts` handlers read `parentFeatureId` from each PBI, use in `linkPbiToFeature()` call
+- Frontend: `webview-ui/src/types.ts` extended `PbiDraft` with `parentFeatureId?: string`
+
+---
+
+## 12. Feature Status Rollup: Derived from Child PBI Status
+
+**Decision:** Feature status (draft/ready/pushed/partial) is derived from child PBI statuses, not stored as separate field on Feature. Partial state means "some children pushed, some not".
+
+**Rationale:** Single source of truth. Feature status always reflects current state of its children without needing separate sync logic.
+
+**Implementation:** `DashboardView.tsx` `FeatureDraftCard` computes `rollupStatus` by examining all child PbiDraft statuses and returning appropriate HierarchyStatus enum.
+
+---
+
 ## Merged from .squad/decisions/inbox/ (2026-04-30)
 
 ### Business Rules Navigation Fix (2026-04-30)
