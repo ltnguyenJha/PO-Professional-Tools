@@ -46,6 +46,72 @@
 - Bug report workflow complete: UX → message send → service handling → AI generation → result display
 - Repo context improves LM accuracy; model fallback chain ensures org compatibility
 
+### 2026-05-01 — GENERATE_USER_STORIES_FROM_FEATURE Bug Fixes: Payload Sync + Feature Lookup
+
+**Problem:** Feature Creation Wizard Step 3 (AI Generation) spinner never resolved. Two root causes identified and fixed.
+
+**Bug 1 — Payload Field Mismatch (Backend):**
+- Backend sent `generatedPbis: PbiDraft[]`, frontend expected `generatedDraftIds: string[]`
+- Mismatch caused wizard useEffect to never fire → `generationBusy` never cleared → infinite spinner
+- Solution: Expanded GENERATE_USER_STORIES_FROM_FEATURE payload to include full inline feature data (title, description, why, userFlow, businessRules, repoIds) so backend doesn't need to look up unsaved feature. Changed USER_STORIES_GENERATED payload from `generatedPbis` to `generatedDraftIds`
+
+**Bug 2 — Feature Lookup Failure (Backend):**
+- Wizard generates stable `featureDraftId` at mount, but feature not yet saved when GENERATE_USER_STORIES_FROM_FEATURE is called
+- Handler tried `getFeatureDrafts().find(f => f.id === featureId)` → undefined → early return without UI cleanup
+- Solution: Build FeatureDraft from inline payload fields, fall back to global state if already saved. Upsert feature after generation. ALL error paths now emit FEATURE_GENERATION_ERROR + clear AI_PROGRESS busy=false
+
+**Key Learning:**
+- Type contracts must stay in sync end-to-end (messages.ts ↔ webview types.ts)
+- Wizard-generated IDs arrive before persistence; handlers must accept inline data as well as fallback lookups
+- Every handler that sets `AI_PROGRESS busy=true` must guarantee `busy=false` in ALL exit paths (including early returns)
+
+**Files Modified:**
+- `src/shared/messages.ts` — Payload expansion, message type union
+- `src/panels/DashboardPanel.ts` — Handler rewrite with error cleanup
+- `webview-ui/src/types.ts` — FEATURE_GENERATION_ERROR type
+
+---
+
+### 2026-04-30 — Feature Creation Implementation (Phase 1 Data Layer)
+
+**Scope:** Completed full backend for Feature→PBI hierarchy intake flow
+
+**Messages & Types:**
+- Added `FeatureDraft`, `HierarchyStatus` types to `src/shared/messages.ts`
+- Extended `PbiDraft` with optional `parentFeatureId: string`
+- Added `featureDrafts?: FeatureDraft[]`, `epicDrafts?: EpicDraft[]` to `AppStatePayload`
+- Added all FEATURE_* message types: GENERATE_USER_STORIES_FROM_FEATURE, CREATE_FEATURE_DRAFT, UPDATE_FEATURE_DRAFT, DELETE_FEATURE_DRAFT, PUSH_FEATURE_TO_ADO, plus 5 event types
+
+**ADO Service (`src/services/adoService.ts`):**
+- `createFeatureInAdo()` — creates Feature work item, returns ID
+- `linkPbiToFeature()` — establishes `System.LinkTypes.Hierarchy-Reverse` link on PBI
+- Updated bulk create to accept `parentFeatureId` and link each PBI to parent
+- Graceful partial failure on link errors
+
+**Copilot Service (`src/services/copilotService.ts`):**
+- `generateUserStoriesFromFeature()` — AI-powered story generation from feature details
+- Input: feature title, description, why, userFlow, businessRules
+- Output: array of PbiDraft with auto-generated titles, effort estimates (INVEST-aligned), `parentFeatureId` set
+- Uses repo context (package.json, README, git log, file list) to inform generation
+
+**DashboardPanel Handlers (`src/panels/DashboardPanel.ts`):**
+- CREATE_FEATURE_DRAFT — stores to state, emits event
+- UPDATE_FEATURE_DRAFT — updates feature properties + status rollup
+- DELETE_FEATURE_DRAFT — removes feature and children
+- PUSH_FEATURE_TO_ADO — orchestrates: create Feature → create PBIs → link PBIs → emit progress/success
+- GENERATE_USER_STORIES_FROM_FEATURE — dispatches to CopilotService, emits USER_STORIES_GENERATED
+
+**Cross-Team Integration:**
+- Coordinated with Rusty (Frontend) on message types and `featureDraftId` stable ID pattern
+- Coordinated with Saul (UI) on status badge colors (light-mode tokens applied to all badge types)
+- TypeScript strict mode compliant, all types synced webview↔extension
+
+**Commit:** 78d5ee1
+
+**Pattern Learned:**
+- ADO hierarchy links use `System.LinkTypes.Hierarchy-Reverse` from child to parent
+- Generate stable feature IDs at UI mount time (Rusty's pattern) so backend can link generations to eventual Feature before it's saved
+
 ### Project Reorganization: Build Config Migration (2026-04-28)
 
 Completed full project directory reorganization with file migrations and build configuration updates. 
@@ -719,6 +785,26 @@ Created dedicated GENERATE_FEATURE_DEFINITION instead of reusing GENERATE_FULL_S
 - Different prompts (business/product focus vs story format)
 - Clear separation prevents confusion and supports future specialization
 
+### Bugfix: GENERATE_USER_STORIES_FROM_FEATURE spinner never resolves (2026-05-01)
+
+**Commit:** 698c4e1
+
+Two bugs caused the loading state to spin forever when generating user stories from a feature.
+
+**Bug 1 — `generatedPbis` vs `generatedDraftIds` payload field mismatch (primary cause):**
+Backend posted `USER_STORIES_GENERATED` with `generatedPbis: PbiDraft[]` (full objects), but the webview (`App.tsx`) reads `message.payload.generatedDraftIds` (string[]). `generatedDraftIds` was `undefined` at runtime → wizard `useEffect` condition `generatedPbiIds.length > 0` was never true → `generationBusy` never cleared → infinite spinner. Fixed by sending `generatedDraftIds: newPbis.map(p => p.id)`.
+
+**Bug 2 — Feature not in global state at generation time:**
+The wizard creates a stable `featureDraftId` on mount, but only calls `CREATE_FEATURE_DRAFT` when the user clicks "Save as Draft" — much later in the flow. The handler called `getFeatureDrafts().find(...)`, got `undefined`, and returned early. The early-return posted a toast but never cleared `AI_PROGRESS busy=true`. Fixed by constructing a `FeatureDraft` from the inline payload fields (which the webview already sends) and upsert-ing it into global state after generation.
+
+**Pattern: always verify end-to-end payload field names.** `messages.ts` and `webview-ui/src/types.ts` can diverge. A field name mismatch compiles cleanly but breaks at runtime.
+
+**Pattern: wizard-generated stable IDs arrive before persistence.** Any handler that looks up entities from global state must handle the "not yet saved" case by accepting inline payload data as the fallback.
+
+**Pattern: early-return paths must always clean up UI state.** Any early return from a handler that set `AI_PROGRESS busy=true` must also send `AI_PROGRESS busy=false` — put it in the `finally` block or before the return.
+
+**Pattern: always emit an error event on all error paths.** Toast alone doesn't help if the webview is tracking a loading state separately. Post `FEATURE_GENERATION_ERROR` (or equivalent) so the webview can unset `generationBusy` and surface the error message instead of spinning.
+
 - Backend responds with *_LOADED or FETCH_FAILED messages
 - Rusty populates dropdowns from payload arrays
 
@@ -906,3 +992,35 @@ Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vi
 **Commit:** ff4b34a
 **Build:** ✅ tsc --noEmit (0 errors), esbuild (228ms)
 **Branch:** feature/pbi-studio-ux-improvements
+
+### Phase 1 — FeatureDraft Data Layer + ADO Push (2026-07-01)
+
+**Task:** Implement the complete backend data layer for the Epic→Feature→Story hierarchy architecture.
+
+**What was added:**
+
+1. **New types in `src/shared/messages.ts`:**
+   - `HierarchyStatus = 'draft' | 'ready' | 'pushed' | 'partial'`
+   - `FeatureDraft` interface (id, title, description, why, userFlow, businessRules, repoIds, parentEpicId, childPbiIds, adoWorkItemId, hierarchyStatus, timestamps)
+   - `parentFeatureId?: string` on `PbiDraft` (additive, non-breaking back-reference)
+   - `featureDrafts: FeatureDraft[]` on `AppStatePayload`
+   - 5 new `WebviewRequest` members: CREATE/UPDATE/DELETE_FEATURE_DRAFT, GENERATE_USER_STORIES_FROM_FEATURE, PUSH_FEATURE_TO_ADO
+   - 6 new `ExtensionEvent` members: FEATURE_DRAFT_CREATED/UPDATED/DELETED, USER_STORIES_GENERATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED
+
+2. **`AdoService.pushFeatureHierarchy()`** — new method that handles both create and update for Feature work items (type: "Feature", hardcoded) and their child PBIs (type: "Product Backlog Item", hardcoded). Parent-child link uses `System.LinkTypes.Hierarchy-Reverse` on the PBI pointing to the Feature. UPDATE path for already-pushed items; CREATE path includes the relation in the same PATCH.
+
+3. **`CopilotService.generateUserStoriesFromFeature()`** — generates 3-7 user stories from a FeatureDraft using structured fields (why, userFlow, businessRules, description). Returns `{title, description, effort}` array. effort is 1-8 Fibonacci points. Supports linkedProjectContext injection.
+
+4. **DashboardPanel persistence & handlers:**
+   - `getFeatureDrafts()` / `saveFeatureDrafts()` following globalState pattern (key: `'featureDrafts'`)
+   - `postState()` now includes `featureDrafts` in STATE_UPDATED payload
+   - Handlers: handleCreateFeatureDraft, handleUpdateFeatureDraft, handleDeleteFeatureDraft (cascades parentFeatureId cleanup on child PBIs), handleGenerateUserStoriesFromFeature (creates PbiDraft[] with parentFeatureId + workItemType: 'Product Backlog Item'), handlePushFeatureToAdo (orchestrates FEATURE_PUSH_PROGRESS events + FEATURE_PUSHED emit + partial/full status)
+
+**Key hardcoded constants (non-negotiable per task spec):**
+- Feature parent work item type: `'Feature'` — never user-configurable
+- Child work item type: `'Product Backlog Item'` — never user-configurable  
+- ADO link type: `System.LinkTypes.Hierarchy-Reverse` on PBI → Feature
+
+**Build:** ✅ esbuild clean (2.8MB), tsc errors only in pre-existing test files (missing @types/jest).
+**Commit:** 78d5ee1 on branch feature/saul-tailwind-dashboard-redesign
+

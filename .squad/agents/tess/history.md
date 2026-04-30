@@ -92,9 +92,33 @@
 
 **Spec location:** `docs/design/feature-41-rdi-ux-spec.md`
 
+### Feature Creation & Epics UX Spec (2026-04-30)
+
+**What I designed:**
+- Complete UX spec for Feature Creation (dedicated wizard view) + Epics hierarchy view + Dashboard redesign
+- 4-step Feature Creation wizard: Feature Details → Repos & AI Context → AI Breakdown → Review & Push
+- Multi-repo selection pattern: searchable checkbox list (replaces single dropdown) to handle large repo sets
+- Story Review UX: inline editing of title + effort only; hard redirect to PBI Studio for deep edits
+- Epics tree view: collapsible 3-level hierarchy (Epic → Feature → Story) with status rollup, push-all action, inline Epic creation
+- Dashboard redesign: removed KPI grid + Get Started card; added Work Hierarchy tree + Quick Actions section
+- New nav order: Dashboard → Epics → Feature Creation → PBI Studio → Projects → RDIs → Settings
+
+**Key UX decisions:**
+- Feature Creation is a DEDICATED view (not embedded in PBI Studio) — separate mental models
+- Auto-advance from AI generation step to Review step (no manual "Next" click after generation completes)
+- Story review edits: title + effort ONLY inline; all other fields → PBI Studio (sacred redirect)
+- Status indicators: always text + color (never color alone) — WCAG 2.1 AA
+- Dashboard is read-only hierarchy (no push buttons) — push happens from Epics view
+- ViewId rename: `'bulk'` → `'features'` + new `'epics'` added
+
+**Spec location:** `webview-ui/design/feature-creation-ux-spec.md`  
+**Decisions:** `.squad/decisions/inbox/tess-feature-ux-design.md`
+
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
 - **2026-04-30 17:00:** Saul (UI Designer) joined roster as design partner to collaborate on component library and Feature Wizard refinement.
 - **2026-04-30 [current]:** Fixed card alignment consistency across PBI Studio (Issue: card spacing misalignment).
 - **2026-04-30:** Delivered RDI creation wizard UX specification (Issue #41)
+- **2026-04-30:** Delivered Feature Creation & Epics UX specification (dedicated wizard, Epics view, Dashboard redesign)
+- **2026-04-30 21:44:** Team sync: Danny's architecture approved; cross-agent decisions merged into `.squad/decisions.md`. Ready for Rusty + Saul implementation handoff. Orchestration logs written. Session complete.

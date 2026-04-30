@@ -1,0 +1,108 @@
+/**
+ * VS Code Theme Bridge for Tailwind
+ * Maps VS Code theme tokens → Tailwind utility classes
+ *
+ * Usage: bg-tw-bg, text-tw-fg, border-tw-border, bg-tw-surface, etc.
+ * Theme-aware: Automatically adapts to dark/light/high-contrast VS Code theme.
+ *
+ * Token reference:
+ * --tw-vscode-bg      → --vscode-editor-background
+ * --tw-vscode-bg-alt  → --vscode-sideBar-background       (accordion headers, list rows)
+ * --tw-vscode-surface → --vscode-editorWidget-background  (card surfaces, panels)
+ * --tw-vscode-fg      → --vscode-editor-foreground
+ * --tw-vscode-fg-muted→ --vscode-descriptionForeground    (secondary/helper text)
+ * --tw-vscode-border  → --vscode-panel-border             (all dividers and outlines)
+ * --tw-vscode-accent  → --vscode-button-background        (primary CTA color)
+ * --tw-vscode-accent-fg→ --vscode-button-foreground
+ * --tw-vscode-input-bg→ --vscode-input-background
+ * --tw-vscode-success → --vscode-testing-iconPassed
+ * --tw-vscode-warning → (light: --vscode-gitDecoration-modifiedResourceForeground, dark: --vscode-editorWarning-foreground)
+ * --tw-vscode-info    → (light: --vscode-textLink-foreground, dark: --vscode-notificationsInfoIcon-foreground)
+ * --tw-vscode-error   → --vscode-editorError-foreground
+ */
+
+/* ================================================================
+   Tailwind CSS entry point for PO-Professional-Tools webview-ui
+   Import order matters: base → components → utilities
+   ================================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------------------------------
+   VS Code → Tailwind Bridge Variables (dark theme / default)
+   Fallback values are dark-theme safe. body.vscode-light overrides
+   ALL variables to light-safe values (see below).
+   ---------------------------------------------------------------- */
+:root {
+  /* Surface & text */
+  --tw-vscode-bg:       var(--vscode-editor-background, #1e1e1e);
+  --tw-vscode-bg-alt:   var(--vscode-sideBar-background, #252526);
+  --tw-vscode-surface:  var(--vscode-editorWidget-background, #2a2d2e);
+  --tw-vscode-fg:       var(--vscode-editor-foreground, #d4d4d4);
+  --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #858585);
+  --tw-vscode-border:   var(--vscode-panel-border, var(--vscode-widget-border, #454545));
+
+  /* Interactive */
+  --tw-vscode-accent:    var(--vscode-button-background, #0078d4);
+  --tw-vscode-accent-fg: var(--vscode-button-foreground, #ffffff);
+  --tw-vscode-input-bg:  var(--vscode-input-background, #3c3c3c);
+
+  /* Status foreground colors (from VS Code diagnostic / test icons) */
+  --tw-vscode-success: var(--vscode-testing-iconPassed,
+                        var(--vscode-notebookStatusSuccessIcon-foreground, #4ec9b0));
+  --tw-vscode-warning: var(--vscode-editorWarning-foreground, #cca700);
+  --tw-vscode-info:    var(--vscode-notificationsInfoIcon-foreground, #75beff);
+  --tw-vscode-error:   var(--vscode-editorError-foreground, #f44747);
+
+  /* Status soft backgrounds — dark theme defaults (15% opacity tint) */
+  --tw-vscode-success-bg: rgba(78, 201, 176, 0.15);
+  --tw-vscode-warning-bg: rgba(204, 167, 0, 0.15);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.15);
+  --tw-vscode-error-bg:   rgba(244, 71, 71, 0.15);
+}
+
+/* ----------------------------------------------------------------
+   Light theme overrides — ALL bridge variables re-declared with
+   light-safe tokens and fallbacks.  In VS Code light themes:
+   - panel-border can be transparent → use widget-border fallback
+   - sidebar-background can match editor-background → add gray fallback
+   - :root status fg tokens use dark-optimised values → override here
+   ---------------------------------------------------------------- */
+/* VS Code injects vscode-light/vscode-dark/vscode-high-contrast on <body> */
+body.vscode-light {
+  /* Surface & text */
+  --tw-vscode-bg:       var(--vscode-editor-background, #ffffff);
+  --tw-vscode-bg-alt:   var(--vscode-sideBar-background, #f3f3f3);
+  --tw-vscode-surface:  var(--vscode-editorWidget-background, #f5f5f5);
+  --tw-vscode-fg:       var(--vscode-editor-foreground, #1f1f1f);
+  --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #717171);
+  /* widget-border is more reliably visible than panel-border in light themes */
+  --tw-vscode-border:   var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4));
+
+  /* Interactive */
+  --tw-vscode-input-bg: var(--vscode-input-background, #ffffff);
+
+  /* Status foreground — must override :root defaults (which are dark-theme values).
+     In light themes, tokens like notificationsInfoIcon-foreground can resolve to
+     #3794ff (light blue, ~3:1 on white) — failing WCAG AA for text.
+     Use darker, semantically-equivalent tokens as primary with safe hardcoded fallbacks. */
+  --tw-vscode-success: var(--vscode-testing-iconPassed,                         #047857);
+  --tw-vscode-warning: var(--vscode-gitDecoration-modifiedResourceForeground,   #92400e);
+  --tw-vscode-info:    var(--vscode-textLink-foreground,                         #1d4ed8);
+  --tw-vscode-error:   var(--vscode-editorError-foreground,                      #be123c);
+
+  /* Status soft backgrounds — slightly less opacity on white for cleaner look */
+  --tw-vscode-success-bg: rgba(4, 120, 87, 0.12);
+  --tw-vscode-warning-bg: rgba(146, 64, 14, 0.12);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.12);
+  --tw-vscode-error-bg:   rgba(190, 18, 60, 0.12);
+}
+
+body.vscode-high-contrast {
+  --tw-vscode-surface:    var(--vscode-editorWidget-background, #000000);
+  --tw-vscode-success-bg: rgba(78, 201, 176, 0.25);
+  --tw-vscode-warning-bg: rgba(204, 167, 0, 0.25);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.25);
+  --tw-vscode-error-bg:   rgba(244, 71, 71, 0.25);
+}

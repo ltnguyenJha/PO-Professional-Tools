@@ -595,28 +595,42 @@ export function PbiStudio({
               <option value="bulk">(Bulk)</option>
             </select>
           </div>
-          {filtered.map((draft) => (
-            <button
-              type="button"
-              key={draft.id}
-              className={`studio-item ${activeId === draft.id ? 'active' : ''}`}
-              onClick={() => setActiveId(draft.id)}
-            >
-              <div className="title">{draft.title}</div>
-              <div className="meta">
-                <span>{projectName(linkTargets, draft.projectId)}</span>
-                <span
-                  className={`chip ${
-                    draft.status === 'pushed' ? 'success' : 'info'
-                  }`}
-                >
-                  {draft.status === 'pushed'
-                    ? `#${draft.adoWorkItemId ?? '??'}`
-                    : draft.workItemType ?? 'PBI'}
-                </span>
-              </div>
-            </button>
-          ))}
+          {filtered.map((draft) => {
+            const parentFeature = draft.parentFeatureId
+              ? (state.featureDrafts ?? []).find((f) => f.id === draft.parentFeatureId)
+              : undefined;
+            return (
+              <button
+                type="button"
+                key={draft.id}
+                className={`studio-item ${activeId === draft.id ? 'active' : ''}`}
+                onClick={() => setActiveId(draft.id)}
+              >
+                <div className="title">{draft.title}</div>
+                <div className="meta">
+                  <span>{projectName(linkTargets, draft.projectId)}</span>
+                  <span
+                    className={`chip ${
+                      draft.status === 'pushed' ? 'success' : 'info'
+                    }`}
+                  >
+                    {draft.status === 'pushed'
+                      ? `#${draft.adoWorkItemId ?? '??'}`
+                      : draft.workItemType ?? 'PBI'}
+                  </span>
+                </div>
+                {parentFeature && (
+                  <div
+                    className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+                    title={`Part of Feature: ${parentFeature.title}`}
+                  >
+                    📦 {parentFeature.title.length > 28 ? parentFeature.title.slice(0, 28) + '…' : parentFeature.title}
+                  </div>
+                )}
+              </button>
+            );
+          })}
           {filtered.length === 0 && <div className="hint">No matching drafts.</div>}
         </aside>
 
