@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { PbiDraft } from '../types';
+import './WizardStep3Story.css';
 
 interface Props {
   draft: PbiDraft;
@@ -32,6 +33,8 @@ export function WizardStep3Story({
     small: false,
     testable: false,
   });
+  const [showAIToast, setShowAIToast] = useState(false);
+  const [aiToastDismissed, setAiToastDismissed] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
   // Debounce save on blur
@@ -41,6 +44,17 @@ export function WizardStep3Story({
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
+
+  // Show AI toast once when AI mode is enabled for first time
+  useEffect(() => {
+    if (aiMode === 'AI-Generated' && !aiToastDismissed) {
+      const hasSeenAIToast = localStorage.getItem('hasSeenAIToast');
+      if (!hasSeenAIToast) {
+        setShowAIToast(true);
+        localStorage.setItem('hasSeenAIToast', 'true');
+      }
+    }
+  }, [aiMode, aiToastDismissed]);
 
   const handleFieldBlur = () => {
     if (saveTimer) clearTimeout(saveTimer);
@@ -68,6 +82,11 @@ export function WizardStep3Story({
     }));
   };
 
+  const dismissAIToast = () => {
+    setShowAIToast(false);
+    setAiToastDismissed(true);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && e.ctrlKey) {
       e.preventDefault();
@@ -88,6 +107,14 @@ export function WizardStep3Story({
 
   return (
     <div className="wizard-step" onKeyDown={handleKeyDown}>
+      {/* AI First-time Toast */}
+      {showAIToast && (
+        <div className="toast-container" role="alert" aria-live="assertive">
+          <div className="toast-message">AI shortcuts enabled. Use Ctrl+Shift+P → Generate Story, or right-click any field to refine in Chat.</div>
+          <button className="toast-dismiss" onClick={dismissAIToast}>Got it</button>
+        </div>
+      )}
+
       <div className="wizard-step-header">
         <h2 className="wizard-step-title">Write Your Story</h2>
         <p className="wizard-step-description">
@@ -217,23 +244,16 @@ export function WizardStep3Story({
         </div>
       </div>
 
-      {/* AI action buttons */}
+      {/* AI action buttons removed — now AI-Ready indicator */}
       {aiMode === 'AI-Generated' && (
-        <div style={{ display: 'flex', gap: 'var(--space-3)', animation: 'fade-in var(--transition-base)' }}>
-          <button 
-            className="wizard-btn wizard-btn-secondary" 
-            onClick={onGenerateAI}
-            aria-label="Generate story content using AI"
-          >
-            🤖 Generate with AI
-          </button>
-          <button 
-            className="wizard-btn wizard-btn-secondary" 
-            onClick={onOpenInChat}
-            aria-label="Refine story in Copilot Chat"
-          >
-            💬 Open in Chat
-          </button>
+        <div 
+          className="ai-ready-indicator" 
+          role="status" 
+          aria-live="polite"
+          title="Press Ctrl+Shift+P to generate, or right-click any field to refine"
+        >
+          <span className="ai-indicator-icon">✨</span>
+          <span className="ai-indicator-text">AI-Ready</span>
         </div>
       )}
 
@@ -258,6 +278,14 @@ export function WizardStep3Story({
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes subtle-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+        @keyframes slide-in-top {
+          from { transform: translateY(-20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>
