@@ -61,6 +61,7 @@ export function SettingsView({
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
 
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   
   const [openConnection, setOpenConnection] = useState<boolean>(true);
   const [openDefaults, setOpenDefaults] = useState<boolean>(true);
@@ -76,8 +77,28 @@ export function SettingsView({
         iterationPath: adoSettings.iterationPath ?? '',
         defaultWorkItemType: adoSettings.defaultWorkItemType ?? 'Product Backlog Item'
       }));
+      // Reset dirty state when settings load
+      setHasUnsavedChanges(false);
     }
   }, [adoSettings]);
+
+  // Detect changes to form
+  useEffect(() => {
+    if (!adoSettings) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+    
+    const hasChanges =
+      form.orgUrl !== (adoSettings.orgUrl ?? '') ||
+      form.projectName !== (adoSettings.projectName ?? '') ||
+      form.team !== (adoSettings.team ?? '') ||
+      form.iterationPath !== (adoSettings.iterationPath ?? '') ||
+      form.defaultWorkItemType !== (adoSettings.defaultWorkItemType ?? 'Product Backlog Item') ||
+      (form.pat && form.pat.trim().length > 0);
+    
+    setHasUnsavedChanges(hasChanges);
+  }, [form, adoSettings]);
 
   // On Settings tab load, if PAT exists, validate it
   useEffect(() => {
@@ -182,10 +203,11 @@ export function SettingsView({
     setEditPat(false);
     setForm((prev) => ({ ...prev, pat: '' }));
     
-    // Show success feedback
+    // Show success feedback and clear dirty state
     setTimeout(() => {
       setSavingSettings(false);
       setSaveSuccess(true);
+      setHasUnsavedChanges(false);
       setTimeout(() => setSaveSuccess(false), 3000);
     }, 500);
   };
@@ -407,28 +429,75 @@ export function SettingsView({
             }
             onChange={(value) => setForm({ ...form, iterationPath: value })}
           />
-          <label className="field">
-            <span className="field-label">Default Work Item Type</span>
-            <select
-              value={form.defaultWorkItemType ?? 'Product Backlog Item'}
-              className="smooth-input"
-              onChange={(e) =>
-                setForm({ ...form, defaultWorkItemType: e.target.value as AdoWorkItemType })
-              }
-            >
-              {WORK_ITEM_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <small className="field-hint">
-              Used when creating new work items
-            </small>
-          </label>
+          <SearchableDropdown
+            label="Default Work Item Type"
+            value={form.defaultWorkItemType ?? 'Product Backlog Item'}
+            options={WORK_ITEM_TYPES}
+            loading={false}
+            disabled={false}
+            placeholder="Select work item type"
+            helperText="Used when creating new work items"
+            onChange={(value) =>
+              setForm({ ...form, defaultWorkItemType: value as AdoWorkItemType })
+            }
+          />
         </div>
         </div>
       </section>
+
+      {/* Sticky Footer - shows when there are unsaved changes or after save */}
+      {(hasUnsavedChanges || saveSuccess) && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'var(--panel)',
+            borderTop: '1px solid var(--line-strong)',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+            zIndex: 100
+          }}
+        >
+          <button 
+            className={`btn btn-primary ${saveSuccess ? 'btn-success' : ''}`}
+            onClick={save} 
+            disabled={savingSettings}
+          >
+            {savingSettings ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Settings'}
+          </button>
+          <button
+            className="btn"
+            type="button"
+            disabled={
+              !form.orgUrl.trim() ||
+              !form.projectName.trim() ||
+              (!hasAdoPat && !(form.pat?.trim()))
+            }
+            onClick={() =>
+              send({
+                type: 'TEST_ADO_CONNECTION',
+                payload: {
+                  orgUrl: form.orgUrl.trim(),
+                  projectName: form.projectName.trim(),
+                  pat: form.pat?.trim() || undefined
+                }
+              })
+            }
+          >
+            Test Connection
+          </button>
+          {lastConnectionResult && (
+            <span className={`chip ${lastConnectionResult.ok ? 'success' : 'danger'}`}>
+              {lastConnectionResult.message}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ export function SearchableDropdown({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [dropdownAbove, setDropdownAbove] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +54,12 @@ export function SearchableDropdown({
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
+      // Check available space and decide if dropdown should open upward
+      const rect = inputRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // If less than 150px below, and more space above, flip it
+      setDropdownAbove(spaceBelow < 150 && spaceAbove > spaceBelow);
     }
   }, [isOpen]);
 
@@ -172,10 +179,13 @@ export function SearchableDropdown({
               <div
                 style={{
                   position: 'absolute',
-                  top: 'calc(100% + 4px)',
+                  ...(dropdownAbove 
+                    ? { bottom: 'calc(100% + 4px)' } 
+                    : { top: 'calc(100% + 4px)' }
+                  ),
                   left: 0,
                   right: 0,
-                  maxHeight: '240px',
+                  maxHeight: '380px',
                   overflowY: 'auto',
                   background: 'var(--panel)',
                   border: '1px solid var(--line-strong)',
@@ -207,7 +217,10 @@ export function SearchableDropdown({
               <div
                 style={{
                   position: 'absolute',
-                  top: 'calc(100% + 4px)',
+                  ...(dropdownAbove 
+                    ? { bottom: 'calc(100% + 4px)' } 
+                    : { top: 'calc(100% + 4px)' }
+                  ),
                   left: 0,
                   right: 0,
                   padding: '12px',

@@ -12,6 +12,62 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-29 — Smart Dropdown Positioning & Sticky Footer Pattern
+
+**Problem solved:**
+- SearchableDropdown dropdowns positioned absolutely below input using `top: 'calc(100% + 4px)'`.
+- When dropdowns near bottom of viewport (Settings page), they extended off-screen, overlapping lower content or requiring scroll.
+- Save Settings button was hidden inside Azure DevOps Connection section — when Team & Defaults section expanded, button was out of sight if connection section collapsed.
+- No dirty state tracking — unclear when settings needed saving.
+
+**Solution implemented:**
+
+**1. Smart Dropdown Positioning (SearchableDropdown.tsx):**
+- Added `dropdownAbove` state tracked with `useState<boolean>(false)`.
+- On `isOpen` change (useEffect), measure available space:
+  - `const rect = inputRef.current.getBoundingClientRect()`
+  - `const spaceBelow = window.innerHeight - rect.bottom`
+  - `const spaceAbove = rect.top`
+  - If `spaceBelow < 150 && spaceAbove > spaceBelow`, flip dropdown upward.
+- Applied conditional positioning to dropdown containers:
+  - `...(dropdownAbove ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' })`
+- This pattern applies to both the options list AND the "No matches found" message.
+- **Key insight:** 150px threshold ensures dropdown has room for at least 3-4 options before flipping.
+
+**2. SearchableDropdown for Work Item Type (SettingsView.tsx):**
+- Converted Default Work Item Type from hardcoded `<select>` to `SearchableDropdown`.
+- Passed `WORK_ITEM_TYPES` constant (imported from `../types.ts`) as options array.
+- Set `loading={false}` and `disabled={false}` since this is static data (no API fetch needed).
+- Now all three dropdowns (Team, Iteration Path, Work Item Type) use consistent component patterns.
+- Smart positioning from Task 1 applies automatically.
+
+**3. Sticky Footer with Dirty State (SettingsView.tsx):**
+- Added `hasUnsavedChanges` state tracked with `useState<boolean>(false)`.
+- Added `useEffect` to detect form changes by comparing current form values to loaded `adoSettings`:
+  - Compares `orgUrl`, `projectName`, `team`, `iterationPath`, `defaultWorkItemType`, and whether `pat` field has new input.
+  - Sets `hasUnsavedChanges` whenever any field differs from saved settings.
+- Moved Save Settings and Test Connection buttons to a sticky footer:
+  - `position: 'sticky'`, `bottom: 0`, `zIndex: 100`.
+  - Uses `boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)'` for elevation (shadow above, not below).
+  - Footer only renders when `hasUnsavedChanges || saveSuccess` — appears on edit, persists briefly after save.
+- Updated `save()` function to call `setHasUnsavedChanges(false)` after successful save.
+- **Key UX pattern:** Sticky footer ensures save button is always accessible, even when scrolling or sections collapsed.
+
+**State management pattern (reusable):**
+- "Dirty state" pattern: Track whether form differs from last saved state, show persistent action bar when changes exist.
+- Clean state on successful save + brief success feedback (3s timeout).
+- Sticky footer with conditional rendering (`hasUnsavedChanges || saveSuccess`) keeps UI clean when no action needed.
+
+**CSS strategy:**
+- Inline styles for sticky footer (`position: 'sticky'`, `bottom: 0`) — no new CSS classes needed.
+- Used existing VS Code CSS variables (`--panel`, `--line-strong`) for consistent theming.
+- Top border + shadow creates elevation effect: `borderTop: '1px solid var(--line-strong)'` + `boxShadow`.
+
+**WORK_ITEM_TYPES constant location:**
+- Defined in `webview-ui/src/types.ts` (lines 15-22) as `AdoWorkItemType[]`.
+- Imported directly in SettingsView: `import { WORK_ITEM_TYPES } from '../types'`.
+- No need to duplicate or create separate constant file.
+
 ### 2026-01-XX — Settings PAT Validation Gate Pattern
 
 **Problem solved:**
@@ -671,3 +727,31 @@ Issue #20 implementation for TechnicalConsiderationsSection component is complet
 - Dropdown closes on click-outside, Enter, or Escape (standard combobox UX)
 - Collapsibles animate smoothly via existing CSS transition (220ms cubic-bezier)
 - PAT validation, Team fetch, Iteration fetch all preserved — no message flow changes
+
+### 2026-04-29 — SearchableDropdown Multi-Row Visibility Fix
+
+**Problem solved:**
+- SearchableDropdown component only showed ~6-7 rows in its dropdown list, while user expected ~10 rows (similar to native <select> dropdown behavior)
+- Root cause: maxHeight was set to 240px, but with padding (8px top + 8px bottom) and typical line-height (~1.5), each option row requires ~37px (8 + 14*1.5 + 8), resulting in only 6.5 visible rows
+
+**Solution implemented:**
+- Increased maxHeight from 240px to 380px in SearchableDropdown.tsx (line 178)
+- Calculation: 10 rows * 37px per row = 370px (rounded up to 380px for safety)
+- This ensures ~10 options are visible in the dropdown list before scrolling, matching user expectations for multi-row visibility
+
+**Key insights:**
+- Custom dropdown height calculations must account for full option height including padding, font size, and line-height — not just text height
+- Native <select> elements naturally show multiple options when opened; custom dropdowns need explicit height values to match this UX
+- When comparing custom dropdowns to native ones, "multi-row" refers to the number of visible options in the popup list, not the input field itself
+
+**Design consistency:**
+- All three dropdowns in Settings "Team & Defaults" section now have consistent visual behavior:
+  - Team dropdown (DropdownWithFallback): uses native <select>, shows multiple options on open
+  - Iteration Path dropdown (SearchableDropdown): custom dropdown, now shows ~10 options on open
+  - Default Work Item Type dropdown: uses native <select>, shows multiple options on open
+- Users see a consistent multi-row selection experience across all dropdown types
+
+**Build & lint:**
+- Build succeeded: 50 modules transformed, 23.58 KB CSS, 234.26 KB JS
+- Lint passed: 0 errors, 11 pre-existing warnings (unrelated to this change)
+- No breaking changes to search/filter functionality, keyboard navigation, or state management
