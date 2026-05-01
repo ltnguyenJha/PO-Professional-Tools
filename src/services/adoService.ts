@@ -886,7 +886,7 @@ export class AdoService {
   ): Promise<{
     epicWorkItemId: number;
     epicWorkItemUrl: string;
-    featureResults: Array<{ featureId: string; adoWorkItemId: number; linked: boolean }>;
+    featureResults: Array<{ featureId: string; adoWorkItemId: number; adoWorkItemUrl: string; linked: boolean }>;
     featureErrors: Array<{ featureId: string; message: string }>;
   }> {
     const connection = this.createConnection(settings, pat);
@@ -932,7 +932,7 @@ export class AdoService {
     const epicWorkItemUrl = epicItem._links?.html?.href ?? `${orgUrl}/${encodeURIComponent(settings.projectName)}/_workitems/edit/${epicWorkItemId}`;
     const epicApiUrl = `${orgUrl}/_apis/wit/workItems/${epicWorkItemId}`;
 
-    const featureResults: Array<{ featureId: string; adoWorkItemId: number; linked: boolean }> = [];
+    const featureResults: Array<{ featureId: string; adoWorkItemId: number; adoWorkItemUrl: string; linked: boolean }> = [];
     const featureErrors: Array<{ featureId: string; message: string }> = [];
 
     if (!pushChildren) {
@@ -943,11 +943,16 @@ export class AdoService {
       try {
         let featureAdoId: number;
 
+        let featureAdoUrl: string;
+
         if (feature.adoWorkItemId != null) {
           featureAdoId = feature.adoWorkItemId;
+          featureAdoUrl = feature.adoWorkItemUrl
+            ?? `${orgUrl}/${encodeURIComponent(settings.projectName)}/_workitems/edit/${featureAdoId}`;
         } else {
           const featureResult = await this.pushFeatureHierarchy(settings, pat, feature, [], undefined);
           featureAdoId = featureResult.featureWorkItemId;
+          featureAdoUrl = featureResult.featureWorkItemUrl;
         }
 
         // Add Hierarchy-Reverse link from Feature → Epic
@@ -962,7 +967,7 @@ export class AdoService {
           settings.projectName
         );
 
-        featureResults.push({ featureId: feature.id, adoWorkItemId: featureAdoId, linked: true });
+        featureResults.push({ featureId: feature.id, adoWorkItemId: featureAdoId, adoWorkItemUrl: featureAdoUrl, linked: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         featureErrors.push({ featureId: feature.id, message });

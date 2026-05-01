@@ -1681,7 +1681,7 @@ export class DashboardPanel {
         const features = this.getFeatureDrafts().map((f) => {
           const fr = result.featureResults.find((r) => r.featureId === f.id);
           if (!fr) { return f; }
-          return { ...f, adoWorkItemId: fr.adoWorkItemId, hierarchyStatus: 'pushed' as HierarchyStatus, updatedAt: now };
+          return { ...f, adoWorkItemId: fr.adoWorkItemId, adoWorkItemUrl: fr.adoWorkItemUrl, hierarchyStatus: 'pushed' as HierarchyStatus, updatedAt: now };
         });
         await this.saveFeatureDrafts(features);
       }
