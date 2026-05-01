@@ -45,15 +45,36 @@ export interface FeatureDraft {
 }
 
 export interface EpicDraft {
+  /** Unique nanoid identifier */
   id: string;
+  /** Epic title - displayed in Dashboard and ADO */
   title: string;
+  /** High-level description of the initiative */
   description: string;
-  featureIds: string[];
-  adoWorkItemId?: number;
-  adoWorkItemUrl?: string;
-  hierarchyStatus: HierarchyStatus;
+  /** 3-5 high-level objectives / OKRs */
+  objectives: string[];
+  /** What is in scope and out of scope for this epic */
+  scope: string;
+  /** IDs of FeatureDrafts linked to this epic */
+  linkedFeatureIds: string[];
+  /** Repository paths selected for AI context */
+  selectedRepoIds: string[];
+  /** Lifecycle status */
+  status: HierarchyStatus;
+  /** ADO Work Item ID after push */
+  adoId?: number;
+  /** ADO Work Item URL after push */
+  adoUrl?: string;
+  /** ISO timestamp of creation */
   createdAt: string;
+  /** ISO timestamp of last update */
   updatedAt: string;
+  /** Optional story point / sprint velocity estimate */
+  estimatedVelocity?: number;
+  /** True if features were AI-generated (vs manually added) */
+  aiGeneratedFeatures?: boolean;
+  /** ISO date string (YYYY-MM-DD). Optional target completion date. */
+  targetDate?: string;
 }
 
 export interface PbiAttachment {
@@ -193,7 +214,7 @@ export interface AppStatePayload {
   pbiDrafts: PbiDraft[];
   rdiDrafts: RdiDraft[];
   featureDrafts: FeatureDraft[];
-  epicDrafts?: EpicDraft[];
+  epicDrafts: EpicDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -277,13 +298,52 @@ export type ExtensionEvent =
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
   | { type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string } }
   // Feature draft events
-  | { type: 'FEATURE_DRAFT_CREATED'; payload: { featureId: string } }
-  | { type: 'FEATURE_DRAFT_UPDATED'; payload: { featureDraft: FeatureDraft } }
+  | { type: 'FEATURE_DRAFT_CREATED'; payload: FeatureDraft }
+  | { type: 'FEATURE_DRAFT_UPDATED'; payload: FeatureDraft }
   | { type: 'FEATURE_DRAFT_DELETED'; payload: { featureId: string } }
   | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
   | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
   | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string } }
-  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; childCount: number; failedIds?: string[] } }
+  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
+  // Epic draft events
+  | { type: 'EPIC_DRAFT_CREATED'; payload: EpicDraft }
+  | { type: 'EPIC_DRAFT_UPDATED'; payload: EpicDraft }
+  | { type: 'EPIC_DRAFT_DELETED'; payload: { epicId: string } }
+  | {
+      type: 'EPIC_GENERATION_COMPLETE';
+      payload: {
+        epicId: string;
+        suggestions: Array<{
+          clientId: string;
+          title: string;
+          description: string;
+        }>;
+      };
+    }
+  | { type: 'EPIC_GENERATION_ERROR'; payload: { epicId: string; message: string } }
+  | {
+      type: 'EPIC_PUSH_PROGRESS';
+      payload: {
+        epicId: string;
+        phase: 'epic' | 'features';
+        current: number;
+        total: number;
+        message: string;
+      };
+    }
+  | {
+      type: 'EPIC_PUSHED';
+      payload: {
+        epicId: string;
+        adoWorkItemId: number;
+        adoWorkItemUrl: string;
+        linkedFeatureAdoIds: Record<string, number>;
+        hierarchyStatus: HierarchyStatus;
+      };
+    }
+  | { type: 'EPIC_PUSH_ERROR'; payload: { epicId: string; message: string } }
+  | { type: 'FEATURE_LINKED_TO_EPIC'; payload: { epicId: string; featureId: string } }
+  | { type: 'FEATURE_UNLINKED_FROM_EPIC'; payload: { epicId: string; featureId: string } }
   // RDI events
   | { type: 'rdiDraftCreated'; draft: RdiDraft }
   | { type: 'rdiDraftLoaded'; draft: RdiDraft }
@@ -363,6 +423,44 @@ export type WebviewRequest =
   | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
   | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number; targetDate?: string } }
   | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[]; includeChildren: boolean; targetDate?: string } }
+  // Epic draft requests
+  | {
+      type: 'CREATE_EPIC_DRAFT';
+      payload: {
+        title: string;
+        description: string;
+        objectives: string[];
+        scope: string;
+        linkedFeatureIds: string[];
+        selectedRepoIds: string[];
+        estimatedVelocity?: number;
+        targetDate?: string;
+        aiGeneratedFeatures?: boolean;
+      };
+    }
+  | { type: 'UPDATE_EPIC_DRAFT'; payload: EpicDraft }
+  | { type: 'DELETE_EPIC_DRAFT'; payload: { epicId: string } }
+  | { type: 'LINK_FEATURE_TO_EPIC'; payload: { epicId: string; featureId: string } }
+  | { type: 'UNLINK_FEATURE_FROM_EPIC'; payload: { epicId: string; featureId: string } }
+  | {
+      type: 'PUSH_EPIC_TO_ADO';
+      payload: {
+        epicId: string;
+        pushChildren: boolean;
+      };
+    }
+  | {
+      type: 'GENERATE_FEATURES_FROM_EPIC';
+      payload: {
+        epicId: string;
+        title: string;
+        description: string;
+        objectives: string[];
+        scope: string;
+        selectedRepoIds: string[];
+        featureCount?: number;
+      };
+    }
   // RDI requests
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }

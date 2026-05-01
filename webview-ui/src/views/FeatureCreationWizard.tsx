@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { AppStatePayload, PbiDraft, WebviewRequest, FeatureDraft } from '../types';
+import type { AppStatePayload, PbiDraft, WebviewRequest, FeatureDraft, HierarchyStatus } from '../types';
 import type { ViewId } from '../components/Sidebar';
 import { LoadingBar } from '../components/LoadingBar';
 
@@ -15,8 +15,8 @@ interface FeaturePushProgress {
 interface FeaturePushedResult {
   featureId: string;
   adoWorkItemId?: number;
-  childCount: number;
-  failedIds?: string[];
+  childAdoIds: Record<string, number>;
+  hierarchyStatus: HierarchyStatus;
 }
 
 interface LocalPbiEdit {
@@ -818,8 +818,9 @@ function Step5SavePush({
   onDone: () => void;
 }) {
   const isPushing = Boolean(pushProgress && !pushResult);
-  const isSuccess = Boolean(pushResult && !pushResult.failedIds?.length);
-  const isPartial = Boolean(pushResult?.failedIds?.length);
+  const childCount = pushResult ? Object.keys(pushResult.childAdoIds).length : 0;
+  const isSuccess = Boolean(pushResult && pushResult.hierarchyStatus === 'pushed');
+  const isPartial = Boolean(pushResult && pushResult.hierarchyStatus === 'partial');
 
   if (pushResult) {
     return (
@@ -832,7 +833,7 @@ function Step5SavePush({
             <span className="text-xl shrink-0">✅</span>
             <div>
               <p className="text-sm font-semibold" style={{ color: 'var(--tw-vscode-success)' }}>
-                Feature and {pushResult.childCount} PBI{pushResult.childCount !== 1 ? 's' : ''} pushed to ADO
+                Feature and {childCount} PBI{childCount !== 1 ? 's' : ''} pushed to ADO
               </p>
               {pushResult.adoWorkItemId && (
                 <p className="text-xs mt-1" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -847,7 +848,7 @@ function Step5SavePush({
             style={{ borderColor: 'var(--tw-vscode-warning)', background: 'var(--tw-vscode-warning-bg)' }}
           >
             <p className="text-sm font-semibold" style={{ color: 'var(--tw-vscode-warning)' }}>
-              ⚠ Partial push — {pushResult.failedIds?.length} item(s) failed
+              ⚠ Partial push — some items failed
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
               Successfully pushed items have been created in ADO. Retry to push the remaining items.

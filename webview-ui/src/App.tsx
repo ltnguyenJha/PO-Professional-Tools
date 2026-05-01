@@ -67,7 +67,7 @@ export function App(): JSX.Element {
     featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string;
   } | null>(null);
   const [featurePushResult, setFeaturePushResult] = useState<{
-    featureId: string; adoWorkItemId?: number; childCount: number; failedIds?: string[];
+    featureId: string; adoWorkItemId?: number; childAdoIds: Record<string, number>; hierarchyStatus: import('./types').HierarchyStatus;
   } | null>(null);
   const toastIdRef = useRef(0);
 
