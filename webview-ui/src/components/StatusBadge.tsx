@@ -35,7 +35,9 @@ export function StatusBadge({ status, size = 'sm' }: Props): JSX.Element {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full font-medium shrink-0 whitespace-nowrap ${
+      role="status"
+      aria-label={`Status: ${config.label}`}
+      className={`inline-flex items-center rounded-full font-medium shrink-0 whitespace-nowrap transition-colors duration-150 ${
         size === 'xs' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
       }`}
       style={{ background: config.bgVar, color: config.textVar }}

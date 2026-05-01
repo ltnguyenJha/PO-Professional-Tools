@@ -173,7 +173,7 @@ export function App(): JSX.Element {
           subtitle: 'Your PO workstation at a glance.',
           actions: (
             <>
-              <button className="btn btn-primary" onClick={() => sendMessage({ type: 'IMPORT_PROJECT' })}>
+              <button type="button" className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200" onClick={() => sendMessage({ type: 'IMPORT_PROJECT' })}>
                 + Add Project
               </button>
             </>
@@ -185,7 +185,7 @@ export function App(): JSX.Element {
           subtitle: 'Import, scan, generate, and prune.',
           actions: (
             <>
-              <button className="btn btn-primary" onClick={() => sendMessage({ type: 'IMPORT_PROJECT' })}>
+              <button type="button" className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200" onClick={() => sendMessage({ type: 'IMPORT_PROJECT' })}>
                 + Add Project
               </button>
             </>

@@ -12,6 +12,65 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-30 — WCAG 2.1 AA Component Accessibility Pass
+
+**Scope:** FeatureCreationWizard.tsx, DashboardView.tsx, PbiStudio.tsx, StatusBadge.tsx, App.tsx
+
+**Key patterns established:**
+
+**ARIA semantics:**
+- `aria-expanded` on every accordion trigger button — required for screen readers to announce state
+- `aria-current="step"` on the active step indicator circle — correct ARIA pattern for multi-step wizards
+- `role="status" aria-live="polite"` for loading states (generation spinner), `role="alert" aria-live="assertive"` for error banners
+- `role="dialog" aria-modal="true" aria-labelledby` on cancel confirmation overlay — traps AT attention in the overlay
+- `StatusBadge` uses `role="status" aria-label="Status: {label}"` so screen readers announce badge without visual context
+
+**Form accessibility:**
+- Every `<input>`, `<textarea>`, `<select>` must have matching `id` + `htmlFor` pair OR `aria-label`
+- Required fields: both `required` and `aria-required="true"` (belt-and-suspenders)
+- Error states: `aria-invalid={!!error}` + `aria-describedby="error-id"` + `id="error-id"` on the error paragraph + `role="alert"` on the error paragraph
+- Inline error paragraphs need `role="alert"` so AT announces on input
+
+**Section headers — avoid div+onClick antipattern:**
+- In PbiStudio, `.section-header` divs had `onClick` but were not keyboard accessible
+- Fix: Change to `<button type="button" className="section-header w-full text-left">` — reuses existing CSS, adds all button semantics
+- "Edit item" header was complex (nested action buttons) — split into `<button>` for heading + `<div>` for action row with `stopPropagation`. Both are correct.
+- `<button>` CAN contain `<h3>` — valid HTML5 phrasing content
+
+**Accordion animation:**
+- CSS `max-height` transition with `overflow-hidden` is the correct approach
+- `aria-hidden={!isOpen}` on the content container hides from AT when collapsed
+- Keep content in DOM (don't use `{open && ...}`) so transitions can animate — but add `aria-hidden` to prevent AT reading hidden content
+- Pattern: `className={`overflow-hidden transition-all duration-200 ease-out border-t ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}`
+
+**Touch targets:**
+- WCAG 2.5.5: All interactive elements min 44×44px
+- Use `min-h-[44px]` (not `h-[44px]`) on buttons so they can grow with content
+- Checkbox rows: `min-h-[44px]` on the `<label>` wrapper, NOT the checkbox itself
+- The custom `min-h-touch` and `min-w-touch` Tailwind tokens (added by Saul in tailwind.config.js) can also be used
+
+**Focus rings:**
+- Use `focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none`
+- Always include `focus-visible:outline-none` to prevent browser-default ring from double-drawing
+- Use `focus-visible:ring-inset` on buttons inside bordered containers to prevent ring from being clipped
+- Saul added a global `:focus-visible` rule in styles.css — but still add per-element `focus-visible:outline-none` to prevent conflicts
+
+**Step focus management:**
+- When a multi-step wizard advances, move focus to the new step heading
+- Pattern: `const headingRef = useRef<HTMLHeadingElement>(null)` → `useEffect(() => { headingRef.current?.focus(); }, [step])` → `<h2 ref={headingRef} tabIndex={-1} className="focus-visible:outline-none">`
+- `tabIndex={-1}` makes the heading focusable programmatically without adding it to tab order
+
+**Keyboard events:**
+- `onKeyDown` for accordion/button divs: handle both `Enter` AND `Space` — `Space` is the keyboard activation key for buttons per ARIA spec
+- `e.preventDefault()` in Space handler prevents page scroll
+
+**Coordination with Saul:**
+- Saul's CSS/config work (Tailwind tokens, focus-visible global, accordion CSS) was pre-committed to the same branch — confirmed no conflicts
+- Saul handled global CSS rules; Rusty added per-element ARIA and semantic HTML — clean division
+- Check for existing WCAG commits on the branch before starting to avoid duplicate work
+
+
+
 ### 2026-05-XX — Repo Checkbox All-or-Nothing & Edit-in-Studio Navigation
 
 **Bug 1 — Repo checkboxes "all or nothing" (root cause finally found):**
@@ -1571,4 +1630,32 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 - webview-ui/src/components/WizardStepFeatureDefinition.tsx (prop interface + button)
 - webview-ui/src/components/FeatureWizard.tsx (prop wiring)
 - dist/assets/* (rebuilt)
+
+### 2026-05-01 — WCAG 2.1 AA Component Accessibility Pass
+
+**Scope:** FeatureCreationWizard, DashboardView, PbiStudio, StatusBadge, App.tsx — comprehensive semantic HTML and ARIA layer applied on feature/ui-wcag-improvements branch
+
+**Coordination with Saul (UI Designer):**
+- Saul focused on CSS tokens, design system, light-mode theming, `@tailwindcss/forms`, touch targets (44px), global `:focus-visible` ring
+- Rusty added semantic HTML layer: form label/id wiring, ARIA live regions, focus management, dialog roles, section header refactoring
+- Build: ✅ Passed (2.58s, zero TS errors)
+
+**Key Patterns Established (for reuse in future components):**
+
+1. **Form error handling:** `aria-invalid={!!error}` + `aria-describedby="err-id"` + `<p id="err-id" role="alert">` — screen reader announces field validity on input
+2. **Loading state announcements:** `role="status" aria-live="polite"` + `<span className="sr-only">Loading...</span>` — AT announces without disrupting user
+3. **Accordion animation:** CSS `max-height` (0 → 2000px) + `aria-expanded` on trigger + `aria-hidden={!open}` on content — do NOT use conditional render `{open && ...}` (breaks transitions)
+4. **Dialog pattern:** `role="dialog" aria-modal="true" aria-labelledby="title-id"` + matching `id` on title element — traps AT focus in overlay
+5. **Step wizard focus:** `useRef<HTMLHeadingElement>` + `tabIndex={-1}` + `useEffect([step])` → `focus()` on new step heading; add `focus-visible:outline-none` to suppress visual ring on programmatic focus (keyboard access only)
+
+**Architectural decisions:**
+
+- **Section headers:** Changed PbiStudio `.section-header` from `<div onClick>` with `role="button"` to native `<button type="button" className="section-header">` — native keyboard access + AT announcement. For headers with nested action buttons: make heading a separate inner `<button>` and add `onClick={(e) => e.stopPropagation()}` on action container `<div>` — clean separation.
+- **Checkbox state:** Frontend fix for all-or-nothing bug: Step2Context now uses `repo.path` as checkbox key/identifier (stable, unique) instead of `repo.id` (collision-prone). API payloads still use correct IDs via `getRepoIdPayloads()` mapping paths back to IDs.
+- **Studio navigation:** Wired `onEditInStudio` callback end-to-end so "Edit in PBI Studio" button passes `pbiId` to App.tsx `navigateToStudio`, which sets `focusDraftId` before switching view — now correctly scrolls/selects target item.
+
+**Non-breaking changes:** All additions are semantic/ARIA only. No props added to component interfaces, no state logic changed, no messaging altered.
+
+**Bugs requiring backend fix:**
+- `createId()` in `src/services/repoImportService.ts` truncates base64url to 24 chars (18 bytes) → collisions on common paths. Recommend: full base64url or crypto sha256 hash (no truncation).
 

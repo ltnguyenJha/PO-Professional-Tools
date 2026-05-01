@@ -202,7 +202,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
 }
 
 .brand {
@@ -301,6 +301,11 @@ button {
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 500;
+}
+
+.theme-toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .theme-toggle button[aria-pressed="true"] {
@@ -527,13 +532,18 @@ button {
 
 .card {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid var(--vscode-widget-border, var(--line));
   border-radius: var(--radius-5);
   padding: var(--space-4);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .card-header {
@@ -1274,6 +1284,11 @@ button {
   min-height: 44px;
 }
 
+.wizard-btn-chat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .wizard-btn-chat:hover:not(:disabled) {
   background: var(--accent-soft);
 }
@@ -1648,4 +1663,16 @@ button {
 /* Dropdown Fade In */
 .field select {
   animation: fadeIn 0.2s ease-out;
+}
+
+/* ================================================================
+   Accessibility — reduced motion
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

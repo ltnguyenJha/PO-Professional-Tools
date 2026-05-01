@@ -504,13 +504,14 @@ export function PbiStudio({
           </label>
           <div className="action-row" style={{ marginTop: 8 }}>
             <button
-              className="btn btn-primary"
+              type="button"
+              className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
               disabled={!canCreateLinked}
               onClick={() => createPayload(true)}
             >
               Create &amp; open Copilot Chat
             </button>
-            <button className="btn" disabled={!canCreateLinked} onClick={() => createPayload(false)}>
+            <button type="button" className="btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" disabled={!canCreateLinked} onClick={() => createPayload(false)}>
               Create blank PBI only
             </button>
           </div>
@@ -533,6 +534,7 @@ export function PbiStudio({
             value={newScope}
             onChange={(e) => setNewScope(e.target.value)}
             title="Link new items to a repo or workspace folder (required)"
+            aria-label="Link new PBI to project"
             style={{ maxWidth: 200 }}
             disabled={linkTargets.length === 0}
           >
@@ -543,14 +545,16 @@ export function PbiStudio({
             ))}
           </select>
           <button
-            className="btn btn-primary btn-sm"
+            type="button"
+            className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
             disabled={!canCreateLinked}
             onClick={quickCreateBlank}
           >
             + New PBI
           </button>
           <button
-            className="btn btn-sm"
+            type="button"
+            className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
             disabled={!canCreateLinked}
             onClick={() => {
               send({
@@ -579,11 +583,13 @@ export function PbiStudio({
               placeholder="Search drafts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search PBI drafts"
             />
             <select
               value={filterProject}
               onChange={(e) => setFilterProject(e.target.value)}
               title="Filter by project"
+              aria-label="Filter by project"
             >
               <option value="all">All</option>
               {linkTargets.map((p) => (
@@ -642,7 +648,8 @@ export function PbiStudio({
                 <div className="pushed-banner">
                   <span>Pushed to ADO as #{active.adoWorkItemId}.</span>
                   <button
-                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    className="btn btn-ghost btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                     onClick={() =>
                       send({ type: 'OPEN_EXTERNAL', payload: { url: active.adoWorkItemUrl! } })
                     }
@@ -687,10 +694,15 @@ export function PbiStudio({
 
               {pbiType === 'bug' && (
                 <article className="card">
-                  <div className="section-header" onClick={() => setOpenBugRefinement((o) => !o)}>
+                  <button
+                    type="button"
+                    className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+                    onClick={() => setOpenBugRefinement((o) => !o)}
+                    aria-expanded={openBugRefinement}
+                  >
                     <h3 style={{ margin: 0 }}>Bug Refinement Details</h3>
                     <span className={`section-chevron ${openBugRefinement ? 'open' : ''}`}>▾</span>
-                  </div>
+                  </button>
 
                   <div className={`section-body ${openBugRefinement ? '' : 'collapsed'}`}>
                     <p className="card-subtitle">
@@ -808,13 +820,18 @@ export function PbiStudio({
               )}{/* end hidden: Generate full story in-panel */}
 
               <article className="card">
-                <div className="section-header" onClick={() => setOpenCopilotChat((o) => !o)}>
+                <button
+                  type="button"
+                  className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+                  onClick={() => setOpenCopilotChat((o) => !o)}
+                  aria-expanded={openCopilotChat}
+                >
                   <h3 style={{ margin: 0 }}>VS Code Copilot Chat</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info">Copilot is thinking...</span>}
+                    {aiBusy && <span className="chip info" aria-live="polite">Copilot is thinking...</span>}
                     <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
                   </div>
-                </div>
+                </button>
                 <div className={`section-body ${openCopilotChat ? '' : 'collapsed'}`}>
                 <p className="card-subtitle">
                   <strong>Build story</strong> opens Chat with a prompt to draft the user story and
@@ -823,7 +840,8 @@ export function PbiStudio({
                 </p>
                 <div className="action-row" style={{ flexWrap: 'wrap' }}>
                   <button
-                    className="btn btn-primary"
+                    type="button"
+                    className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                     onClick={() =>
                       send({
                         type: 'OPEN_IN_COPILOT_CHAT',
@@ -834,7 +852,8 @@ export function PbiStudio({
                     Build story in Copilot Chat
                   </button>
                   <button
-                    className="btn"
+                    type="button"
+                    className="btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                     onClick={() =>
                       send({
                         type: 'OPEN_IN_COPILOT_CHAT',
@@ -849,19 +868,28 @@ export function PbiStudio({
               </article>
 
               <article className="card">
-                <div className="section-header" onClick={() => setOpenEditItem((o) => !o)}>
-                  <h3 style={{ margin: 0 }}>Edit item</h3>
+                <div className="section-header">
+                  <button
+                    type="button"
+                    className="flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+                    onClick={() => setOpenEditItem((o) => !o)}
+                    aria-expanded={openEditItem}
+                  >
+                    <h3 style={{ margin: 0 }}>Edit item</h3>
+                  </button>
                   <div
                     style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="action-row">
-                      <button className="btn btn-sm" onClick={save} disabled={adoSyncingThis}>
+                      <button type="button" className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={save} disabled={adoSyncingThis}>
                         Save
                       </button>
                       {isLinkedToAdo ? (
                         <button
-                          className="btn btn-primary btn-sm"
+                          type="button"
+                          className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                           onClick={updateInAdo}
                           disabled={adoSyncingThis}
                         >
@@ -869,7 +897,8 @@ export function PbiStudio({
                         </button>
                       ) : (
                         <button
-                          className="btn btn-primary btn-sm"
+                          type="button"
+                          className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                           onClick={pushOne}
                           disabled={adoSyncingThis}
                         >
@@ -877,7 +906,8 @@ export function PbiStudio({
                         </button>
                       )}
                       <button
-                        className="btn btn-danger btn-sm"
+                        type="button"
+                        className="btn btn-danger btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                         onClick={() => setConfirmDelete(active.id)}
                       >
                         Delete
@@ -1060,12 +1090,12 @@ export function PbiStudio({
                     <div className="action-row" style={{ flexWrap: 'wrap' }}>
                       <button
                         type="button"
-                        className="btn btn-sm"
+                        className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                         onClick={() => fileAttachInputRef.current?.click()}
                       >
                         Add files…
                       </button>
-                      <button type="button" className="btn btn-sm" onClick={addMermaidFromDescription}>
+                      <button type="button" className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={addMermaidFromDescription}>
                         Add Mermaid from Description
                       </button>
                     </div>
@@ -1075,8 +1105,9 @@ export function PbiStudio({
                           <span style={{ marginRight: 8 }}>{a.fileName}</span>
                           <button
                             type="button"
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                             onClick={() => removeAttachment(a.id)}
+                            aria-label={`Remove attachment ${a.fileName}`}
                           >
                             Remove
                           </button>

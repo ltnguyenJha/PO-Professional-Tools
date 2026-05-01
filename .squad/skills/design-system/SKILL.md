@@ -183,3 +183,34 @@ webview-ui/
 ├── settings.json               ← Suppresses @tailwind IDE warnings
 └── tailwind-css-data.json      ← Custom data for VS Code CSS IntelliSense
 ```
+
+---
+
+## WCAG 2.1 AA Compliance Guidelines
+
+### Minimum Contrast Ratios
+- Normal text (< 18pt): 4.5:1 minimum
+- Large text (≥ 18pt or ≥ 14pt bold): 3:1 minimum
+- UI components (borders, icons): 3:1 minimum
+
+### VS Code Token Mapping for WCAG Compliance
+
+| Purpose | Light mode | Dark mode | Min ratio |
+|---------|-----------|-----------|-----------|
+| Body text | `--vscode-editor-foreground` (#1e1e1e) | same | 4.5:1 on bg |
+| Muted text | `--vscode-descriptionForeground` (#616161) | (#999999) | 4.5:1 on bg |
+| Accent/links | `--vscode-textLink-foreground` | same | 4.5:1 on bg |
+| Disabled text | `--vscode-disabledForeground` | same | ≥ 3:1 |
+| Focus ring | `--vscode-focusBorder` | same | 3:1 on bg |
+
+### Touch Targets
+- All interactive elements: minimum 44×44px (WCAG 2.5.5)
+- Use `min-h-touch min-w-touch` Tailwind utilities
+
+### Reduced Motion
+Always include `@media (prefers-reduced-motion: reduce)` — already in global base styles.
+
+### Focus Management
+- Use `:focus-visible` not `:focus` for ring styles
+- Every interactive element needs a visible focus indicator
+- Focus should be trapped in modals/dialogs
