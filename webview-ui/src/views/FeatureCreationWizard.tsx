@@ -15,6 +15,7 @@ interface FeaturePushProgress {
 interface FeaturePushedResult {
   featureId: string;
   adoWorkItemId?: number;
+  adoWorkItemUrl?: string;
   childAdoIds: Record<string, number>;
   hierarchyStatus: HierarchyStatus;
 }
@@ -817,31 +818,91 @@ function Step5SavePush({
   onPushToAdo: () => void;
   onDone: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   const isPushing = Boolean(pushProgress && !pushResult);
   const childCount = pushResult ? Object.keys(pushResult.childAdoIds).length : 0;
   const isSuccess = Boolean(pushResult && pushResult.hierarchyStatus === 'pushed');
   const isPartial = Boolean(pushResult && pushResult.hierarchyStatus === 'partial');
 
+  const handleCopyUrl = () => {
+    if (pushResult?.adoWorkItemUrl) {
+      navigator.clipboard.writeText(pushResult.adoWorkItemUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
+
   if (pushResult) {
     return (
       <div className="space-y-4">
         {isSuccess ? (
-          <div
-            className="rounded-md border px-4 py-4 flex items-start gap-3"
-            style={{ borderColor: 'var(--tw-vscode-success)', background: 'var(--tw-vscode-success-bg)' }}
-          >
-            <span className="text-xl shrink-0">✅</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--tw-vscode-success)' }}>
-                Feature and {childCount} PBI{childCount !== 1 ? 's' : ''} pushed to ADO
+          <>
+            <div
+              className="rounded-md border px-4 py-4 flex items-start gap-3"
+              style={{ borderColor: 'var(--tw-vscode-success)', background: 'var(--tw-vscode-success-bg)' }}
+            >
+              <span className="text-xl shrink-0">✅</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--tw-vscode-success)' }}>
+                  Feature and {childCount} PBI{childCount !== 1 ? 's' : ''} pushed to ADO
+                </p>
+                {pushResult.adoWorkItemId && (
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                    Work Item #{pushResult.adoWorkItemId}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Tracking section */}
+            <div
+              className="rounded-md border px-4 py-3 space-y-3"
+              style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)' }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                Tracking
               </p>
               {pushResult.adoWorkItemId && (
-                <p className="text-xs mt-1" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-                  Feature #{pushResult.adoWorkItemId}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>Work Item</span>
+                  <span
+                    className="rounded px-1.5 py-0.5 text-xs font-medium"
+                    style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+                  >
+                    #{pushResult.adoWorkItemId}
+                  </span>
+                </div>
+              )}
+              {pushResult.adoWorkItemUrl ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a
+                    href={pushResult.adoWorkItemUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] rounded"
+                    style={{ color: 'var(--tw-vscode-info)' }}
+                    aria-label="Open Feature in Azure DevOps"
+                  >
+                    View in Azure DevOps ↗
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm text-xs min-h-[32px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                    onClick={handleCopyUrl}
+                    aria-label="Copy work item URL to clipboard"
+                  >
+                    {copied ? '✓ Copied' : '⎘ Copy URL'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                  URL not available
                 </p>
               )}
             </div>
-          </div>
+          </>
         ) : isPartial ? (
           <div
             className="rounded-md border px-4 py-3"

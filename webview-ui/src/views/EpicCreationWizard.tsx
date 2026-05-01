@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type {
   EpicDraft,
   ExtensionEvent,
+  HierarchyStatus,
   WebviewRequest,
 } from '../types';
 import { LoadingBar } from '../components/LoadingBar';
@@ -127,6 +128,7 @@ function Step1Overview({
   setTouched: (fn: (prev: Set<string>) => Set<string>) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adoDetailsOpen, setAdoDetailsOpen] = useState(false);
 
   const titleError = touched.has('title') && title.trim().length < 3
     ? 'Title must be at least 3 characters'
@@ -305,119 +307,7 @@ function Step1Overview({
         )}
       </div>
 
-      {/* ── ADO Fields ────────────────────────────────────────────── */}
-      <div
-        className="pt-3 border-t space-y-4"
-        style={{ borderColor: 'var(--tw-vscode-border)' }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-          ADO Details <span className="font-normal normal-case">(optional)</span>
-        </p>
-
-        {/* Target Date */}
-        <div>
-          <label htmlFor="epic-target-date" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            Target Date
-            <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(sets Target Date in ADO)</span>
-          </label>
-          <input
-            id="epic-target-date"
-            type="date"
-            className="rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-            value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
-          />
-        </div>
-
-        {/* T-Shirt Size + Effort */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="flex-1 min-w-[140px]">
-            <label htmlFor="epic-tshirt" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-              T-Shirt Size
-            </label>
-            <select
-              id="epic-tshirt"
-              className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-              style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-              value={tShirtSize}
-              onChange={(e) => setTShirtSize(e.target.value)}
-            >
-              <option value="">— Select —</option>
-              {T_SHIRT_SIZES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label htmlFor="epic-effort" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-              Effort <span className="text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(story points)</span>
-            </label>
-            <input
-              id="epic-effort"
-              type="number"
-              min="0"
-              step="1"
-              className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-              style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-              value={effort}
-              placeholder="e.g. 40"
-              onChange={(e) => setEffort(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Area */}
-        <div>
-          <label htmlFor="epic-area" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            Area Path
-          </label>
-          <input
-            id="epic-area"
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-            value={area}
-            placeholder={epicDefaults.defaultArea || 'e.g. MyProject\\Team'}
-            maxLength={300}
-            onChange={(e) => setArea(e.target.value)}
-          />
-        </div>
-
-        {/* Iteration */}
-        <div>
-          <label htmlFor="epic-iteration" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            Iteration Path
-          </label>
-          <input
-            id="epic-iteration"
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-            value={iteration}
-            placeholder={epicDefaults.defaultIteration || 'e.g. MyProject\\Sprint 1'}
-            maxLength={300}
-            onChange={(e) => setIteration(e.target.value)}
-          />
-        </div>
-
-        {/* URL */}
-        <div>
-          <label htmlFor="epic-url" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            ADO URL
-          </label>
-          <input
-            id="epic-url"
-            type="url"
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-            value={url}
-            placeholder={epicDefaults.defaultUrl || 'https://dev.azure.com/...'}
-            maxLength={1000}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* ── Settings Accordion ────────────────────────────────────── */}
+      {/* ── ADO Details Accordion ─────────────────────────────── */}
       <div
         className="rounded-md border overflow-hidden"
         style={{ borderColor: 'var(--tw-vscode-border)' }}
@@ -426,17 +316,26 @@ function Step1Overview({
           type="button"
           className="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
           style={{ background: 'var(--tw-vscode-bg-alt)' }}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          aria-expanded={settingsOpen}
-          aria-controls="epic-settings-panel"
+          onClick={() => setAdoDetailsOpen(!adoDetailsOpen)}
+          aria-expanded={adoDetailsOpen}
+          aria-controls="epic-ado-details-panel"
         >
           <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-            <span aria-hidden="true">⚙</span> Settings — default values
+            <span aria-hidden="true">📋</span>
+            <span>ADO Details</span>
+            {(area || epicDefaults.defaultArea) && (
+              <span className="font-normal opacity-75">
+                — {area || epicDefaults.defaultArea}
+              </span>
+            )}
+            {!adoDetailsOpen && !(area || epicDefaults.defaultArea) && (
+              <span className="font-normal opacity-60">(optional)</span>
+            )}
           </span>
           <span
             style={{
               display: 'inline-block',
-              transform: settingsOpen ? 'rotate(90deg)' : 'none',
+              transform: adoDetailsOpen ? 'rotate(90deg)' : 'none',
               transition: 'transform 0.15s',
               fontSize: '0.6rem',
               color: 'var(--tw-vscode-fg-muted)',
@@ -447,73 +346,215 @@ function Step1Overview({
           </span>
         </button>
         <div
-          id="epic-settings-panel"
-          className={`overflow-hidden transition-all duration-200 ease-out ${settingsOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}
-          aria-hidden={!settingsOpen}
+          id="epic-ado-details-panel"
+          className={`overflow-hidden transition-all duration-200 ease-out ${adoDetailsOpen ? 'max-h-[1400px] opacity-100' : 'max-h-0 opacity-0'}`}
+          aria-hidden={!adoDetailsOpen}
         >
-          <div className="px-3 py-3 space-y-3 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-            <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-              Defaults pre-fill Area, Iteration, and URL each time you create an Epic. Changes save automatically.
-            </p>
+          <div className="px-3 py-3 space-y-4 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
 
+            {/* Target Date */}
             <div>
-              <label htmlFor="epic-default-area" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-                Default Area Path
+              <label htmlFor="epic-target-date" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Target Date
+                <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(sets Target Date in ADO)</span>
               </label>
               <input
-                id="epic-default-area"
-                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                id="epic-target-date"
+                type="date"
+                className="rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
                 style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-                value={epicDefaults.defaultArea}
-                placeholder="e.g. iPay_Scrum\P3 Portfolio"
-                maxLength={300}
-                onChange={(e) => saveDefaults({ ...epicDefaults, defaultArea: e.target.value })}
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
               />
             </div>
 
+            {/* T-Shirt Size + Effort */}
+            <div className="flex gap-3 flex-wrap">
+              <div className="flex-1 min-w-[140px]">
+                <label htmlFor="epic-tshirt" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                  T-Shirt Size
+                </label>
+                <select
+                  id="epic-tshirt"
+                  className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                  style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                  value={tShirtSize}
+                  onChange={(e) => setTShirtSize(e.target.value)}
+                >
+                  <option value="">— Select —</option>
+                  {T_SHIRT_SIZES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <label htmlFor="epic-effort" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                  Effort <span className="text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(story points)</span>
+                </label>
+                <input
+                  id="epic-effort"
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                  style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                  value={effort}
+                  placeholder="e.g. 40"
+                  onChange={(e) => setEffort(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Area */}
             <div>
-              <label htmlFor="epic-default-iteration" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-                Default Iteration Path
+              <label htmlFor="epic-area" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Area Path
               </label>
               <input
-                id="epic-default-iteration"
-                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                id="epic-area"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
                 style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-                value={epicDefaults.defaultIteration}
-                placeholder="e.g. iPay_Scrum\P3 Portfolio"
+                value={area}
+                placeholder={epicDefaults.defaultArea || 'e.g. MyProject\\Team'}
                 maxLength={300}
-                onChange={(e) => saveDefaults({ ...epicDefaults, defaultIteration: e.target.value })}
+                onChange={(e) => setArea(e.target.value)}
               />
             </div>
 
+            {/* Iteration */}
             <div>
-              <label htmlFor="epic-default-url" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-                Default ADO URL
+              <label htmlFor="epic-iteration" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Iteration Path
               </label>
               <input
-                id="epic-default-url"
+                id="epic-iteration"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                value={iteration}
+                placeholder={epicDefaults.defaultIteration || 'e.g. MyProject\\Sprint 1'}
+                maxLength={300}
+                onChange={(e) => setIteration(e.target.value)}
+              />
+            </div>
+
+            {/* URL */}
+            <div>
+              <label htmlFor="epic-url" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                ADO Board URL
+              </label>
+              <input
+                id="epic-url"
                 type="url"
-                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
                 style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-                value={epicDefaults.defaultUrl}
-                placeholder="https://dev.azure.com/..."
+                value={url}
+                placeholder={epicDefaults.defaultUrl || 'https://dev.azure.com/...'}
                 maxLength={1000}
-                onChange={(e) => saveDefaults({ ...epicDefaults, defaultUrl: e.target.value })}
+                onChange={(e) => setUrl(e.target.value)}
               />
             </div>
 
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-              style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
-              onClick={() => {
-                setArea(epicDefaults.defaultArea);
-                setIteration(epicDefaults.defaultIteration);
-                setUrl(epicDefaults.defaultUrl);
-              }}
+            {/* ── Settings sub-section ─────────────────────────── */}
+            <div
+              className="rounded-md border overflow-hidden"
+              style={{ borderColor: 'var(--tw-vscode-border)' }}
             >
-              ↓ Apply defaults to form
-            </button>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+                style={{ background: 'var(--tw-vscode-bg-alt)' }}
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                aria-expanded={settingsOpen}
+                aria-controls="epic-settings-panel"
+              >
+                <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                  <span aria-hidden="true">⚙</span> Settings — default values
+                </span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    transform: settingsOpen ? 'rotate(90deg)' : 'none',
+                    transition: 'transform 0.15s',
+                    fontSize: '0.6rem',
+                    color: 'var(--tw-vscode-fg-muted)',
+                  }}
+                  aria-hidden="true"
+                >
+                  ▶
+                </span>
+              </button>
+              <div
+                id="epic-settings-panel"
+                className={`overflow-hidden transition-all duration-200 ease-out ${settingsOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}
+                aria-hidden={!settingsOpen}
+              >
+                <div className="px-3 py-3 space-y-3 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
+                  <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                    Defaults pre-fill Area, Iteration, and URL each time you create an Epic. Changes save automatically.
+                  </p>
+
+                  <div>
+                    <label htmlFor="epic-default-area" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                      Default Area Path
+                    </label>
+                    <input
+                      id="epic-default-area"
+                      className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                      style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                      value={epicDefaults.defaultArea}
+                      placeholder="e.g. iPay_Scrum\P3 Portfolio"
+                      maxLength={300}
+                      onChange={(e) => saveDefaults({ ...epicDefaults, defaultArea: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="epic-default-iteration" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                      Default Iteration Path
+                    </label>
+                    <input
+                      id="epic-default-iteration"
+                      className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                      style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                      value={epicDefaults.defaultIteration}
+                      placeholder="e.g. iPay_Scrum\P3 Portfolio"
+                      maxLength={300}
+                      onChange={(e) => saveDefaults({ ...epicDefaults, defaultIteration: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="epic-default-url" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                      Default ADO URL
+                    </label>
+                    <input
+                      id="epic-default-url"
+                      type="url"
+                      className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                      style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                      value={epicDefaults.defaultUrl}
+                      placeholder="https://dev.azure.com/..."
+                      maxLength={1000}
+                      onChange={(e) => saveDefaults({ ...epicDefaults, defaultUrl: e.target.value })}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                    style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
+                    onClick={() => {
+                      setArea(epicDefaults.defaultArea);
+                      setIteration(epicDefaults.defaultIteration);
+                      setUrl(epicDefaults.defaultUrl);
+                    }}
+                  >
+                    ↓ Apply defaults to form
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -876,8 +917,10 @@ function Step5Confirm({
   saveBusy,
   saveError,
   savePhase,
+  epicPushResult,
   onSaveAsDraft,
   onPushToAdo,
+  onDone,
 }: {
   title: string;
   description: string;
@@ -887,9 +930,98 @@ function Step5Confirm({
   saveBusy: boolean;
   saveError?: string;
   savePhase: string;
+  epicPushResult?: { adoWorkItemId: number; adoWorkItemUrl: string; hierarchyStatus: HierarchyStatus } | null;
   onSaveAsDraft: () => void;
   onPushToAdo: () => void;
+  onDone: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyUrl = () => {
+    if (epicPushResult?.adoWorkItemUrl) {
+      navigator.clipboard.writeText(epicPushResult.adoWorkItemUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
+
+  if (epicPushResult) {
+    return (
+      <div className="space-y-4">
+        {/* Success banner */}
+        <div
+          className="rounded-md border px-4 py-4 flex items-start gap-3"
+          style={{ borderColor: 'var(--tw-epic)', background: 'var(--tw-epic-bg)' }}
+        >
+          <span className="text-xl shrink-0" aria-hidden="true">✅</span>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--tw-epic)' }}>
+              Epic pushed to Azure DevOps
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              Work Item #{epicPushResult.adoWorkItemId}
+            </p>
+          </div>
+        </div>
+
+        {/* Tracking card */}
+        <div
+          className="rounded-md border px-4 py-3 space-y-3"
+          style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)' }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            Tracking
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>Work Item</span>
+            <span
+              className="rounded px-1.5 py-0.5 text-xs font-medium"
+              style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
+            >
+              #{epicPushResult.adoWorkItemId}
+            </span>
+          </div>
+          {epicPushResult.adoWorkItemUrl ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href={epicPushResult.adoWorkItemUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] rounded"
+                style={{ color: 'var(--tw-epic)' }}
+                aria-label="Open Epic in Azure DevOps"
+              >
+                View in Azure DevOps ↗
+              </a>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm text-xs min-h-[32px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                onClick={handleCopyUrl}
+                aria-label="Copy work item URL to clipboard"
+              >
+                {copied ? '✓ Copied' : '⎘ Copy URL'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              URL not available
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
+          onClick={onDone}
+        >
+          Done — back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary card */}
@@ -1053,6 +1185,11 @@ export function EpicCreationWizard({
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | undefined>();
   const [savePhase, setSavePhase] = useState('');
+  const [epicPushResult, setEpicPushResult] = useState<{
+    adoWorkItemId: number;
+    adoWorkItemUrl: string;
+    hierarchyStatus: HierarchyStatus;
+  } | null>(null);
 
   // Cancel confirm
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -1173,9 +1310,20 @@ export function EpicCreationWizard({
       }
 
       if (message.type === 'EPIC_PUSHED') {
+        const p = message.payload as {
+          epicId: string;
+          adoWorkItemId: number;
+          adoWorkItemUrl: string;
+          linkedFeatureAdoIds: Record<string, number>;
+          hierarchyStatus: HierarchyStatus;
+        };
         setSaveBusy(false);
         setSavePhase('');
-        onNavigate('dashboard');
+        setEpicPushResult({
+          adoWorkItemId: p.adoWorkItemId,
+          adoWorkItemUrl: p.adoWorkItemUrl,
+          hierarchyStatus: p.hierarchyStatus,
+        });
         return;
       }
 
@@ -1340,8 +1488,10 @@ export function EpicCreationWizard({
               saveBusy={saveBusy}
               saveError={saveError}
               savePhase={savePhase}
+              epicPushResult={epicPushResult}
               onSaveAsDraft={handleSaveAsDraft}
               onPushToAdo={handlePushToAdo}
+              onDone={() => onNavigate('dashboard')}
             />
           )}
         </div>
