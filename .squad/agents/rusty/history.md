@@ -119,7 +119,41 @@
 
 ---
 
-### 2026-05-XX — FeatureCreationWizard Bug Fixes: Generation Timeout & Empty-Response Guard
+### 2026-05-XX — EpicCreationWizard: 3 UI Fixes (Teal Color, Remove Context Step, ADO Fields)
+
+**Scope:** `EpicCreationWizard.tsx`, `styles.css`, `tailwind.css`, `types.ts`, `src/shared/messages.ts`
+**Branch:** `feature/epic-creation`
+
+**Task 1 — Remove "Context & Repos" step:**
+- Removed old Step 2 (Context & Repos) entirely from STEPS array and component tree
+- Wizard is now 4 steps: Epic Overview → AI Generation → Review & Edit → Confirm & Save
+- All step number refs (step === 3/4/5 → 2/3/4), navigation conditions (step < 5 → step < 4), and "Back to Edit" button (step 4 → step 3) updated
+- `repos`, `selectedRepoIds`, `reposRef`, `selectedRepoIdsRef` state and refs removed from main wizard
+- `handleGenerate` and save handlers now pass `selectedRepoIds: []` — backend handles empty array gracefully
+- `setRepos()` call removed from STATE_UPDATED handler
+
+**Task 2 — Purple → Teal color:**
+- `webview-ui/src/styles/tailwind.css`: `--tw-epic` changed from `#7c3aed` → `#2dd4bf` (dark) and `#6d28d9` → `#0f766e` (light), with matching bg/muted/border teal tokens
+- `webview-ui/src/styles.css`: Special `.nav-item[data-navid="epic-creation"][aria-current="page"]` violet override removed; uses standard `var(--sidebar-active)` teal now
+
+**Task 3 — New ADO fields + Settings accordion:**
+- Added `EpicDefaults` interface and `DEFAULT_EPIC_SETTINGS` constant (iPay_Scrum defaults) at top of file
+- `EPIC_DEFAULTS_KEY = 'po-tools:epicDefaults'` for localStorage persistence
+- Step1Overview completely rewritten with 6 new optional fields: ADO URL, Area Path, Iteration, Target Date, T-Shirt Size, Effort
+- Settings accordion (collapsible) lets user save default Area/Iteration/URL to localStorage
+- New state vars in main wizard: `targetDate`, `tShirtSize`, `effort`, `url`, `area`, `iteration`, `epicDefaults`
+- `epicDefaults` initializes from localStorage (safe try/catch), falls back to DEFAULT_EPIC_SETTINGS
+- Edit prefill updated: restores new fields from saved draft
+- `buildEpicPayload()` helper centralizes payload construction for both save and push handlers
+- Types synced: `tShirtSize?`, `area?`, `iteration?`, `epicUrl?`, `effort?`, `targetDate?` added to `EpicDraft` in both `types.ts` and `src/shared/messages.ts`
+
+**Key patterns:**
+- `localStorage.getItem` + JSON.parse in useState initializer for persistent defaults (wrap in try/catch)
+- Build a payload helper (`buildEpicPayload()`) when handleSave and handlePush share the same structure — avoids duplication drift
+- CSS tokens: `--tw-epic*` live in `tailwind.css` not `styles.css`. Both dark (:root) and light (body.vscode-light) overrides must be updated.
+- When removing a wizard step, trace ALL references: STEPS array, step rendering conditionals, navigation buttons (step < N), "Back to Edit" (step === N), canGoNext, prefill handlers
+
+
 
 **Bug 1 (Checkbox multi-select):**
 After thorough code review, the existing `checked={selectedRepoIds.includes(repo.id)}` pattern in `Step2Context` is already correct — one checkbox ↔ one boolean derived from an array. No code change was needed. The bug as described in the task had already been implemented with the right pattern (likely from the original wizard session).
