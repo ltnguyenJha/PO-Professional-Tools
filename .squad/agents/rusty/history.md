@@ -1631,3 +1631,31 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 - webview-ui/src/components/FeatureWizard.tsx (prop wiring)
 - dist/assets/* (rebuilt)
 
+### 2026-05-01 — WCAG 2.1 AA Component Accessibility Pass
+
+**Scope:** FeatureCreationWizard, DashboardView, PbiStudio, StatusBadge, App.tsx — comprehensive semantic HTML and ARIA layer applied on feature/ui-wcag-improvements branch
+
+**Coordination with Saul (UI Designer):**
+- Saul focused on CSS tokens, design system, light-mode theming, `@tailwindcss/forms`, touch targets (44px), global `:focus-visible` ring
+- Rusty added semantic HTML layer: form label/id wiring, ARIA live regions, focus management, dialog roles, section header refactoring
+- Build: ✅ Passed (2.58s, zero TS errors)
+
+**Key Patterns Established (for reuse in future components):**
+
+1. **Form error handling:** `aria-invalid={!!error}` + `aria-describedby="err-id"` + `<p id="err-id" role="alert">` — screen reader announces field validity on input
+2. **Loading state announcements:** `role="status" aria-live="polite"` + `<span className="sr-only">Loading...</span>` — AT announces without disrupting user
+3. **Accordion animation:** CSS `max-height` (0 → 2000px) + `aria-expanded` on trigger + `aria-hidden={!open}` on content — do NOT use conditional render `{open && ...}` (breaks transitions)
+4. **Dialog pattern:** `role="dialog" aria-modal="true" aria-labelledby="title-id"` + matching `id` on title element — traps AT focus in overlay
+5. **Step wizard focus:** `useRef<HTMLHeadingElement>` + `tabIndex={-1}` + `useEffect([step])` → `focus()` on new step heading; add `focus-visible:outline-none` to suppress visual ring on programmatic focus (keyboard access only)
+
+**Architectural decisions:**
+
+- **Section headers:** Changed PbiStudio `.section-header` from `<div onClick>` with `role="button"` to native `<button type="button" className="section-header">` — native keyboard access + AT announcement. For headers with nested action buttons: make heading a separate inner `<button>` and add `onClick={(e) => e.stopPropagation()}` on action container `<div>` — clean separation.
+- **Checkbox state:** Frontend fix for all-or-nothing bug: Step2Context now uses `repo.path` as checkbox key/identifier (stable, unique) instead of `repo.id` (collision-prone). API payloads still use correct IDs via `getRepoIdPayloads()` mapping paths back to IDs.
+- **Studio navigation:** Wired `onEditInStudio` callback end-to-end so "Edit in PBI Studio" button passes `pbiId` to App.tsx `navigateToStudio`, which sets `focusDraftId` before switching view — now correctly scrolls/selects target item.
+
+**Non-breaking changes:** All additions are semantic/ARIA only. No props added to component interfaces, no state logic changed, no messaging altered.
+
+**Bugs requiring backend fix:**
+- `createId()` in `src/services/repoImportService.ts` truncates base64url to 24 chars (18 bytes) → collisions on common paths. Recommend: full base64url or crypto sha256 hash (no truncation).
+

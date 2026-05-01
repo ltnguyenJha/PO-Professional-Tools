@@ -118,3 +118,20 @@ The legacy system (`styles.css`) and Tailwind bridge can coexist indefinitely as
 
 **`prefers-reduced-motion` placement:** Added to both `tailwind.css` (for Tailwind-based components) and `styles.css` (for legacy components). Both files are loaded; the `!important` overrides ensure the rule wins over animation declarations in both systems.
 
+### 2026-05-01 — Cooperative WCAG 2.1 AA Pass with Rusty
+
+**Coordination:**
+- Rusty applied semantic HTML and ARIA layer on top of Saul's CSS-focused WCAG overhaul
+- Saul provided: global `:focus-visible` ring, `min-h-touch`/`min-w-touch` tokens (44px), `@tailwindcss/forms` plugin, expanded bridge variables
+- Rusty added: form label/id wiring, `aria-required`/`aria-invalid`/`aria-describedby`, `aria-current="step"`, focus management with `useRef<HTMLHeadingElement> + tabIndex={-1}`, dialog roles, ARIA live regions, section header `<button>` refactoring
+- No breaking changes — all additive patterns for future components
+
+**Design System Patterns Established (for future components):**
+- Form error: `aria-invalid={!!error}` + `aria-describedby="err-id"` + `<p id="err-id" role="alert">`
+- Loading state: `role="status" aria-live="polite"` + `<span className="sr-only">`
+- Accordion: CSS max-height + `aria-expanded` on trigger + `aria-hidden` on content (don't use conditional render)
+- Dialog: `role="dialog" aria-modal="true" aria-labelledby="title-id"` + matching `id` on title
+- Step wizard focus: `useRef<HTMLHeadingElement>` + `tabIndex={-1}` + `useEffect([step])` + `focus-visible:outline-none`
+
+All patterns documented in Rusty's decision entry for team reference.
+
