@@ -18,6 +18,7 @@
 | Linus | Backend Dev | .squad/agents/linus/charter.md | 🟢 Active (Issue #20 backend complete) |
 | Livingston | Tester | .squad/agents/livingston/charter.md | 🟢 Active |
 | Frank | QA Automation Engineer | .squad/agents/frank/charter.md | 🟢 Active |
+| Reuben | Documentation Writer | .squad/agents/reuben/charter.md | 🟢 Active |
 | Tess | UX Designer | .squad/agents/tess/charter.md | 🟢 Active |
 | Saul | UI Designer | .squad/agents/saul/charter.md | 🟢 Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 🟢 Active |
