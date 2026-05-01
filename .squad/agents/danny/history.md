@@ -483,3 +483,30 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 **Deliverable committed:** `.squad/decisions/inbox/danny-epic-creation-scoping.md`
 
 **Key Learning:** Scoping briefs for architects should balance specificity (concrete data models, message patterns, UI integration) with flexibility (open questions on strategy, UX decisions, edge cases). Too much detail locks in decisions prematurely; too little ambiguity leaves architect blocked. Sweet spot: 70% defined (what we know is hard), 30% open (what's architect's domain). Include explicit "For Basher to resolve" callouts for decision points. Embed 10 strategic questions at each decision node so architect can iterate on alternatives without re-discovering the problem space.
+
+### Squad Performance Report Generation (2026-05-01)
+
+**Task:** Generated comprehensive Squad AI Team Performance Report at `docs/squad-performance-report.md`.
+
+**Data Sources Analyzed:**
+- `.squad/team.md` — Team roster and project context
+- `.squad/decisions.md` — 170+ decision entries
+- All 8 agent history files (Danny, Linus, Rusty, Livingston, Basher, Tess, Saul, Scribe)
+- 12 orchestration logs and 6 session logs
+- Skills directory (9 documented skills)
+
+**Key Findings:**
+1. **Team Growth:** Started with 4 agents (04-24), scaled to 9 agents by Day 7 (04-30)
+2. **Issues Tackled:** 14 unique GitHub issues resolved (#2, #3, #20, #21, #26, #28, #29, #30, #32, #34, #36, #38, #41)
+3. **Agent Activity:** Linus (8 sessions), Rusty (7), Saul (6) were most active contributors
+4. **Complexity Evolution:** Early tasks were single-agent fixes; recent work involves 3+ agent cross-team features
+5. **Quality Gates:** 200+ test scenarios written, WCAG 2.1 AA compliance achieved, all builds passing
+
+**Report Highlights:**
+- 8 Mermaid diagrams (timeline, gantt, pie, xychart, flowchart, mindmap)
+- Team formation timeline showing agent joins
+- Decision category breakdown (Architecture 28, UI/UX 35, Backend 32, Testing 25)
+- Per-agent contribution summaries
+- Reusable skills inventory
+
+**Key Learning:** AI team memory is *real*. The Squad's orchestration logs, decision records, and agent histories form a coherent institutional memory that persists across sessions. This memory enables new agents to onboard with context, complex multi-agent coordination, and retrospective analysis without manual reconstruction.
