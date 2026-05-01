@@ -12,6 +12,31 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-01 — ADO URL Links in Dashboard Cards (Implemented)
+
+**Scope:** `DashboardView.tsx` — `EpicDraftCard`, `FeatureDraftCard`, `FeatureMiniCard`
+
+**Pattern:**
+- Use `<a href={url} target="_blank" rel="noreferrer">` directly — not a `<button>` wrapping an `<a>`.
+- In accordion header button rows, add `onClick={(e) => e.stopPropagation()}` on any `<a>` nested inside the accordion `<button>`, so clicks open the link without toggling the accordion.
+- Full ghost-button style for card-level links: `className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"`.
+- Compact inline link for mini-cards: `text-xs shrink-0` + `color: var(--tw-vscode-fg-muted)` — no btn classes needed.
+- `EpicDraft.adoUrl` and `FeatureDraft.adoWorkItemUrl` are the fields to check; both are optional, so always gate on truthiness.
+- Build passes; links ready for URL delivery from Linus backend.
+
+### 2026-05-01 — Epic Creation UI Overhaul (Implemented)
+
+**Scope:** `EpicCreationWizard.tsx`
+
+**Changes:**
+- Removed "Context & Repos" Step 2 — Epic artifacts don't require per-repo scoping at creation
+- Changed accent color: `--tw-epic` from purple (#7c3aed/#6d28d9) to teal (#2dd4bf/#0f766e) for visual consistency with sidebar active state
+- Added ADO metadata fields in Step 1: ADO URL, Area Path, Iteration Path, Target Date, T-Shirt Size, Effort
+- Settings Accordion (collapsible) persists defaults to localStorage (`po-tools:epicDefaults`) with iPay_Scrum team defaults
+- All new fields optional (backward-compatible); no changes to saved drafts
+
+**Linus Integration:** Awaiting URL persistence from `pushEpicHierarchy` backend fix to complete frontend display of tracking links.
+
 ### 2026-05-XX — ADO Tracking URL Display + Epic ADO Details Dropdown
 
 **Scope:** `EpicCreationWizard.tsx`, `FeatureCreationWizard.tsx`

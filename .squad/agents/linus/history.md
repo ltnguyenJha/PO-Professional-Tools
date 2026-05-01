@@ -15,6 +15,18 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Feature URL Persistence in Epic Push (2026-05-01)
+
+**Files:** `src/services/adoService.ts`, `src/panels/DashboardPanel.ts`
+
+**Bugs Fixed:**
+1. **`pushEpicHierarchy` missing Feature URL:** Updated return type `featureResults` to include `adoWorkItemUrl`. New features: URL from `pushFeatureHierarchy().featureWorkItemUrl` (ADO `item._links.html.href`). Existing features: URL from `feature.adoWorkItemUrl` or computed fallback.
+2. **`DashboardPanel.handlePushEpicToAdo` didn't persist URL:** Updated feature save in `handlePushEpicToAdo` to include `adoWorkItemUrl` from returned result alongside `adoWorkItemId`.
+
+**Hierarchy Verified:** Both Epic → Feature and Feature → PBI use correct `System.LinkTypes.Hierarchy-Reverse` semantics (Feature/PBI points UP to parent). No rewrites needed.
+
+**Build:** esbuild ✅ clean (222ms, 2.8MB); pre-existing jest-mock type errors unrelated.
+
 ### Epic Creation Backend (2026-04-30)
 - Implemented EpicDraft type, 17 message types, 8 DashboardPanel handlers
 - Pattern: all new handlers follow existing Feature handler pattern exactly
@@ -80,6 +92,28 @@
 - `src/shared/messages.ts` — Payload expansion, message type union
 - `src/panels/DashboardPanel.ts` — Handler rewrite with error cleanup
 - `webview-ui/src/types.ts` — FEATURE_GENERATION_ERROR type
+
+---
+
+### 2026-05-XX — Epic Push: Feature adoWorkItemUrl Not Saved (Bug Fix)
+
+**Problem:** When an Epic was pushed to ADO with linked Features, the Feature drafts were saved with `adoWorkItemId` but never `adoWorkItemUrl`. The URL was lost regardless of whether the Feature was newly created or already existed.
+
+**Root Cause Trace:**
+- `pushEpicHierarchy()` return type: `featureResults` array was `{ featureId, adoWorkItemId, linked }` — no URL field.
+- For NEW features: `pushFeatureHierarchy()` returned `featureWorkItemUrl` but the caller discarded it.
+- For EXISTING features: no URL was computed at all.
+- `DashboardPanel.handlePushEpicToAdo()`: only set `adoWorkItemId` on FeatureDraft, URL omitted.
+
+**Fix:**
+- `adoService.ts` `pushEpicHierarchy()`: Added `adoWorkItemUrl: string` to `featureResults` array type and local variable. New features use `featureResult.featureWorkItemUrl`; existing features use `feature.adoWorkItemUrl` or compute from `orgUrl + projectName + id`.
+- `DashboardPanel.ts`: Feature map now also sets `adoWorkItemUrl: fr.adoWorkItemUrl`.
+
+**Parent-child relationship verification (confirmed correct):**
+- Epic→Feature: `System.LinkTypes.Hierarchy-Reverse` is added on the Feature WI with `url = epicApiUrl` → Epic IS the parent. ✅
+- Feature→PBI: `System.LinkTypes.Hierarchy-Reverse` is added on the PBI WI with `url = featureApiUrl` → Feature IS the parent. ✅
+
+**Commit:** `18243ea` on `feature/epic-creation`
 
 ---
 

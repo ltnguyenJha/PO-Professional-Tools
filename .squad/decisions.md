@@ -3065,6 +3065,276 @@ Update git-workflow.md with step 6: "Update GitHub Issue — Ensure issue is clo
 
 ---
 
+### ADO URL Link Pattern for Dashboard Cards (2026-04-30)
+
+**Author:** Rusty (Frontend Dev)  
+**Date:** 2026-04-30  
+**Status:** Implemented  
+**Build:** ✅ Passes
+
+Use native `<a>` anchor semantics (not `<button>` wrapping `<a>`) for all ADO URL links in Dashboard cards:
+
+- **`EpicDraftCard` header row**: `↗ ADO` with ghost-button style (`btn btn-ghost btn-sm`) — appears between Edit and Push buttons.
+- **`FeatureDraftCard` header row**: `↗ ADO` with ghost-button style — appears after Push button.
+- **`FeatureMiniCard` inline**: compact `↗` text link with muted color — no btn classes.
+
+All links use `target="_blank" rel="noreferrer"` and `onClick={e => e.stopPropagation()}` to prevent accordion toggle.
+
+**Rationale:** `<a>` is semantically correct for navigation; no need to wrap in `<button>`. `stopPropagation` is necessary because these anchors live inside `<button>` elements (accordion triggers). Ghost-button style matches the existing Edit/Push button aesthetic, keeping the header row visually consistent. Compact `↗` in mini-cards avoids cluttering the already-dense feature list rows.
+
+---
+
+### ADO Push URL Contract — Linus → Rusty (2026-05-01)
+
+**Author:** Linus (Backend Dev)  
+**Date:** 2026-05-01  
+**Status:** Implemented  
+**Branch:** feature/epic-creation
+
+After a successful push to ADO, the extension now surfaces the browser URL for both Epics and Features in the success event. Previously, `FEATURE_PUSHED` was missing the URL field entirely.
+
+**Message Contracts:**
+
+**`EPIC_PUSHED`** (already worked, no change)
+```typescript
+{
+  type: 'EPIC_PUSHED';
+  payload: {
+    epicId: string;
+    adoWorkItemId: number;
+    adoWorkItemUrl: string;         // ← browser URL — REQUIRED
+    linkedFeatureAdoIds: Record<string, number>;
+    hierarchyStatus: HierarchyStatus;
+  }
+}
+```
+
+**`FEATURE_PUSHED`** (fixed — now includes URL)
+```typescript
+{
+  type: 'FEATURE_PUSHED';
+  payload: {
+    featureId: string;
+    adoWorkItemId?: number;
+    adoWorkItemUrl?: string;        // ← browser URL — NEW
+    childAdoIds: Record<string, number>;
+    hierarchyStatus: HierarchyStatus;
+  }
+}
+```
+
+**Field Names:**
+| Event | URL field | ID field |
+|---|---|---|
+| `EPIC_PUSHED` | `payload.adoWorkItemUrl` | `payload.adoWorkItemId` |
+| `FEATURE_PUSHED` | `payload.adoWorkItemUrl` | `payload.adoWorkItemId` |
+
+**URL Format:** `https://dev.azure.com/{org}/{project}/_workitems/edit/{id}` (sourced from `item._links.html.href` with fallback to constructed URL)
+
+**Display:** Rusty surfaces `payload.adoWorkItemUrl` as a clickable tracking link. `FeatureDraft.adoWorkItemUrl` and `EpicDraft.adoUrl` in global state are now persisted after push.
+
+---
+
+### Feature URL Saved During Epic Push (2026-05-01)
+
+**Author:** Linus (Backend Dev)  
+**Date:** 2026-05-01  
+**Status:** Implemented  
+**Branch:** feature/epic-creation  
+**Commit:** 18243ea
+
+Fixed feature URL persistence in epic-to-feature hierarchy and verified parent-child links use correct ADO semantics.
+
+**Bugs Fixed:**
+
+1. **`pushEpicHierarchy` Missing Feature URL**
+   - **File:** `src/services/adoService.ts`
+   - **Problem:** Feature URLs were not captured when pushing Epic → Feature hierarchy
+   - **Fix:** Updated `featureResults` return type to include `adoWorkItemUrl` field
+   - **Logic:**
+     - New features: URL from `pushFeatureHierarchy().featureWorkItemUrl` (sourced from ADO `item._links.html.href`)
+     - Existing features: URL from `feature.adoWorkItemUrl` or computed as `${orgUrl}/${projectName}/_workitems/edit/${featureAdoId}`
+
+2. **`DashboardPanel` Didn't Persist Feature URL**
+   - **File:** `src/panels/DashboardPanel.ts`
+   - **Problem:** `handlePushEpicToAdo` didn't save Feature URL returned from `pushEpicHierarchy`
+   - **Fix:** Updated feature save logic to include `adoWorkItemUrl` field alongside `adoWorkItemId`
+
+**Hierarchy Verification:**
+
+Both parent-child links verified correct (ADO semantic):
+
+| Link | Direction | Location | Semantics | Status |
+|------|-----------|----------|-----------|--------|
+| Epic → Feature | Feature points UP | `pushEpicHierarchy` line 958 | `System.LinkTypes.Hierarchy-Reverse` on Feature | ✅ |
+| Feature → PBI | PBI points UP | `pushFeatureHierarchy` line 714 | `System.LinkTypes.Hierarchy-Reverse` on PBI | ✅ |
+
+**Build Result:** esbuild ✅ Clean (222ms, 2.8MB bundle); tsc pre-existing jest-mock type errors (unrelated).
+
+---
+
+### EpicCreationWizard UI Overhaul (2026-05-01)
+
+**Author:** Rusty (Frontend Dev)  
+**Branch:** feature/epic-creation  
+**Commit:** a96922b  
+**Date:** 2026-05-01  
+**Status:** Implemented
+
+Three surgical UI changes applied to `EpicCreationWizard.tsx` to align with product direction and team workflow patterns.
+
+**Decision 1 — Remove "Context & Repos" Step**
+- Removed Step 2 (Context & Repos) — repo selection via `Step2Context` component
+- Epic-level features are product artifacts, not code artifacts; repos attach at Feature/PBI level
+- Simplifies path to AI generation
+- Removed `selectedRepoIds` and `repos` state; all payloads pass `selectedRepoIds: []` (backend handles gracefully)
+
+**Decision 2 — Purple → Teal for Epic Accent Color**
+- Before: `--tw-epic: #7c3aed` (violet-600 dark) / `#6d28d9` (violet-700 light)
+- After: `--tw-epic: #2dd4bf` (teal-400 dark) / `#0f766e` (teal-700 light)
+- Matches sidebar navigation active state; unifies Epic visual identity with primary accent color
+- Contrast: teal-400 on dark (4.5:1); teal-700 on white (5:1) — both WCAG AA
+
+**Decision 3 — ADO Metadata Fields in Step 1**
+- Added optional fields: ADO URL, Area Path, Iteration Path, Target Date, T-Shirt Size, Effort (story points)
+- Settings Accordion persists defaults to `localStorage` under `po-tools:epicDefaults`
+- Pre-populated with iPay_Scrum team defaults; collapsible to keep primary fields visible
+- No backward-compat risk — all fields optional
+
+---
+
+### pickModel() — Prefer gpt-5.4, fallback gpt-4o (2026-05-01)
+
+**Author:** Linus (Backend Dev)  
+**Date:** 2026-05-01  
+**Branch:** feature/epic-creation  
+**Commit:** ee19894  
+**Status:** Implemented
+
+`CopilotService.pickModel()` now selects models in this priority order:
+
+1. `{ vendor: 'copilot', family: 'gpt-5.4' }` — new first choice
+2. `{ vendor: 'copilot', family: 'gpt-4o' }` — existing fallback (preserved)
+3. `{ vendor: 'copilot' }` — any copilot model
+4. `{}` — any available model
+
+The `preferred` find chain mirrors the same order: `gpt-5.4` → `gpt-4o` → `gpt-4` → `models[0]`.
+
+**Rationale:** Leverage highest available model (GPT-5.4) for higher quality AI outputs in PBI generation, user story creation, and epic decomposition. Safe fallback chain ensures extension works in org environments where newer models aren't accessible.
+
+**Impact:** All 12 callsites of `pickModel()` automatically benefit. No breaking changes — existing behavior preserved if gpt-5.4 unavailable. Model ID string follows existing `family` convention.
+
+---
+
+### Epic Creation Architecture (2026-04-30)
+
+**Author:** Basher (Solutions Architect)  
+**Date:** 2026-04-30  
+**Status:** Proposed — Awaiting team review  
+**Spec:** `docs/architecture/epic-creation-spec.md`  
+**Brief:** `docs/architecture/epic-creation-brief.md`
+
+Comprehensive architecture decisions for Epic Creation (third tier of work item hierarchy). All choices grounded in full codebase read.
+
+**Key Architectural Decisions:**
+
+1. **EpicDraft is first-class type** — Separate interface in `src/shared/messages.ts`; unique fields (`objectives[]`, `scope`, `linkedFeatureIds`, `selectedRepoIds`, `aiGeneratedFeatures`) justify separate type
+
+2. **`linkedFeatureIds` over `featureIds`** — Semantically accurate ("linked" vs "owned"); prevents confusion with `featureId` in message payloads
+
+3. **Feature suggestions in local state** — AI-generated features live in `localSuggestions` React state inside `EpicCreationWizard`, not persisted until Step 5 (prevents orphaned drafts)
+
+4. **Push strategy: Option B** — `PUSH_EPIC_TO_ADO` includes `pushChildren: boolean`; partial failures result in `status: 'partial'` (least-surprise choice)
+
+5. **Status rollup: strict minimum rule** — Epic `'pushed'` only when Epic AND ALL linked features are pushed
+
+6. **Phase 1 reuses existing AdoSettings** — No new Epic-specific settings UI; majority of teams use same area/iteration for all work types
+
+7. **ID generation: `Date.now().toString()`** — Matches existing DashboardPanel pattern; IDs are local-only
+
+8. **ADO link direction: Hierarchy-Reverse on child** — Existing pattern proven for Feature→PBI
+
+9. **Dashboard Epics at top, expanded by default** — Hierarchy flows top-down; first Epic auto-expands
+
+10. **Step 3 (AI Generation) optional** — Skip button lets users proceed with empty suggestion list
+
+**Deferred to Phase 2:** Epic-specific settings, auto-calc velocity, import existing ADO Epic, AI model configuration, drag-to-reorder, source badge (generated vs manual)
+
+---
+
+### Epic Creation Scoping Brief (2026-04-29)
+
+**Owner:** Danny (Lead)  
+**Date:** 2026-04-29  
+**Status:** Ready for Architecture Design
+
+Comprehensive scoping brief created for Epic Creation architecture (`docs/architecture/epic-creation-brief.md`). Document serves as input specification for Solutions Architect.
+
+**Locked-In Architectural Decisions:**
+- Hierarchy: Epic → Feature → PBI (native ADO WITs)
+- Entity types: `EpicDraft` (new), `FeatureDraft` (existing), `PbiDraft` (existing)
+- Linking: `System.LinkTypes.Hierarchy-Reverse` on child pointing to parent
+- Status: `'draft'` | `'ready'` | `'pushed'` | `'partial'`
+- Dashboard: Three-level accordion (Epics, Orphaned Features, Standalone PBIs)
+- Navigation: New `epic-creation` route; new `focusEpicId` state
+- Messages: 12 types across 4 categories (CRUD, Generation, ADO Push, Relationships)
+- Phase 1 MVP: Use existing ADO Connection + Default Work Item settings
+
+**Open Questions Resolved by Basher:** Wizard step count, feature generation timing, mixed feature sources, cascading push, settings scope, feature lifecycle, ADO edge cases, status rollup, velocity estimation, dashboard defaults.
+
+---
+
+### WCAG 2.1 AA Accessibility + UI/UX Polish (2026-04-30)
+
+**By:** ltnguyen (via Danny)  
+**Date:** 2026-04-30  
+**What:** feature/ui-wcag-improvements merged as PR #62
+**Status:** ✅ Merged to main
+
+**Includes:**
+- Tailwind config overhaul
+- VS Code token bridge
+- @tailwindcss/forms integration
+- Component ARIA pass
+- Keyboard navigation
+- Touch targets
+- Reduced-motion support
+
+**PR:** #62 — squash merged to main
+
+---
+
+### Design Decision: Theme Settings UX (2026-04-30)
+
+**Author:** Tess (UX Designer)  
+**Date:** 2026-04-30  
+**Status:** Proposed
+
+Implement per-view theme settings system with:
+1. **Global Appearance Section** in existing Settings view (primary access)
+2. **Per-view gear icon popovers** for quick, contextual adjustments
+3. **Preset color palettes** (not custom hex) to guarantee WCAG 2.1 AA compliance
+4. **Live preview panel** to reduce trial-and-error
+
+**Settings Scope:**
+| View | Customizable Fields |
+|------|---------------------|
+| PBI Studio | Accent color, Card style (compact/comfortable/spacious), Font size |
+| Epics | Accent color (default: teal) |
+| Feature Creation | Accent color, Form density (standard/compact) |
+
+**Implementation Pattern:**
+- Extend `UiSettings` type with `pbiStudio`, `epics`, `featureCreation` sub-objects
+- Store via `ExtensionContext.globalState` (persists across sessions)
+- CSS variable injection in `ThemeProvider` based on settings
+- New message types: `SET_VIEW_THEME`, `RESET_VIEW_THEME`, `UI_SETTINGS_CHANGED`
+
+**Rationale:** Preset palettes simplify UX while guaranteeing accessibility. Per-view settings accommodate different purposes. Live preview reduces anxiety. Global + local access serves power users and casual users.
+
+**Spec Reference:** Full specification in `docs/design/theme-settings-spec.md`
+
+---
+
 ## Merged from .squad/decisions/inbox/ (2026-04-30)
 
 ### Business Rules Navigation Fix (2026-04-30)
