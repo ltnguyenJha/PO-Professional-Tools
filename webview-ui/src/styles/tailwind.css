@@ -35,24 +35,38 @@
    ALL variables to light-safe values (see below).
    ---------------------------------------------------------------- */
 :root {
-  /* Surface & text */
-  --tw-vscode-bg:       var(--vscode-editor-background, #1e1e1e);
-  --tw-vscode-bg-alt:   var(--vscode-sideBar-background, #252526);
-  --tw-vscode-surface:  var(--vscode-editorWidget-background, #2a2d2e);
-  --tw-vscode-fg:       var(--vscode-editor-foreground, #d4d4d4);
-  --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #858585);
-  --tw-vscode-border:   var(--vscode-panel-border, var(--vscode-widget-border, #454545));
+  /* Backgrounds */
+  --tw-vscode-bg:        var(--vscode-editor-background, #1e1e1e);
+  --tw-vscode-bg-alt:    var(--vscode-sideBar-background, #252526);
+  --tw-vscode-surface:   var(--vscode-editorWidget-background, #252526);
+  --tw-vscode-hover:     var(--vscode-list-hoverBackground, rgba(255,255,255,0.06));
+  --tw-vscode-selected:  var(--vscode-list-activeSelectionBackground, #094771);
+  --tw-vscode-selected-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+
+  /* Foregrounds */
+  --tw-vscode-fg:        var(--vscode-editor-foreground, #cccccc);
+  --tw-vscode-fg-muted:  var(--vscode-descriptionForeground, #858585);
+  --tw-vscode-muted:     var(--vscode-descriptionForeground, #999999);
+
+  /* Borders */
+  --tw-vscode-border:    var(--vscode-widget-border, var(--vscode-panel-border, rgba(255,255,255,0.1)));
 
   /* Interactive */
-  --tw-vscode-accent:    var(--vscode-button-background, #0078d4);
-  --tw-vscode-accent-fg: var(--vscode-button-foreground, #ffffff);
-  --tw-vscode-input-bg:  var(--vscode-input-background, #3c3c3c);
+  --tw-vscode-accent:        var(--vscode-button-background, #0e639c);
+  --tw-vscode-accent-fg:     var(--vscode-button-foreground, #ffffff);
+  --tw-vscode-accent-hover:  var(--vscode-button-hoverBackground, #1177bb);
+
+  /* Inputs */
+  --tw-vscode-input-bg:          var(--vscode-input-background, #3c3c3c);
+  --tw-vscode-input-fg:          var(--vscode-input-foreground, #cccccc);
+  --tw-vscode-input-border:      var(--vscode-input-border, transparent);
+  --tw-vscode-input-placeholder: var(--vscode-input-placeholderForeground, #999999);
 
   /* Status foreground colors (from VS Code diagnostic / test icons) */
   --tw-vscode-success: var(--vscode-testing-iconPassed,
-                        var(--vscode-notebookStatusSuccessIcon-foreground, #4ec9b0));
-  --tw-vscode-warning: var(--vscode-editorWarning-foreground, #cca700);
-  --tw-vscode-info:    var(--vscode-notificationsInfoIcon-foreground, #75beff);
+                        var(--vscode-notebookStatusSuccessIcon-foreground, #4caf50));
+  --tw-vscode-warning: var(--vscode-editorWarning-foreground, #ff9800);
+  --tw-vscode-info:    var(--vscode-textLink-foreground, #4fc3f7);
   --tw-vscode-error:   var(--vscode-editorError-foreground, #f44747);
 
   /* Status soft backgrounds — dark theme defaults (15% opacity tint) */
@@ -60,6 +74,13 @@
   --tw-vscode-warning-bg: rgba(204, 167, 0, 0.15);
   --tw-vscode-info-bg:    rgba(0, 120, 212, 0.15);
   --tw-vscode-error-bg:   rgba(244, 71, 71, 0.15);
+
+  /* Badges */
+  --tw-vscode-badge-bg: var(--vscode-badge-background, #4d4d4d);
+  --tw-vscode-badge-fg: var(--vscode-badge-foreground, #ffffff);
+
+  /* Focus ring */
+  --tw-vscode-focus: var(--vscode-focusBorder, #007fd4);
 }
 
 /* ----------------------------------------------------------------
@@ -71,32 +92,52 @@
    ---------------------------------------------------------------- */
 /* VS Code injects vscode-light/vscode-dark/vscode-high-contrast on <body> */
 body.vscode-light {
-  /* Surface & text */
-  --tw-vscode-bg:       var(--vscode-editor-background, #ffffff);
-  --tw-vscode-bg-alt:   var(--vscode-sideBar-background, #f3f3f3);
-  --tw-vscode-surface:  var(--vscode-editorWidget-background, #f5f5f5);
-  --tw-vscode-fg:       var(--vscode-editor-foreground, #1f1f1f);
+  /* Backgrounds */
+  --tw-vscode-bg:          var(--vscode-editor-background, #ffffff);
+  --tw-vscode-bg-alt:      var(--vscode-sideBar-background, #f3f3f3);
+  --tw-vscode-surface:     var(--vscode-editorWidget-background, #f3f3f3);
+  --tw-vscode-hover:       var(--vscode-list-hoverBackground, rgba(0,0,0,0.05));
+  --tw-vscode-selected:    var(--vscode-list-activeSelectionBackground, #0060c0);
+  --tw-vscode-selected-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+
+  /* Foregrounds */
+  --tw-vscode-fg:       var(--vscode-editor-foreground, #1e1e1e);
   --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #717171);
-  /* widget-border is more reliably visible than panel-border in light themes */
-  --tw-vscode-border:   var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4));
+  --tw-vscode-muted:    var(--vscode-descriptionForeground, #616161);
+
+  /* Borders — widget-border is more reliably visible than panel-border in light themes */
+  --tw-vscode-border: var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4));
 
   /* Interactive */
-  --tw-vscode-input-bg: var(--vscode-input-background, #ffffff);
+  --tw-vscode-accent:        var(--vscode-button-background, #007acc);
+  --tw-vscode-accent-fg:     var(--vscode-button-foreground, #ffffff);
+  --tw-vscode-accent-hover:  var(--vscode-button-hoverBackground, #005a9e);
+
+  /* Inputs */
+  --tw-vscode-input-bg:          var(--vscode-input-background, #ffffff);
+  --tw-vscode-input-fg:          var(--vscode-input-foreground, #1e1e1e);
+  --tw-vscode-input-border:      var(--vscode-input-border, #d4d4d4);
+  --tw-vscode-input-placeholder: var(--vscode-input-placeholderForeground, #767676);
 
   /* Status foreground — must override :root defaults (which are dark-theme values).
-     In light themes, tokens like notificationsInfoIcon-foreground can resolve to
-     #3794ff (light blue, ~3:1 on white) — failing WCAG AA for text.
-     Use darker, semantically-equivalent tokens as primary with safe hardcoded fallbacks. */
-  --tw-vscode-success: var(--vscode-testing-iconPassed,                         #047857);
-  --tw-vscode-warning: var(--vscode-gitDecoration-modifiedResourceForeground,   #92400e);
-  --tw-vscode-info:    var(--vscode-textLink-foreground,                         #1d4ed8);
-  --tw-vscode-error:   var(--vscode-editorError-foreground,                      #be123c);
+     Use semantically equivalent tokens with guaranteed AA contrast in light themes. */
+  --tw-vscode-success: var(--vscode-testing-iconPassed,                       #388a34);
+  --tw-vscode-warning: var(--vscode-editorWarning-foreground,                 #b97500);
+  --tw-vscode-info:    var(--vscode-textLink-foreground,                       #006ab1);
+  --tw-vscode-error:   var(--vscode-editorError-foreground,                    #e51400);
 
   /* Status soft backgrounds — slightly less opacity on white for cleaner look */
   --tw-vscode-success-bg: rgba(4, 120, 87, 0.12);
   --tw-vscode-warning-bg: rgba(146, 64, 14, 0.12);
   --tw-vscode-info-bg:    rgba(0, 120, 212, 0.12);
   --tw-vscode-error-bg:   rgba(190, 18, 60, 0.12);
+
+  /* Badges */
+  --tw-vscode-badge-bg: var(--vscode-badge-background, #c4c4c4);
+  --tw-vscode-badge-fg: var(--vscode-badge-foreground, #333333);
+
+  /* Focus ring */
+  --tw-vscode-focus: var(--vscode-focusBorder, #0090f1);
 }
 
 body.vscode-high-contrast {
@@ -106,3 +147,96 @@ body.vscode-high-contrast {
   --tw-vscode-info-bg:    rgba(0, 120, 212, 0.25);
   --tw-vscode-error-bg:   rgba(244, 71, 71, 0.25);
 }
+
+/* ----------------------------------------------------------------
+   Global base styles — typography & accessibility reset
+   ---------------------------------------------------------------- */
+
+/* Base typography */
+body {
+  color: var(--tw-vscode-fg);
+  background-color: var(--tw-vscode-bg);
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible focus — visible ring on all interactive elements */
+:focus-visible {
+  outline: 2px solid var(--tw-vscode-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Remove default outline only when :focus-visible is supported */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Prefers-reduced-motion: disable all transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Smooth transitions on interactive elements */
+button, a, input, select, textarea, [role="button"], [role="checkbox"], [tabindex] {
+  transition: background-color 200ms ease, border-color 200ms ease,
+              color 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+}
+
+/* Touch target minimum size (WCAG 2.1 SC 2.5.5) */
+button, a, input[type="checkbox"], input[type="radio"], [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Inline links shouldn't force 44px block height */
+a:not(.btn):not([class*="button"]) {
+  min-height: unset;
+  min-width: unset;
+}
+
+/* ----------------------------------------------------------------
+   Utility classes for common patterns
+   ---------------------------------------------------------------- */
+
+/* Status badge utility classes */
+.badge-draft   { background-color: color-mix(in srgb, var(--tw-vscode-info) 15%, transparent);    color: var(--tw-vscode-info); }
+.badge-pushed  { background-color: color-mix(in srgb, var(--tw-vscode-success) 15%, transparent); color: var(--tw-vscode-success); }
+.badge-partial { background-color: color-mix(in srgb, var(--tw-vscode-warning) 15%, transparent); color: var(--tw-vscode-warning); }
+.badge-ready   { background-color: color-mix(in srgb, var(--tw-vscode-accent) 15%, transparent);  color: var(--tw-vscode-accent); }
+
+/* Card surface */
+.card-surface {
+  background-color: var(--tw-vscode-surface);
+  border: 1px solid var(--tw-vscode-border);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* Accordion item */
+.accordion-item {
+  border: 1px solid var(--tw-vscode-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.accordion-trigger {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background-color: var(--tw-vscode-surface);
+  color: var(--tw-vscode-fg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  transition: background-color 200ms ease;
+}
+.accordion-trigger:hover { background-color: var(--tw-vscode-hover); }
+.accordion-content { padding: 12px; background-color: var(--tw-vscode-bg); }

@@ -73,6 +73,7 @@ function StepIndicator({ current }: { current: number }) {
                   border: isDone || isActive ? 'none' : '1.5px solid var(--tw-vscode-border)',
                 }}
                 aria-label={`Step ${step.num}: ${step.label}${isDone ? ' (completed)' : isActive ? ' (current)' : ''}`}
+                aria-current={isActive ? 'step' : undefined}
               >
                 {isDone ? '✓' : step.num}
               </div>
@@ -138,6 +139,7 @@ function Step1Details({
   why, setWhy,
   userFlow, setUserFlow,
   businessRules, setBusinessRules,
+  targetDate, setTargetDate,
   touched, setTouched,
 }: {
   title: string; setTitle: (v: string) => void;
@@ -145,6 +147,7 @@ function Step1Details({
   why: string; setWhy: (v: string) => void;
   userFlow: string; setUserFlow: (v: string) => void;
   businessRules: string; setBusinessRules: (v: string) => void;
+  targetDate: string; setTargetDate: (v: string) => void;
   touched: Set<string>;
   setTouched: (fn: (prev: Set<string>) => Set<string>) => void;
 }) {
@@ -154,11 +157,12 @@ function Step1Details({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-          Feature Title <span style={{ color: 'var(--tw-vscode-error)' }}>*</span>
+        <label htmlFor="feature-title" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+          Feature Title <span style={{ color: 'var(--tw-vscode-error)' }} aria-hidden="true">*</span>
         </label>
         <input
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1"
+          id="feature-title"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
           style={{
             borderColor: titleError ? 'var(--tw-vscode-error)' : 'var(--tw-vscode-border)',
             color: 'var(--tw-vscode-fg)',
@@ -166,6 +170,10 @@ function Step1Details({
           value={title}
           placeholder="e.g. Guest Checkout — Card on File"
           maxLength={120}
+          required
+          aria-required="true"
+          aria-invalid={!!titleError}
+          aria-describedby={titleError ? 'feature-title-error' : undefined}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => setTouched((p) => new Set([...p, 'title']))}
         />
@@ -173,18 +181,19 @@ function Step1Details({
           Keep it short: a verb phrase that names the outcome.
         </p>
         {titleError && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-error)' }}>
+          <p id="feature-title-error" className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-error)' }} role="alert">
             ⚠ {titleError}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-          Description <span style={{ color: 'var(--tw-vscode-error)' }}>*</span>
+        <label htmlFor="feature-description" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+          Description <span style={{ color: 'var(--tw-vscode-error)' }} aria-hidden="true">*</span>
         </label>
         <textarea
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 resize-y"
+          id="feature-description"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none resize-y transition-colors duration-200"
           style={{
             borderColor: descError ? 'var(--tw-vscode-error)' : 'var(--tw-vscode-border)',
             color: 'var(--tw-vscode-fg)',
@@ -194,23 +203,28 @@ function Step1Details({
           value={description}
           placeholder="High-level description of this feature and what it delivers."
           maxLength={2000}
+          required
+          aria-required="true"
+          aria-invalid={!!descError}
+          aria-describedby={descError ? 'feature-desc-error' : undefined}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={() => setTouched((p) => new Set([...p, 'description']))}
         />
         {descError && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-error)' }}>
+          <p id="feature-desc-error" className="text-xs mt-0.5" style={{ color: 'var(--tw-vscode-error)' }} role="alert">
             ⚠ {descError}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+        <label htmlFor="feature-why" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
           Why / Business Value
           <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional)</span>
         </label>
         <textarea
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 resize-y"
+          id="feature-why"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none resize-y transition-colors duration-200"
           style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)', minHeight: '64px' }}
           rows={3}
           value={why}
@@ -221,12 +235,13 @@ function Step1Details({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+        <label htmlFor="feature-userflow" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
           User Flow
           <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional)</span>
         </label>
         <textarea
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 resize-y"
+          id="feature-userflow"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none resize-y transition-colors duration-200"
           style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)', minHeight: '80px' }}
           rows={4}
           value={userFlow}
@@ -237,18 +252,34 @@ function Step1Details({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+        <label htmlFor="feature-bizrules" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
           Business Rules / Constraints
           <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional)</span>
         </label>
         <textarea
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 resize-y"
+          id="feature-bizrules"
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none resize-y transition-colors duration-200"
           style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)', minHeight: '64px' }}
           rows={3}
           value={businessRules}
           placeholder="What constraints or rules apply? (compliance, out-of-scope, technical constraints)"
           maxLength={800}
           onChange={(e) => setBusinessRules(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="feature-target-date" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+          Expected Completion Date
+          <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional — sets Target Date in ADO)</span>
+        </label>
+        <input
+          id="feature-target-date"
+          type="date"
+          className="rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+          style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
         />
       </div>
 
@@ -318,9 +349,10 @@ function Step2Context({
           Selected repos will give the AI more context for generating user stories.
         </p>
         <input
-          className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none mb-2"
+          className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none mb-2 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
           style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
           placeholder="🔍 Search repos..."
+          aria-label="Search repositories"
           value={repoSearch}
           onChange={(e) => setRepoSearch(e.target.value)}
         />
@@ -346,7 +378,7 @@ function Step2Context({
             filtered.map((repo) => (
               <label
                 key={repo.path}
-                className="flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 cursor-pointer hover:opacity-80 transition-opacity"
+                className="flex items-center gap-2.5 px-3 py-2 min-h-[44px] border-b last:border-b-0 cursor-pointer hover:opacity-80 transition-colors duration-150"
                 style={{ borderColor: 'var(--tw-vscode-border)' }}
                 title={repo.path}
               >
@@ -354,7 +386,8 @@ function Step2Context({
                   type="checkbox"
                   checked={selectedRepoIds.includes(repo.path)}
                   onChange={() => toggleRepo(repo.path)}
-                  className="shrink-0"
+                  className="shrink-0 w-4 h-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
+                  aria-label={`Select repository ${repo.name}`}
                 />
                 <span className="flex-1 min-w-0">
                   <span className="text-sm font-medium block truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
@@ -375,12 +408,13 @@ function Step2Context({
 
       {epicDrafts.length > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+          <label htmlFor="parent-epic-select" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
             Assign to Epic
             <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional)</span>
           </label>
           <select
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
+            id="parent-epic-select"
+            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
             style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
             value={parentEpicId ?? ''}
             onChange={(e) => setParentEpicId(e.target.value || undefined)}
@@ -423,8 +457,8 @@ function Step3Generate({
 
   if (generationBusy) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 space-y-4">
-        <div className="text-2xl select-none">✨</div>
+      <div className="flex flex-col items-center justify-center py-10 space-y-4" role="status" aria-live="polite" aria-label="Generating user stories">
+        <div className="text-2xl select-none" aria-hidden="true">✨</div>
         <div className="text-center">
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
             Generating User Stories…
@@ -440,18 +474,19 @@ function Step3Generate({
         <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
           This usually takes 10–20 seconds.
         </p>
+        <span className="sr-only">Please wait, generating user stories for "{featureTitle}"</span>
       </div>
     );
   }
 
   if (generationError) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" role="alert" aria-live="assertive">
         <div
           className="rounded-md px-3 py-3 border flex items-start gap-2"
           style={{ borderColor: 'var(--tw-vscode-error)', background: 'var(--tw-vscode-error-bg)' }}
         >
-          <span className="shrink-0">⚠</span>
+          <span className="shrink-0" aria-hidden="true">⚠</span>
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--tw-vscode-error)' }}>
               Generation failed
@@ -462,7 +497,7 @@ function Step3Generate({
           </div>
         </div>
         <div className="flex gap-2">
-          <button type="button" className="btn btn-primary btn-sm" onClick={onGenerate}>
+          <button type="button" className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onGenerate}>
             ← Try again
           </button>
         </div>
@@ -483,7 +518,7 @@ function Step3Generate({
             <span className="font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>Product Backlog Items</span>.
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={onGenerate}>
+        <button type="button" className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onGenerate}>
           ✨ Generate User Stories
         </button>
       </div>
@@ -496,7 +531,7 @@ function Step3Generate({
         <p className="text-sm font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>
           ✅ Generated {generatedPbis.length} Product Backlog Item{generatedPbis.length !== 1 ? 's' : ''}
         </p>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onRegenerate}>
+        <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onRegenerate}>
           🔄 Regenerate
         </button>
       </div>
@@ -528,10 +563,11 @@ function Step3Generate({
               )}
               <button
                 type="button"
-                className="btn btn-ghost btn-sm text-xs"
+                className="btn btn-ghost btn-sm text-xs min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                 style={{ color: 'var(--tw-vscode-error)' }}
                 onClick={() => onDeletePbi(pbi.id)}
                 title="Remove this story"
+                aria-label={`Remove story: ${pbi.title}`}
               >
                 ✕
               </button>
@@ -619,8 +655,8 @@ function Step4Review({
                   type="checkbox"
                   checked={included}
                   onChange={() => onUpdateEdit(pbi.id, { included: !included })}
-                  className="mt-0.5 shrink-0"
-                  title={included ? 'Exclude from push' : 'Include in push'}
+                  className="mt-0.5 shrink-0 w-4 h-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
+                  aria-label={`${included ? 'Exclude' : 'Include'} story ${idx + 1} in push`}
                 />
                 <span className="text-xs font-mono shrink-0 mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
                   [{idx + 1}]
@@ -628,7 +664,7 @@ function Step4Review({
                 <div className="flex-1 min-w-0">
                   {included ? (
                     <textarea
-                      className="w-full text-sm bg-transparent border-b outline-none resize-none pb-0.5"
+                      className="w-full text-sm bg-transparent border-b outline-none resize-none pb-0.5 focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
                       style={{
                         borderColor: 'var(--tw-vscode-border)',
                         color: 'var(--tw-vscode-fg)',
@@ -637,6 +673,7 @@ function Step4Review({
                       value={title}
                       maxLength={200}
                       rows={1}
+                      aria-label={`Title for story ${idx + 1}`}
                       onChange={(e) => onUpdateEdit(pbi.id, { title: e.target.value })}
                       onInput={(e) => {
                         const el = e.currentTarget;
@@ -711,9 +748,10 @@ function Step4Review({
                         Effort
                       </label>
                       <select
-                        className="text-xs rounded border px-1.5 py-0.5 bg-transparent"
+                        className="text-xs rounded border px-1.5 py-0.5 bg-transparent focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
                         style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
                         value={effort}
+                        aria-label={`Effort for story ${idx + 1}`}
                         onChange={(e) =>
                           onUpdateEdit(pbi.id, { effortDays: Number(e.target.value) as LocalPbiEdit['effortDays'] })
                         }
@@ -725,9 +763,10 @@ function Step4Review({
                     </div>
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm text-xs"
+                      className="btn btn-ghost btn-sm text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                       onClick={() => onEditInStudio(pbi.id)}
                       title="Open this story in PBI Studio for full editing"
+                      aria-label={`Edit story ${idx + 1} in PBI Studio`}
                     >
                       ✏ Edit in PBI Studio
                     </button>
@@ -740,7 +779,7 @@ function Step4Review({
       </div>
 
       <div className="flex items-center justify-between pt-1">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onAddStory}>
+        <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onAddStory}>
           + Add story
         </button>
         <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -815,7 +854,7 @@ function Step5SavePush({
             </p>
           </div>
         ) : null}
-        <button type="button" className="btn btn-primary" onClick={onDone}>
+        <button type="button" className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onDone}>
           Done — back to Dashboard
         </button>
       </div>
@@ -861,7 +900,7 @@ function Step5SavePush({
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
-          className="btn btn-ghost"
+          className="btn btn-ghost min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
           disabled={isPushing}
           onClick={onSaveAsDraft}
         >
@@ -869,7 +908,7 @@ function Step5SavePush({
         </button>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
           disabled={isPushing}
           onClick={onPushToAdo}
         >
@@ -909,6 +948,7 @@ export function FeatureCreationWizard({
   const [why, setWhy] = useState('');
   const [userFlow, setUserFlow] = useState('');
   const [businessRules, setBusinessRules] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [touched, setTouched] = useState<Set<string>>(new Set());
 
   // Step 2 fields
@@ -991,6 +1031,12 @@ export function FeatureCreationWizard({
     }
   }, [pushResult]);
 
+  // Step focus management: move focus to step heading on step change
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    stepHeadingRef.current?.focus();
+  }, [step]);
+
   const step1Valid = title.trim().length >= 3 && description.trim().length >= 10;
 
   // selectedRepoIds stores repo.path values (unique) to avoid ID collisions.
@@ -1026,6 +1072,7 @@ export function FeatureCreationWizard({
         userFlow: userFlow.trim() || undefined,
         businessRules: businessRules.trim() || undefined,
         repoIds: getRepoIdPayloads(),
+        targetDate: targetDate || undefined,
       },
     });
   };
@@ -1091,6 +1138,7 @@ export function FeatureCreationWizard({
         repoIds: getRepoIdPayloads(),
         parentEpicId,
         childPbiIds: getChildPbiIds(),
+        targetDate: targetDate || undefined,
       },
     });
     onNavigate('dashboard');
@@ -1110,6 +1158,7 @@ export function FeatureCreationWizard({
         parentEpicId,
         childPbiIds: getChildPbiIds(),
         includeChildren: true,
+        targetDate: targetDate || undefined,
       },
     });
   };
@@ -1149,7 +1198,7 @@ export function FeatureCreationWizard({
         <StepIndicator current={step} />
 
         <div className="mb-4">
-          <h2 className="text-base font-semibold mb-0.5" style={{ color: 'var(--tw-vscode-fg)' }}>
+          <h2 ref={stepHeadingRef} tabIndex={-1} className="text-base font-semibold mb-0.5 focus-visible:outline-none" style={{ color: 'var(--tw-vscode-fg)' }}>
             {STEPS[step - 1].label}
           </h2>
           <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -1165,6 +1214,7 @@ export function FeatureCreationWizard({
               why={why} setWhy={setWhy}
               userFlow={userFlow} setUserFlow={setUserFlow}
               businessRules={businessRules} setBusinessRules={setBusinessRules}
+              targetDate={targetDate} setTargetDate={setTargetDate}
               touched={touched} setTouched={setTouched}
             />
           )}
@@ -1221,20 +1271,20 @@ export function FeatureCreationWizard({
 
         {/* Navigation row */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {step > 1 && step < 5 && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={handleBack}>
+              <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={handleBack}>
                 ← Back
               </button>
             )}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={handleCancel}>
+            <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={handleCancel}>
               Cancel
             </button>
           </div>
           {step < 5 && (
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
               disabled={!canGoNext()}
               onClick={handleNext}
             >
@@ -1249,12 +1299,15 @@ export function FeatureCreationWizard({
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ background: 'rgba(0,0,0,0.4)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-dialog-title"
         >
           <div
             className="rounded-lg border p-5 max-w-sm w-full shadow-lg"
             style={{ background: 'var(--tw-vscode-bg)', borderColor: 'var(--tw-vscode-border)' }}
           >
-            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--tw-vscode-fg)' }}>
+            <h3 id="cancel-dialog-title" className="text-sm font-semibold mb-2" style={{ color: 'var(--tw-vscode-fg)' }}>
               Discard feature?
             </h3>
             <p className="text-xs mb-4" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -1263,14 +1316,14 @@ export function FeatureCreationWizard({
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                 onClick={() => setShowCancelConfirm(false)}
               >
                 Keep editing
               </button>
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                 style={{ background: 'var(--tw-vscode-error)', color: '#fff' }}
                 onClick={() => onNavigate('dashboard')}
               >

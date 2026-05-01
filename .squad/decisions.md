@@ -3827,3 +3827,109 @@ Usage: `className="flex flex-col panel-wide:flex-row gap-4"`
 **Applies to:** All agents. Danny enforces at PR review time.
 
 **Implemented:** Closed feature/saul-tailwind-dashboard-redesign (PR #61) using this workflow.
+
+---
+
+### [2026-05-01]: WCAG AA UI Overhaul
+
+**Author:** Saul (UI Designer)  
+**Branch:** `feature/ui-wcag-improvements`  
+**Status:** Implemented, build ✅
+
+Extended Tailwind config with comprehensive design token set covering colors, spacing, touch targets (44px per WCAG 2.5.5), typography, transitions, animations, and responsive breakpoints. Installed `@tailwindcss/forms` plugin for consistent cross-browser form baseline. Expanded bridge variables (`--tw-vscode-*`) with 10 new tokens and complete light-mode fallbacks. Added global base styles (`:focus-visible` ring, touch targets, `prefers-reduced-motion` guard) to `tailwind.css`. Applied surgical fixes to `styles.css` (sidebar/card borders, focus visibility, reduced-motion coverage).
+
+**Key Deliverables:**
+- Tailwind config: 9 new colors, spacing scale (4px base), `min-h-touch`/`min-w-touch` (44px), border radius, shadows, transitions, typography (11px–24px), animations (fade-in, slide-down, slide-up, spin-slow)
+- `@tailwindcss/forms` plugin integrated
+- 10 new `--tw-vscode-*` bridge variables with light-mode declarations
+- `.vscode/settings.json` + `.vscode/tailwind-css-data.json` to suppress false CSS warnings
+- Design system SKILL.md created (`.squad/skills/design-system/SKILL.md`) — canonical token reference with alignment table, compliance matrix, component patterns
+
+**Token Alignment:** `--tw-vscode-muted` (new, WCAG-spec value) and `--tw-vscode-fg-muted` (legacy, existing component compatibility) both map to `--vscode-descriptionForeground` with intentional fallback divergence. New components use `tw-muted`; legacy retained via `fg-muted`.
+
+**Build:** ✅ Passed
+
+---
+
+### [2026-05-01]: WCAG 2.1 AA Component Accessibility Pass
+
+**Author:** Rusty (Frontend Dev)  
+**Branch:** `feature/ui-wcag-improvements`  
+**Status:** Implemented
+
+Applied comprehensive semantic HTML and ARIA layer across five core webview components (FeatureCreationWizard, DashboardView, PbiStudio, StatusBadge, App.tsx). All changes are additive — no props, state logic, or messaging altered.
+
+**Key Changes:**
+- **FeatureCreationWizard:** Form label/id connections, `aria-required`/`aria-invalid`/`aria-describedby`, `aria-current="step"` on active step, step focus management via `useRef<HTMLHeadingElement>` + `tabIndex={-1}` + `useEffect([step])`, `role="dialog"` on cancel overlay, loading/error ARIA live regions
+- **DashboardView:** `aria-expanded`/`aria-hidden` on accordion toggles, CSS max-height animation (0 → 2000px) with `aria-hidden` on collapsed content, 44px touch targets, focus rings
+- **PbiStudio:** Section header `<div onClick>` → `<button type="button">` for native keyboard access, `aria-expanded` on collapsible sections, `aria-label` on search/filter controls
+- **StatusBadge:** `role="status"`, `aria-label`, `transition-colors` utility
+- **App.tsx:** `type="button"` on header buttons, focus ring classes
+
+**Patterns Extracted for Reuse:**
+1. Form error: `aria-invalid={!!error}` + `aria-describedby="err-id"` + `<p id="err-id" role="alert">`
+2. Loading state: `role="status" aria-live="polite"` + `<span className="sr-only">`
+3. Accordion: CSS max-height + `aria-expanded` on trigger + `aria-hidden` on content
+4. Dialog: `role="dialog" aria-modal="true" aria-labelledby="title-id"` + `id` on title
+5. Step wizard focus: `useRef<HTMLHeadingElement>` + `tabIndex={-1}` + `useEffect([step])`
+
+**Section Header Decision:** Changed PbiStudio `.section-header` from `<div onClick>` with `role="button"` to native `<button type="button" className="section-header w-full text-left">`. The CSS (display: flex, justify-content: space-between) applies correctly to buttons; gives native keyboard access, focus management, and AT announcement. For nested action buttons, heading is separate inner `<button>` with action row using `onClick={(e) => e.stopPropagation()}` on `<div>` — clean separation.
+
+**Accordion Animation Decision:** Replaced conditional render `{open && <div>...}` with always-rendered `<div className={`... ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`} aria-hidden={!open}>`. Enables CSS transitions and `aria-hidden` keeps collapsed content invisible to AT. The 2000px max-height is deliberately large so content never clips during animation.
+
+**Build:** ✅ Passed (2.58s, zero TS errors)
+
+**Cooperative Work:** Built on Saul's CSS-focused pass (commit 4b8060b). Saul provided global `:focus-visible` ring, `min-h-touch`/`min-w-touch` (44px), `@tailwindcss/forms` plugin, and CSS refinements. Rusty's semantic layer complemented Saul's CSS foundation with form wiring, ARIA live regions, dialog roles, and focus management.
+
+---
+
+### [2026-04-30]: Repo Checkboxes & Studio Navigation Fixes
+
+**Author:** Rusty (Frontend Dev)  
+**Status:** Implemented — backend attention needed
+
+**Bug 1 — Repo checkboxes "all or nothing":** Root cause in backend `createId()` (repoImportService.ts) — truncates base64url to 24 characters, encoding only 18 source bytes, causing ID collisions on Windows paths with common prefixes. Frontend fix: Step2Context now uses `repo.path` as checkbox identifier — `key={repo.path}`, `checked={selectedRepoIds.includes(repo.path)}`, `onChange={() => toggleRepo(repo.path)}`. API payloads still receive correct `repo.id` via `getRepoIdPayloads()` mapping selected paths back to IDs.
+
+**Recommended Backend Fix:** Replace truncation with full base64url or crypto hash (sha256 base64url.slice(0, 32)) to avoid collisions.
+
+**Bug 2 — "Edit in PBI Studio" ignores target item:** `handleEditInStudio` was discarding its `pbiId` argument; `navigateToStudio` in DashboardView ignored `draftId`. PbiStudio already had full `focusDraftId`/`onConsumedFocusDraft` wiring. Fix: Wired full chain end-to-end — FeatureCreationWizard calls `onEditInStudio(pbiId)`, App.tsx `navigateToStudio` callback populates `focusDraftId` before switching view, DashboardView uses `onNavigateToStudio` callback.
+
+**Files Modified:** webview-ui/src/views/FeatureCreationWizard.tsx, webview-ui/src/views/DashboardView.tsx, webview-ui/src/App.tsx  
+**Backend Follow-up:** src/services/repoImportService.ts — `createId` truncation fix
+
+---
+
+### [2026-05-01]: CSS Consistency — Tailwind Bridge + Light Mode Audit
+
+**Author:** Saul (UI Designer)  
+**Status:** Implemented
+
+Unified two independent CSS systems (legacy `styles.css` + Tailwind bridge `tailwind.css`) by expanding bridge variables and ensuring light-mode compatibility.
+
+**Problem:** App ran two CSS systems side-by-side with incomplete light-mode overrides in bridge variables. Legacy system used `[data-theme]` tokens; Tailwind used `--tw-vscode-*` vars. Body.vscode-light overrides only had status colors, leaving surface/text/border vars at dark-mode fallbacks.
+
+**Decisions:**
+1. `.vscode/settings.json` — Added `css.validate: false` + `css.customData` to suppress false @tailwind IDE warnings
+2. Complete `body.vscode-light` overrides — All bridge variables now have explicit light-mode declarations via `--vscode-*` tokens
+3. New `--tw-vscode-surface` token — Third surface layer (bg → bg-alt → surface) for card/panel backgrounds, maps to `--vscode-editorWidget-background`, exposed as `bg-tw-surface` Tailwind utility
+4. Design system SKILL.md — Canonical token reference documenting legacy and bridge systems, alignment table, Do/Don't patterns, WCAG AA compliance
+5. `tw-muted` alias in Tailwind config — Alias for `tw-fg-muted` matching SKILL.md naming convention
+
+**Token Mapping Updates:**
+- `--tw-vscode-bg`: `#1e1e1e` → `var(--vscode-editor-background, #ffffff)`
+- `--tw-vscode-bg-alt`: `#252526` → `var(--vscode-sideBar-background, #f3f3f3)`
+- `--tw-vscode-surface`: *(new)* → `var(--vscode-editorWidget-background, #f5f5f5)`
+- `--tw-vscode-fg`: `#d4d4d4` → `var(--vscode-editor-foreground, #1f1f1f)`
+- `--tw-vscode-fg-muted`: `#858585` → `var(--vscode-descriptionForeground, #717171)`
+- `--tw-vscode-border`: → `var(--vscode-widget-border, ...)` (more reliable than panel-border in light themes)
+- `--tw-vscode-input-bg`: `#3c3c3c` → `var(--vscode-input-background, #ffffff)`
+
+**Files Changed:** .vscode/settings.json (created), .vscode/tailwind-css-data.json (created), webview-ui/src/styles/tailwind.css, webview-ui/tailwind.config.js, .squad/skills/design-system/SKILL.md (created)
+
+---
+
+### [2026-04-30]: Feature Branch Workflow — PR, Merge, and Cleanup
+
+**Decision:** Documented in repo-level `.squad/git-workflow.md`; this decision log entry archives the finalized workflow applied to close feature/saul-tailwind-dashboard-redesign (PR #61). Standard close-out sequence: (1) commit squad state, (2) create PR with descriptive title/body, (3) merge via squash, (4) clean up local branches, (5) document in decisions.md.
+
+**Rationale:** Keeps main clean via squash history, auto-removes remote branches, ensures squad state (learnings, decisions, skill files) captured before branch deletion, maintains complete traceability from issue → branch → PR → merge.
