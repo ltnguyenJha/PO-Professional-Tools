@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type React from 'react';
 import type { AppStatePayload, PbiDraft, FeatureDraft, EpicDraft, HierarchyStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { vscodeApi } from '../utils/useVsCodeApi';
@@ -9,6 +10,7 @@ interface Props {
   onNavigateToStudio?: (draftId?: string) => void;
   onNavigateToEpicCreation?: (epicId?: string) => void;
   onNavigateToFeatureCreation?: (featureId: string) => void;
+  onLinkStory?: (storyId: string, featureId: string | null) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -73,6 +75,54 @@ function ChevronIcon({ open }: { open: boolean }) {
     >
       <path d="M3 2L7 5L3 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function StoryLinkSelect({
+  story,
+  featureDrafts,
+  onLink,
+  onClose,
+}: {
+  story: PbiDraft;
+  featureDrafts: FeatureDraft[];
+  onLink: (featureId: string | null) => void;
+  onClose: () => void;
+}) {
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    onLink(val === '__unlink__' ? null : val || null);
+    onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  };
+
+  return (
+    <select
+      autoFocus
+      className="text-xs rounded border px-1 py-0.5 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+      style={{
+        background: 'var(--tw-vscode-bg)',
+        color: 'var(--tw-vscode-fg)',
+        borderColor: 'var(--tw-vscode-border)',
+        maxWidth: '140px',
+      }}
+      defaultValue={story.parentFeatureId ?? ''}
+      onChange={handleChange}
+      onBlur={onClose}
+      onKeyDown={handleKeyDown}
+      aria-label={`Link "${story.title}" to a feature`}
+    >
+      <option value="" disabled>— Select feature —</option>
+      {story.parentFeatureId && (
+        <option value="__unlink__">✕ Unlink from feature</option>
+      )}
+      {featureDrafts.map((f) => (
+        <option key={f.id} value={f.id}>{f.title}</option>
+      ))}
+    </select>
   );
 }
 
@@ -255,12 +305,17 @@ function StandaloneStories({
   stories,
   onNavigate,
   onNavigateToStudio,
+  featureDrafts,
+  onLinkStory,
 }: {
   stories: PbiDraft[];
   onNavigate: Props['onNavigate'];
   onNavigateToStudio?: (draftId?: string) => void;
+  featureDrafts: FeatureDraft[];
+  onLinkStory?: (storyId: string, featureId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [linkingStoryId, setLinkingStoryId] = useState<string | null>(null);
 
   return (
     <div
@@ -296,6 +351,26 @@ function StandaloneStories({
             >
               ✏ Edit
             </button>
+            {onLinkStory && featureDrafts.length > 0 && (
+              linkingStoryId === s.id ? (
+                <StoryLinkSelect
+                  story={s}
+                  featureDrafts={featureDrafts}
+                  onLink={(fId) => onLinkStory(s.id, fId)}
+                  onClose={() => setLinkingStoryId(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                  onClick={() => setLinkingStoryId(s.id)}
+                  title="Link to a Feature"
+                  aria-label={`Link "${s.title}" to a feature`}
+                >
+                  🔗 Link
+                </button>
+              )
+            )}
           </div>
         ))}
       </div>
@@ -462,6 +537,8 @@ function EpicDraftCard({
   onNavigate,
   onNavigateToStudio,
   onNavigateToFeatureCreation,
+  featureDrafts,
+  onLinkStory,
 }: {
   epic: EpicDraft;
   linkedFeatures: FeatureDraft[];
@@ -473,6 +550,8 @@ function EpicDraftCard({
   onNavigate: Props['onNavigate'];
   onNavigateToStudio: (draftId?: string) => void;
   onNavigateToFeatureCreation?: (featureId: string) => void;
+  featureDrafts?: FeatureDraft[];
+  onLinkStory?: (storyId: string, featureId: string | null) => void;
 }) {
   const featureCount = linkedFeatures.length;
 
@@ -560,6 +639,8 @@ function EpicDraftCard({
                   onNavigate={onNavigate}
                   onNavigateToStudio={onNavigateToStudio}
                   onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+                  featureDrafts={featureDrafts}
+                  onLinkStory={onLinkStory}
                 />
               </div>
             ))}
@@ -583,6 +664,7 @@ function EpicsSection({
   onNavigate,
   onNavigateToStudio,
   onNavigateToFeatureCreation,
+  onLinkStory,
 }: {
   epicDrafts: EpicDraft[];
   featureDrafts: FeatureDraft[];
@@ -595,6 +677,7 @@ function EpicsSection({
   onNavigate: Props['onNavigate'];
   onNavigateToStudio: (draftId?: string) => void;
   onNavigateToFeatureCreation?: (featureId: string) => void;
+  onLinkStory?: (storyId: string, featureId: string | null) => void;
 }){
   return (
     <div className="space-y-2">
@@ -656,6 +739,8 @@ function EpicsSection({
               onNavigate={onNavigate}
               onNavigateToStudio={onNavigateToStudio}
               onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+              featureDrafts={featureDrafts}
+              onLinkStory={onLinkStory}
             />
           );
         })
@@ -671,14 +756,19 @@ function FeatureDraftCard({
   onNavigate,
   onNavigateToStudio,
   onNavigateToFeatureCreation,
+  featureDrafts,
+  onLinkStory,
 }: {
   feature: FeatureDraft;
   childPbis: PbiDraft[];
   onNavigate: Props['onNavigate'];
   onNavigateToStudio: (draftId?: string) => void;
   onNavigateToFeatureCreation?: (featureId: string) => void;
+  featureDrafts?: FeatureDraft[];
+  onLinkStory?: (storyId: string, featureId: string | null) => void;
 }){
   const [expanded, setExpanded] = useState(false);
+  const [linkingStoryId, setLinkingStoryId] = useState<string | null>(null);
   const pushedCount = childPbis.filter((p) => p.status === 'pushed').length;
   const draftCount = childPbis.filter((p) => p.status !== 'pushed').length;
   const hierarchyStatus = feature.hierarchyStatus ?? 'draft';
@@ -793,6 +883,26 @@ function FeatureDraftCard({
                 >
                   ✏ Edit
                 </button>
+                {onLinkStory && featureDrafts && featureDrafts.length > 0 && (
+                  linkingStoryId === pbi.id ? (
+                    <StoryLinkSelect
+                      story={pbi}
+                      featureDrafts={featureDrafts}
+                      onLink={(fId) => onLinkStory(pbi.id, fId)}
+                      onClose={() => setLinkingStoryId(null)}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                      onClick={() => setLinkingStoryId(pbi.id)}
+                      title="Link to a Feature"
+                      aria-label={`Link "${pbi.title}" to a feature`}
+                    >
+                      🔗 Link
+                    </button>
+                  )
+                )}
               </div>
             ))}
           </div>
@@ -832,7 +942,7 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigateToEpicCreation, onNavigateToFeatureCreation }: Props): JSX.Element {
+export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigateToEpicCreation, onNavigateToFeatureCreation, onLinkStory }: Props): JSX.Element {
   const { pbiDrafts, adoSettings, hasAdoPat, featureDrafts: rawFeatureDrafts, epicDrafts: rawEpicDrafts } = state;
   const featureDrafts = rawFeatureDrafts ?? [];
   const epicDrafts = rawEpicDrafts ?? [];
@@ -934,6 +1044,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                 onNavigate={onNavigate}
                 onNavigateToStudio={navigateToStudio}
                 onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+                onLinkStory={onLinkStory}
               />
 
               {/* Epics from pbiDrafts workItemType='Epic' (legacy) */}
@@ -981,6 +1092,8 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                         onNavigate={onNavigate}
                         onNavigateToStudio={navigateToStudio}
                         onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+                        featureDrafts={featureDrafts}
+                        onLinkStory={onLinkStory}
                       />
                     );
                   })}
@@ -991,7 +1104,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
               {(() => {
                 const standalone = getStandaloneStories(pbiDrafts, featureDrafts);
                 return standalone.length > 0 ? (
-                  <StandaloneStories stories={standalone} onNavigate={onNavigate} onNavigateToStudio={navigateToStudio} />
+                  <StandaloneStories stories={standalone} onNavigate={onNavigate} onNavigateToStudio={navigateToStudio} featureDrafts={featureDrafts} onLinkStory={onLinkStory} />
                 ) : null;
               })()}
             </div>

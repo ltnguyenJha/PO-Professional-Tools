@@ -403,6 +403,7 @@ export type WebviewRequest =
   | { type: 'DELETE_EPIC_DRAFT'; payload: { epicId: string } }
   | { type: 'LINK_FEATURE_TO_EPIC'; payload: { epicId: string; featureId: string } }
   | { type: 'UNLINK_FEATURE_FROM_EPIC'; payload: { epicId: string; featureId: string } }
+  | { type: 'LINK_STORY_TO_FEATURE'; payload: { storyId: string; featureId: string | null } }
   | {
       type: 'PUSH_EPIC_TO_ADO';
       payload: {
