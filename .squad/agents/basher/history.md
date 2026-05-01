@@ -40,4 +40,32 @@
 - ADO push creates Feature + child PBIs with hierarchy links
 
 ## Learnings
-- (Basher joined 2026-04-30 — first session)
+
+### 2026-04-30 — Epic Creation Architecture Session
+
+**Task:** Produced full implementation-ready architecture spec for Epic Creation (`docs/architecture/epic-creation-spec.md`).
+
+**Key findings from codebase audit:**
+- `EpicDraft` stub already existed in `webview-ui/src/types.ts` with field `featureIds` — needed full expansion and rename to `linkedFeatureIds`
+- `FeatureDraft.parentEpicId?` already present in both type files — zero migration needed
+- `AppStatePayload.epicDrafts` missing from `src/shared/messages.ts` but present (optional) in `webview-ui/src/types.ts` — needs to be required in both
+- `postState()` in DashboardPanel.ts does not include `epicDrafts` — Linus needs to add one line
+- Significant `ExtensionEvent` shape discrepancies between the two type files for FEATURE_* events (FEATURE_DRAFT_CREATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED payloads differ) — documented in spec Section 3.3 for Linus to resolve in same pass
+- Feature Creation Wizard Step 2 already reads `epicDrafts` from appState and shows Epic selector — the groundwork for Epic creation is partially laid
+
+**Design decisions made:**
+- Feature count default: 5 (range 1–10), user-editable on Step 3
+- Step 3 (AI generation) is OPTIONAL — Skip button provided
+- Features are SUGGESTIONS only until Step 5 confirm — prevents orphaned drafts
+- Push strategy: Option B (pushChildren: boolean) — user controls scope
+- Status rollup: strict minimum (all-or-nothing pushed)
+- No new settings UI in Phase 1 — reuse existing AdoSettings
+- ID generation: `Date.now().toString()` — matches existing pattern (not nanoid)
+
+**Architecture pattern confirmed:** ADO Hierarchy-Reverse link pattern is already proven for Feature→PBI in `adoService.pushWithParent()`. Epic→Feature uses identical pattern.
+
+**Files that need changes in Phase 1:** `src/shared/messages.ts`, `webview-ui/src/types.ts`, `src/panels/DashboardPanel.ts` (postState + 7 new handlers), `src/services/adoService.ts` (new pushEpicHierarchy), `src/services/copilotService.ts` (new generateFeaturesFromEpic).
+
+**Deliverables produced:**
+- `docs/architecture/epic-creation-spec.md` — 10-section implementation-ready spec
+- `.squad/decisions/inbox/basher-epic-creation-arch.md` — decision record
