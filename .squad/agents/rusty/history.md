@@ -1659,3 +1659,12 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 **Bugs requiring backend fix:**
 - `createId()` in `src/services/repoImportService.ts` truncates base64url to 24 chars (18 bytes) → collisions on common paths. Recommend: full base64url or crypto sha256 hash (no truncation).
 
+
+
+### Epic Creation Frontend (2026-04-30)
+- EpicCreationWizard mirrors FeatureCreationWizard exactly — 5-step wizard pattern
+- Dashboard Epic tier: accordion at top, nested Feature mini-cards inside Epic
+- DashboardView now shows: Epics → Orphaned Features → Standalone PBIs
+- App.tsx: added epic-creation route, focusEpicId state, Epics nav entry
+- Objectives field: dynamic list of text inputs (add/remove), min 1 required
+- All WCAG 2.1 AA patterns from FeatureCreationWizard carried over

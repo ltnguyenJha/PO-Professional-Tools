@@ -1156,3 +1156,11 @@ payload: {
 - [x] Build passes cleanly
 - [x] Critical bug fixed and verified
 
+
+### Epic Creation QA (2026-04-30)
+- Added 31 tests covering CRUD, link/unlink, AI generation, ADO push, AppState
+- Pattern: Arrange/Act/Assert with full mock reset in beforeEach; DashboardPanel constructed via createOrShow, services injected post-construction via (instance as any)[serviceName] = mock
+- Key edge case: handleDeleteEpicDraft must cascade to clear parentEpicId on linked features
+- Key edge case: handleLinkFeatureToEpic must not duplicate featureId if already linked
+- ADO push: status='partial' vs 'pushed' depends on linkedFeatureIds count vs featureResults count (not just pushChildren flag)
+- Test infra: extended vscode mock with workspace.onDidChangeWorkspaceFolders + CancellationTokenSource; captured onDidReceiveMessage callback to drive handler invocations

@@ -15,6 +15,17 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Epic Creation Backend (2026-04-30)
+- Implemented EpicDraft type, 17 message types, 8 DashboardPanel handlers
+- Pattern: all new handlers follow existing Feature handler pattern exactly
+- AI generation uses copilotService.generateFeaturesFromEpic() with JSON-array response (not wrapped object)
+- ADO push creates Epic first, then optionally links Features via Hierarchy-Reverse on Feature → Epic
+- Types.ts and messages.ts must ALWAYS be updated together — 4 historical discrepancies fixed:
+  FEATURE_DRAFT_CREATED: { featureId } -> FeatureDraft; FEATURE_DRAFT_UPDATED: { featureDraft } -> FeatureDraft;
+  FEATURE_PUSH_PROGRESS: { progress, total } -> { phase, current, total, message };
+  FEATURE_PUSHED: { childCount, failedIds } -> { adoWorkItemId?, childAdoIds, hierarchyStatus }
+- FeatureCreationWizard.tsx has local `FeaturePushedResult` interface that must be kept in sync with FEATURE_PUSHED payload
+
 ### pickModel() fallback chain (2026-04-24)
 `vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a three-pass fallback: `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw.
 
