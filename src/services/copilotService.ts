@@ -854,8 +854,11 @@ export class CopilotService {
   }
 
   private async pickModel(): Promise<vscode.LanguageModelChat> {
-    // Try copilot gpt-4o first, then any copilot model, then any available model
-    let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+    // Priority: gpt-5.4 → gpt-4o → any copilot model → any available model
+    let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-5.4' });
+    if (models.length === 0) {
+      models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+    }
     if (models.length === 0) {
       models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
     }
@@ -863,6 +866,7 @@ export class CopilotService {
       models = await vscode.lm.selectChatModels({});
     }
     const preferred =
+      models.find((m) => m.family.toLowerCase().includes('gpt-5.4')) ??
       models.find((m) => m.family.toLowerCase().includes('gpt-4o')) ??
       models.find((m) => m.family.toLowerCase().includes('gpt-4')) ??
       models[0];
