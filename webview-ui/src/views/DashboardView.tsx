@@ -8,6 +8,24 @@ interface Props {
   onNavigate: (view: 'projects' | 'studio' | 'bulk' | 'settings' | 'epic-creation') => void;
   onNavigateToStudio?: (draftId?: string) => void;
   onNavigateToEpicCreation?: (epicId?: string) => void;
+  onNavigateToFeatureCreation?: (featureId: string) => void;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getFeatureChildPbis(feature: FeatureDraft, pbiDrafts: PbiDraft[]): PbiDraft[] {
+  return feature.childPbiIds
+    .map((id) => pbiDrafts.find((d) => d.id === id))
+    .filter((d): d is PbiDraft => Boolean(d));
+}
+
+function getStandaloneStories(pbiDrafts: PbiDraft[], featureDrafts: FeatureDraft[]): PbiDraft[] {
+  const linkedIds = new Set(featureDrafts.flatMap((f) => f.childPbiIds));
+  return pbiDrafts.filter(
+    (d) =>
+      (d.workItemType === 'User Story' || d.workItemType === 'Product Backlog Item' || !d.workItemType) &&
+      !linkedIds.has(d.id),
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -236,9 +254,11 @@ function FeatureGroup({
 function StandaloneStories({
   stories,
   onNavigate,
+  onNavigateToStudio,
 }: {
   stories: PbiDraft[];
   onNavigate: Props['onNavigate'];
+  onNavigateToStudio?: (draftId?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -262,18 +282,20 @@ function StandaloneStories({
         {stories.map((s) => (
           <div
             key={s.id}
-            className="flex items-center gap-2 px-3 py-2 min-h-[44px] border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+            className="flex items-center gap-2 px-3 py-2 min-h-[44px] border-b last:border-b-0"
             style={{ borderColor: 'var(--tw-vscode-border)' }}
-            onClick={() => onNavigate('studio')}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onNavigate('studio')}
-            aria-label={`Open "${s.title}" in PBI Studio`}
           >
-            <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
-              {s.title}
-            </span>
+            <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>{s.title}</span>
             <StatusBadge status={s.status ?? 'draft'} />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              onClick={() => onNavigateToStudio ? onNavigateToStudio(s.id) : onNavigate('studio')}
+              title="Edit in PBI Studio"
+              aria-label={`Edit "${s.title}" in PBI Studio`}
+            >
+              ✏ Edit
+            </button>
           </div>
         ))}
       </div>
@@ -437,6 +459,9 @@ function EpicDraftCard({
   onToggle,
   onEditEpic,
   onPushEpic,
+  onNavigate,
+  onNavigateToStudio,
+  onNavigateToFeatureCreation,
 }: {
   epic: EpicDraft;
   linkedFeatures: FeatureDraft[];
@@ -445,6 +470,9 @@ function EpicDraftCard({
   onToggle: () => void;
   onEditEpic: () => void;
   onPushEpic: () => void;
+  onNavigate: Props['onNavigate'];
+  onNavigateToStudio: (draftId?: string) => void;
+  onNavigateToFeatureCreation?: (featureId: string) => void;
 }) {
   const featureCount = linkedFeatures.length;
 
@@ -524,14 +552,17 @@ function EpicDraftCard({
           </p>
         ) : (
           <div className="px-3 py-2 space-y-2">
-            {linkedFeatures.map((feature) => {
-              const pbiCount = pbiDrafts.filter(
-                (p) => p.parentFeatureId === feature.id,
-              ).length;
-              return (
-                <FeatureMiniCard key={feature.id} feature={feature} pbiCount={pbiCount} />
-              );
-            })}
+            {linkedFeatures.map((feature) => (
+              <div key={feature.id} className="ml-4">
+                <FeatureDraftCard
+                  feature={feature}
+                  childPbis={getFeatureChildPbis(feature, pbiDrafts)}
+                  onNavigate={onNavigate}
+                  onNavigateToStudio={onNavigateToStudio}
+                  onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -549,6 +580,9 @@ function EpicsSection({
   onEditEpic,
   onPushEpic,
   onCreateEpic,
+  onNavigate,
+  onNavigateToStudio,
+  onNavigateToFeatureCreation,
 }: {
   epicDrafts: EpicDraft[];
   featureDrafts: FeatureDraft[];
@@ -558,7 +592,10 @@ function EpicsSection({
   onEditEpic: (id: string) => void;
   onPushEpic: (id: string) => void;
   onCreateEpic: () => void;
-}) {
+  onNavigate: Props['onNavigate'];
+  onNavigateToStudio: (draftId?: string) => void;
+  onNavigateToFeatureCreation?: (featureId: string) => void;
+}){
   return (
     <div className="space-y-2">
       {/* Section header */}
@@ -616,6 +653,9 @@ function EpicsSection({
               onToggle={() => onToggleEpic(epic.id)}
               onEditEpic={() => onEditEpic(epic.id)}
               onPushEpic={() => onPushEpic(epic.id)}
+              onNavigate={onNavigate}
+              onNavigateToStudio={onNavigateToStudio}
+              onNavigateToFeatureCreation={onNavigateToFeatureCreation}
             />
           );
         })
@@ -630,12 +670,14 @@ function FeatureDraftCard({
   childPbis,
   onNavigate,
   onNavigateToStudio,
+  onNavigateToFeatureCreation,
 }: {
   feature: FeatureDraft;
   childPbis: PbiDraft[];
   onNavigate: Props['onNavigate'];
   onNavigateToStudio: (draftId?: string) => void;
-}) {
+  onNavigateToFeatureCreation?: (featureId: string) => void;
+}){
   const [expanded, setExpanded] = useState(false);
   const pushedCount = childPbis.filter((p) => p.status === 'pushed').length;
   const draftCount = childPbis.filter((p) => p.status !== 'pushed').length;
@@ -669,6 +711,17 @@ function FeatureDraftCard({
           <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
             {childPbis.length} PBI{childPbis.length !== 1 ? 's' : ''}
           </span>
+        )}
+        {onNavigateToFeatureCreation && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            onClick={(e) => { e.stopPropagation(); onNavigateToFeatureCreation(feature.id); }}
+            title={`Edit Feature: ${feature.title}`}
+            aria-label={`Edit Feature: ${feature.title}`}
+          >
+            ✏ Edit
+          </button>
         )}
         {(hierarchyStatus === 'draft' || hierarchyStatus === 'partial') && (
           <button
@@ -779,7 +832,7 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigateToEpicCreation }: Props): JSX.Element {
+export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigateToEpicCreation, onNavigateToFeatureCreation }: Props): JSX.Element {
   const { pbiDrafts, adoSettings, hasAdoPat, featureDrafts: rawFeatureDrafts, epicDrafts: rawEpicDrafts } = state;
   const featureDrafts = rawFeatureDrafts ?? [];
   const epicDrafts = rawEpicDrafts ?? [];
@@ -878,6 +931,9 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                 onEditEpic={handleEditEpic}
                 onPushEpic={handlePushEpic}
                 onCreateEpic={handleCreateEpic}
+                onNavigate={onNavigate}
+                onNavigateToStudio={navigateToStudio}
+                onNavigateToFeatureCreation={onNavigateToFeatureCreation}
               />
 
               {/* Epics from pbiDrafts workItemType='Epic' (legacy) */}
@@ -924,27 +980,20 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                         childPbis={childPbis}
                         onNavigate={onNavigate}
                         onNavigateToStudio={navigateToStudio}
+                        onNavigateToFeatureCreation={onNavigateToFeatureCreation}
                       />
                     );
                   })}
                 </div>
               )}
 
-              {/* CTA when no features/epics but stories exist */}
-              {featureDrafts.length === 0 && features.length === 0 && epics.length === 0 && epicDrafts.length === 0 && stories.length > 0 && (
-                <div className="rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}>
-                  No features yet.{' '}
-                  <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('bulk')}>
-                    Create your first feature
-                  </button>{' '}
-                  to break work into stories.
-                </div>
-              )}
-
-              {/* Standalone Stories — shown only when no Features/Epics exist yet */}
-              {stories.length > 0 && features.length === 0 && epics.length === 0 && epicDrafts.length === 0 && (
-                <StandaloneStories stories={stories} onNavigate={onNavigate} />
-              )}
+              {/* Standalone Stories — always shown when standalone stories exist */}
+              {(() => {
+                const standalone = getStandaloneStories(pbiDrafts, featureDrafts);
+                return standalone.length > 0 ? (
+                  <StandaloneStories stories={standalone} onNavigate={onNavigate} onNavigateToStudio={navigateToStudio} />
+                ) : null;
+              })()}
             </div>
           )}
         </div>
