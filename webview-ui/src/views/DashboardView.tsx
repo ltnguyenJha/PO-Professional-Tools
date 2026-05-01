@@ -411,6 +411,19 @@ function FeatureMiniCard({
           {pbiCount} PBI{pbiCount !== 1 ? 's' : ''}
         </span>
       )}
+      {feature.adoWorkItemUrl && (
+        <a
+          href={feature.adoWorkItemUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] rounded"
+          style={{ color: 'var(--tw-vscode-fg-muted)' }}
+          title="View in Azure DevOps"
+          onClick={(e) => e.stopPropagation()}
+        >
+          ↗
+        </a>
+      )}
     </div>
   );
 }
@@ -476,6 +489,19 @@ function EpicDraftCard({
         >
           ✏ Edit
         </button>
+        {epic.adoUrl && (
+          <a
+            href={epic.adoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            onClick={(e) => e.stopPropagation()}
+            title="View Epic in Azure DevOps"
+            aria-label={`View Epic in Azure DevOps: ${epic.title}`}
+          >
+            ↗ ADO
+          </a>
+        )}
         {epic.status !== 'pushed' && (
           <button
             type="button"
@@ -659,6 +685,19 @@ function FeatureDraftCard({
           >
             ⬆ Push
           </button>
+        )}
+        {feature.adoWorkItemUrl && (
+          <a
+            href={feature.adoWorkItemUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            onClick={(e) => e.stopPropagation()}
+            title="View Feature in Azure DevOps"
+            aria-label={`View Feature in Azure DevOps: ${feature.title}`}
+          >
+            ↗ ADO
+          </a>
         )}
       </button>
 
