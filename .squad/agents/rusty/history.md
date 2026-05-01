@@ -1746,3 +1746,30 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 - App.tsx: added epic-creation route, focusEpicId state, Epics nav entry
 - Objectives field: dynamic list of text inputs (add/remove), min 1 required
 - All WCAG 2.1 AA patterns from FeatureCreationWizard carried over
+
+---
+
+## 2026-05-01 01:00 — Brand Asset Integration
+
+**Task:** Integrate Jack Henry logo and 50th Anniversary banner into webview UI
+
+**Changes Made:**
+- Created webview-ui/src/assets/ directory structure
+- Moved and renamed Jack Henry.png → jack-henry-logo.png 
+- Moved and renamed anniversary banner → jh-anniversary-banner.png
+- Updated Sidebar.tsx to display Jack Henry logo with CSS filter for visibility on dark sidebar
+- Updated Topbar.tsx to display anniversary banner as full-width header element
+- Updated styles.css with new classes: .sidebar-logo, .sidebar-logo-wrap, .topbar-banner, .topbar-banner-img, .topbar-banner-fade, .topbar-content
+- Removed .brand-mark styling (no longer needed)
+- Restructured .brand to flex-column layout
+- Restructured .topbar to flex-column with banner at top
+- Deleted original PNG files from repo root
+
+**Build Status:** ✅ Clean build (vite 6.4.2, 2.07s)
+
+**Learnings:**
+- Vite automatically optimizes image assets during build (jack-henry-logo: 4.21 kB, anniversary-banner: 1.63 MB)
+- CSS ilter: brightness(0) invert(1) works perfectly to convert dark logos to white for dark backgrounds
+- object-fit: cover + object-position: center 30% provides responsive banner cropping
+- Gradient overlay (.topbar-banner-fade) integrates banner visually with content below
+
