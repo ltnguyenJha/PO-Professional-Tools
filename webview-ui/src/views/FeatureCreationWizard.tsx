@@ -1225,7 +1225,19 @@ export function FeatureCreationWizard({
               businessRules: businessRules.trim() || undefined,
               repoIds: getRepoIdPayloads(),
               parentEpicId,
-              childPbiIds: getChildPbiIds(),
+              childPbiIds: (() => {
+                // In edit mode: preserve existing dashboard-linked children
+                const existingChildIds = existing.childPbiIds ?? [];
+                const wizardManagedIds = getChildPbiIds();
+                // deletedPbiIds contains IDs the user explicitly removed in the wizard
+                const mergedChildIds = [
+                  ...new Set([
+                    ...existingChildIds.filter((id) => !deletedPbiIds.has(id)),
+                    ...wizardManagedIds,
+                  ])
+                ];
+                return mergedChildIds;
+              })(),
               targetDate: targetDate || undefined,
             },
           },
