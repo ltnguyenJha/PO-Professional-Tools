@@ -248,6 +248,9 @@ export class DashboardPanel {
       case 'UPDATE_FEATURE_DRAFT':
         await this.handleUpdateFeatureDraft(message.payload);
         return;
+      case 'LINK_STORY_TO_FEATURE':
+        await this.handleLinkStoryToFeature(message.payload.storyId, message.payload.featureId);
+        return;
       case 'DELETE_FEATURE_DRAFT':
         await this.handleDeleteFeatureDraft(message.payload.featureId);
         return;
@@ -1987,6 +1990,49 @@ export class DashboardPanel {
     features[idx] = updated;
     await this.saveFeatureDrafts(features);
     this.post({ type: 'FEATURE_DRAFT_UPDATED', payload: updated });
+    await this.postState();
+  }
+
+  private async handleLinkStoryToFeature(storyId: string, featureId: string | null): Promise<void> {
+    const allDrafts = this.draftService.getAll(this.context.globalState);
+    const features = this.getFeatureDrafts();
+
+    const story = allDrafts.find((d) => d.id === storyId);
+    if (!story) {
+      this.postToast('error', 'Story not found.');
+      return;
+    }
+
+    if (featureId !== null) {
+      const targetFeature = features.find((f) => f.id === featureId);
+      if (!targetFeature) {
+        this.postToast('error', 'Feature not found.');
+        return;
+      }
+    }
+
+    // Remove storyId from ALL features' childPbiIds (handles stale/inconsistent state)
+    const updatedFeatures = features.map((f) => {
+      const hadStory = f.childPbiIds.includes(storyId);
+      const isTarget = f.id === featureId;
+      if (!hadStory && !isTarget) return f;
+
+      const newChildIds = f.childPbiIds.filter((id) => id !== storyId);
+      if (isTarget && featureId !== null && !newChildIds.includes(storyId)) {
+        newChildIds.push(storyId);
+      }
+      return { ...f, childPbiIds: newChildIds, updatedAt: new Date().toISOString() };
+    });
+
+    // Update PBI's parentFeatureId
+    const updatedDrafts = allDrafts.map((d) =>
+      d.id === storyId
+        ? { ...d, parentFeatureId: featureId ?? undefined, updatedAt: new Date().toISOString() }
+        : d
+    );
+
+    await this.draftService.saveAll(this.context.globalState, updatedDrafts);
+    await this.saveFeatureDrafts(updatedFeatures);
     await this.postState();
   }
 

@@ -173,6 +173,10 @@ export function App(): JSX.Element {
     setView('epic-creation');
   }, []);
 
+  const handleLinkStory = useCallback((storyId: string, featureId: string | null) => {
+    sendMessage({ type: 'LINK_STORY_TO_FEATURE', payload: { storyId, featureId } });
+  }, []);
+
   const navigateToFeatureCreation = useCallback((featureId?: string) => {
     setFocusFeatureId(featureId);
     setView('bulk');
@@ -249,6 +253,7 @@ export function App(): JSX.Element {
             onNavigateToStudio={navigateToStudio}
             onNavigateToEpicCreation={navigateToEpicCreation}
             onNavigateToFeatureCreation={navigateToFeatureCreation}
+            onLinkStory={handleLinkStory}
           />
         )}
         {view === 'projects' && (
