@@ -39,6 +39,8 @@ export interface FeatureDraft {
   hierarchyStatus: HierarchyStatus;
   createdAt: string;
   updatedAt: string;
+  /** ISO date string (YYYY-MM-DD) for the ADO Feature target date field. */
+  targetDate?: string;
 }
 
 /** Files to upload as Azure DevOps work item attachments (diagrams, mermaid, etc.). */
@@ -326,8 +328,8 @@ export type WebviewRequest =
   | { type: 'CREATE_FEATURE_DRAFT'; payload: Omit<FeatureDraft, 'id' | 'createdAt' | 'updatedAt' | 'hierarchyStatus'> & { hierarchyStatus?: HierarchyStatus } }
   | { type: 'UPDATE_FEATURE_DRAFT'; payload: FeatureDraft }
   | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
-  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number } }
-  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; includeChildren: boolean } }
+  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number; targetDate?: string } }
+  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; includeChildren: boolean; targetDate?: string } }
   // RDI messages
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }

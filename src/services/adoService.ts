@@ -613,7 +613,8 @@ export class AdoService {
     settings: AdoSettings,
     pat: string,
     feature: Pick<FeatureDraft, 'id' | 'title' | 'description' | 'why' | 'userFlow' | 'businessRules' | 'adoWorkItemId'>,
-    childPbis: PbiDraft[]
+    childPbis: PbiDraft[],
+    targetDate?: string
   ): Promise<{
     featureWorkItemId: number;
     featureApiUrl: string;
@@ -638,6 +639,18 @@ export class AdoService {
       { op: 'add', path: '/fields/System.Description', value: featureDescription },
       { op: 'add', path: '/fields/System.Tags', value: 'AI-Generated;PO-Tools;Feature' }
     ];
+
+    // Sum effort from all child PBIs and set on the Feature
+    const totalEffort = childPbis.reduce((sum, pbi) => sum + (pbi.effortDays ?? 0), 0);
+    if (totalEffort > 0) {
+      featureEntries.push({ op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.Effort', value: totalEffort });
+    }
+
+    // Set the ADO Target Date if provided
+    if (targetDate) {
+      featureEntries.push({ op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.TargetDate', value: targetDate });
+    }
+
     if (settings.areaPath) {
       featureEntries.push({ op: 'add', path: '/fields/System.AreaPath', value: settings.areaPath });
     }

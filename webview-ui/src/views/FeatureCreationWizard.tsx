@@ -139,6 +139,7 @@ function Step1Details({
   why, setWhy,
   userFlow, setUserFlow,
   businessRules, setBusinessRules,
+  targetDate, setTargetDate,
   touched, setTouched,
 }: {
   title: string; setTitle: (v: string) => void;
@@ -146,6 +147,7 @@ function Step1Details({
   why: string; setWhy: (v: string) => void;
   userFlow: string; setUserFlow: (v: string) => void;
   businessRules: string; setBusinessRules: (v: string) => void;
+  targetDate: string; setTargetDate: (v: string) => void;
   touched: Set<string>;
   setTouched: (fn: (prev: Set<string>) => Set<string>) => void;
 }) {
@@ -263,6 +265,21 @@ function Step1Details({
           placeholder="What constraints or rules apply? (compliance, out-of-scope, technical constraints)"
           maxLength={800}
           onChange={(e) => setBusinessRules(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="feature-target-date" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+          Expected Completion Date
+          <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(optional — sets Target Date in ADO)</span>
+        </label>
+        <input
+          id="feature-target-date"
+          type="date"
+          className="rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+          style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
         />
       </div>
 
@@ -931,6 +948,7 @@ export function FeatureCreationWizard({
   const [why, setWhy] = useState('');
   const [userFlow, setUserFlow] = useState('');
   const [businessRules, setBusinessRules] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [touched, setTouched] = useState<Set<string>>(new Set());
 
   // Step 2 fields
@@ -1054,6 +1072,7 @@ export function FeatureCreationWizard({
         userFlow: userFlow.trim() || undefined,
         businessRules: businessRules.trim() || undefined,
         repoIds: getRepoIdPayloads(),
+        targetDate: targetDate || undefined,
       },
     });
   };
@@ -1119,6 +1138,7 @@ export function FeatureCreationWizard({
         repoIds: getRepoIdPayloads(),
         parentEpicId,
         childPbiIds: getChildPbiIds(),
+        targetDate: targetDate || undefined,
       },
     });
     onNavigate('dashboard');
@@ -1138,6 +1158,7 @@ export function FeatureCreationWizard({
         parentEpicId,
         childPbiIds: getChildPbiIds(),
         includeChildren: true,
+        targetDate: targetDate || undefined,
       },
     });
   };
@@ -1193,6 +1214,7 @@ export function FeatureCreationWizard({
               why={why} setWhy={setWhy}
               userFlow={userFlow} setUserFlow={setUserFlow}
               businessRules={businessRules} setBusinessRules={setBusinessRules}
+              targetDate={targetDate} setTargetDate={setTargetDate}
               touched={touched} setTouched={setTouched}
             />
           )}

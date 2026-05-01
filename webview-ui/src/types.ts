@@ -40,6 +40,8 @@ export interface FeatureDraft {
   hierarchyStatus: HierarchyStatus;
   createdAt: string;
   updatedAt: string;
+  /** ISO date string (YYYY-MM-DD) for the ADO Feature target date field. */
+  targetDate?: string;
 }
 
 export interface EpicDraft {
@@ -356,11 +358,11 @@ export type WebviewRequest =
   | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
   | { type: 'VALIDATE_PAT_SCOPES' }
   // Feature draft requests
-  | { type: 'CREATE_FEATURE_DRAFT'; payload: { id: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[] } }
+  | { type: 'CREATE_FEATURE_DRAFT'; payload: { id: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[]; targetDate?: string } }
   | { type: 'UPDATE_FEATURE_DRAFT'; payload: { draft: FeatureDraft } }
   | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
-  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number } }
-  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[]; includeChildren: boolean } }
+  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number; targetDate?: string } }
+  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[]; includeChildren: boolean; targetDate?: string } }
   // RDI requests
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }
