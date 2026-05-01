@@ -38,7 +38,7 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
           />
         </div>
         <div className="brand-text">
-          <h1>PO Pro Tools</h1>
+          <h1>PO Pro</h1>
         </div>
       </div>
 
