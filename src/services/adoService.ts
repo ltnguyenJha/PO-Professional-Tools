@@ -618,6 +618,7 @@ export class AdoService {
     targetDate?: string
   ): Promise<{
     featureWorkItemId: number;
+    featureWorkItemUrl: string;
     featureApiUrl: string;
     childResults: PushItemResult[];
     errors: Array<{ draftId: string; message: string }>;
@@ -660,6 +661,7 @@ export class AdoService {
     }
 
     let featureWorkItemId: number;
+    let featureWorkItemUrl: string;
     let featureApiUrl: string;
 
     if (feature.adoWorkItemId != null) {
@@ -669,6 +671,7 @@ export class AdoService {
       );
       await witApi.updateWorkItem(undefined, updatePatch, feature.adoWorkItemId, settings.projectName);
       featureWorkItemId = feature.adoWorkItemId;
+      featureWorkItemUrl = this.buildBrowserUrl(settings, featureWorkItemId);
       featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
     } else {
       // CREATE new Feature work item
@@ -682,6 +685,7 @@ export class AdoService {
         throw new Error('ADO did not return an ID for the Feature work item.');
       }
       featureWorkItemId = item.id;
+      featureWorkItemUrl = item._links?.html?.href ?? this.buildBrowserUrl(settings, item.id);
       featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
     }
 
@@ -731,7 +735,7 @@ export class AdoService {
       }
     }
 
-    return { featureWorkItemId, featureApiUrl, childResults, errors };
+    return { featureWorkItemId, featureWorkItemUrl, featureApiUrl, childResults, errors };
   }
 
   private createConnection(settings: AdoSettings, pat: string): azdev.WebApi {

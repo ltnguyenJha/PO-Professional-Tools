@@ -1915,6 +1915,7 @@ export class DashboardPanel {
       const updatedFeature: FeatureDraft = {
         ...feature,
         adoWorkItemId: result.featureWorkItemId,
+        adoWorkItemUrl: result.featureWorkItemUrl,
         hierarchyStatus,
         updatedAt: now
       };
@@ -1951,6 +1952,7 @@ export class DashboardPanel {
         payload: {
           featureId,
           adoWorkItemId: result.featureWorkItemId,
+          adoWorkItemUrl: result.featureWorkItemUrl,
           childAdoIds,
           hierarchyStatus
         }

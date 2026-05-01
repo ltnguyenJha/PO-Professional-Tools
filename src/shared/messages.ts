@@ -462,7 +462,7 @@ export type ExtensionEvent =
   | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
   | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
   | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string } }
-  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
+  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; adoWorkItemUrl?: string; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
   // Epic draft events
   | { type: 'EPIC_DRAFT_CREATED'; payload: EpicDraft }
   | { type: 'EPIC_DRAFT_UPDATED'; payload: EpicDraft }
