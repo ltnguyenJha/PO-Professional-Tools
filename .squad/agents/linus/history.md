@@ -15,8 +15,31 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-### pickModel() fallback chain (2026-04-24)
-`vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a three-pass fallback: `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw.
+### Feature URL Persistence in Epic Push (2026-05-01)
+
+**Files:** `src/services/adoService.ts`, `src/panels/DashboardPanel.ts`
+
+**Bugs Fixed:**
+1. **`pushEpicHierarchy` missing Feature URL:** Updated return type `featureResults` to include `adoWorkItemUrl`. New features: URL from `pushFeatureHierarchy().featureWorkItemUrl` (ADO `item._links.html.href`). Existing features: URL from `feature.adoWorkItemUrl` or computed fallback.
+2. **`DashboardPanel.handlePushEpicToAdo` didn't persist URL:** Updated feature save in `handlePushEpicToAdo` to include `adoWorkItemUrl` from returned result alongside `adoWorkItemId`.
+
+**Hierarchy Verified:** Both Epic → Feature and Feature → PBI use correct `System.LinkTypes.Hierarchy-Reverse` semantics (Feature/PBI points UP to parent). No rewrites needed.
+
+**Build:** esbuild ✅ clean (222ms, 2.8MB); pre-existing jest-mock type errors unrelated.
+
+### Epic Creation Backend (2026-04-30)
+- Implemented EpicDraft type, 17 message types, 8 DashboardPanel handlers
+- Pattern: all new handlers follow existing Feature handler pattern exactly
+- AI generation uses copilotService.generateFeaturesFromEpic() with JSON-array response (not wrapped object)
+- ADO push creates Epic first, then optionally links Features via Hierarchy-Reverse on Feature → Epic
+- Types.ts and messages.ts must ALWAYS be updated together — 4 historical discrepancies fixed:
+  FEATURE_DRAFT_CREATED: { featureId } -> FeatureDraft; FEATURE_DRAFT_UPDATED: { featureDraft } -> FeatureDraft;
+  FEATURE_PUSH_PROGRESS: { progress, total } -> { phase, current, total, message };
+  FEATURE_PUSHED: { childCount, failedIds } -> { adoWorkItemId?, childAdoIds, hierarchyStatus }
+- FeatureCreationWizard.tsx has local `FeaturePushedResult` interface that must be kept in sync with FEATURE_PUSHED payload
+
+### pickModel() fallback chain (updated 2026-05-01)
+`vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a four-pass fallback: `{ vendor:'copilot', family:'gpt-5.4' }` → `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). The `preferred` find chain mirrors this order: `gpt-5.4` > `gpt-4o` > `gpt-4` > `models[0]`. On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw. User preference: always try the newest/highest capable model first, with safe fallbacks below.
 
 ### CancellationTokenSource lifecycle in DashboardPanel handlers (2026-04-24)
 `new vscode.CancellationTokenSource().token` leaks the source object (it is never disposed). Always store the source: `const cts = new vscode.CancellationTokenSource()`, pass `cts.token` to service calls, and call `cts.dispose()` in the `finally` block so the underlying VS Code resource is released regardless of success or error.
@@ -72,7 +95,49 @@
 
 ---
 
-### 2026-04-30 — Feature Creation Implementation (Phase 1 Data Layer)
+### 2026-05-XX — Epic Push: Feature adoWorkItemUrl Not Saved (Bug Fix)
+
+**Problem:** When an Epic was pushed to ADO with linked Features, the Feature drafts were saved with `adoWorkItemId` but never `adoWorkItemUrl`. The URL was lost regardless of whether the Feature was newly created or already existed.
+
+**Root Cause Trace:**
+- `pushEpicHierarchy()` return type: `featureResults` array was `{ featureId, adoWorkItemId, linked }` — no URL field.
+- For NEW features: `pushFeatureHierarchy()` returned `featureWorkItemUrl` but the caller discarded it.
+- For EXISTING features: no URL was computed at all.
+- `DashboardPanel.handlePushEpicToAdo()`: only set `adoWorkItemId` on FeatureDraft, URL omitted.
+
+**Fix:**
+- `adoService.ts` `pushEpicHierarchy()`: Added `adoWorkItemUrl: string` to `featureResults` array type and local variable. New features use `featureResult.featureWorkItemUrl`; existing features use `feature.adoWorkItemUrl` or compute from `orgUrl + projectName + id`.
+- `DashboardPanel.ts`: Feature map now also sets `adoWorkItemUrl: fr.adoWorkItemUrl`.
+
+**Parent-child relationship verification (confirmed correct):**
+- Epic→Feature: `System.LinkTypes.Hierarchy-Reverse` is added on the Feature WI with `url = epicApiUrl` → Epic IS the parent. ✅
+- Feature→PBI: `System.LinkTypes.Hierarchy-Reverse` is added on the PBI WI with `url = featureApiUrl` → Feature IS the parent. ✅
+
+**Commit:** `18243ea` on `feature/epic-creation`
+
+---
+
+### 2026-05-XX — ADO Push URL Tracking: FEATURE_PUSHED Contract Fix
+
+**Problem:** After a successful Feature push to ADO, no browser URL was surfaced in the success event. The Epic push already included `adoWorkItemUrl` in `EPIC_PUSHED`, but the Feature push was missing it entirely.
+
+**Root Cause Trace:**
+- `adoService.pushFeatureHierarchy()` returned `{ featureWorkItemId, featureApiUrl, childResults, errors }` — `featureApiUrl` is the REST API URL (not a browser URL), and no browser URL was computed.
+- `DashboardPanel.ts` Feature handler persisted `adoWorkItemId` but NOT `adoWorkItemUrl` on the FeatureDraft.
+- `FEATURE_PUSHED` event payload in both `src/shared/messages.ts` and `webview-ui/src/types.ts` had no `adoWorkItemUrl` field.
+
+**Fix:**
+- `adoService.ts`: `pushFeatureHierarchy()` now captures `featureWorkItemUrl = item._links?.html?.href ?? buildBrowserUrl(settings, id)` for CREATE, and `buildBrowserUrl(settings, id)` for UPDATE. Return type updated to include `featureWorkItemUrl: string`.
+- `DashboardPanel.ts`: `updatedFeature` now sets `adoWorkItemUrl: result.featureWorkItemUrl`. `FEATURE_PUSHED` payload includes `adoWorkItemUrl`.
+- `src/shared/messages.ts`: `FEATURE_PUSHED` payload adds `adoWorkItemUrl?: string`.
+- `webview-ui/src/types.ts`: Mirrored same change.
+
+**Message Contract (ADO Push Responses):**
+- `EPIC_PUSHED` payload: `{ epicId, adoWorkItemId: number, adoWorkItemUrl: string, linkedFeatureAdoIds, hierarchyStatus }` — URL is **required** (non-optional)
+- `FEATURE_PUSHED` payload: `{ featureId, adoWorkItemId?: number, adoWorkItemUrl?: string, childAdoIds, hierarchyStatus }` — URL is optional (existing features updated may compute from buildBrowserUrl)
+- Rusty reads: `payload.adoWorkItemUrl` from both events
+
+
 
 **Scope:** Completed full backend for Feature→PBI hierarchy intake flow
 

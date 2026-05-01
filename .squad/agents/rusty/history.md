@@ -12,6 +12,50 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-01 — ADO URL Links in Dashboard Cards (Implemented)
+
+**Scope:** `DashboardView.tsx` — `EpicDraftCard`, `FeatureDraftCard`, `FeatureMiniCard`
+
+**Pattern:**
+- Use `<a href={url} target="_blank" rel="noreferrer">` directly — not a `<button>` wrapping an `<a>`.
+- In accordion header button rows, add `onClick={(e) => e.stopPropagation()}` on any `<a>` nested inside the accordion `<button>`, so clicks open the link without toggling the accordion.
+- Full ghost-button style for card-level links: `className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"`.
+- Compact inline link for mini-cards: `text-xs shrink-0` + `color: var(--tw-vscode-fg-muted)` — no btn classes needed.
+- `EpicDraft.adoUrl` and `FeatureDraft.adoWorkItemUrl` are the fields to check; both are optional, so always gate on truthiness.
+- Build passes; links ready for URL delivery from Linus backend.
+
+### 2026-05-01 — Epic Creation UI Overhaul (Implemented)
+
+**Scope:** `EpicCreationWizard.tsx`
+
+**Changes:**
+- Removed "Context & Repos" Step 2 — Epic artifacts don't require per-repo scoping at creation
+- Changed accent color: `--tw-epic` from purple (#7c3aed/#6d28d9) to teal (#2dd4bf/#0f766e) for visual consistency with sidebar active state
+- Added ADO metadata fields in Step 1: ADO URL, Area Path, Iteration Path, Target Date, T-Shirt Size, Effort
+- Settings Accordion (collapsible) persists defaults to localStorage (`po-tools:epicDefaults`) with iPay_Scrum team defaults
+- All new fields optional (backward-compatible); no changes to saved drafts
+
+**Linus Integration:** Awaiting URL persistence from `pushEpicHierarchy` backend fix to complete frontend display of tracking links.
+
+### 2026-05-XX — ADO Tracking URL Display + Epic ADO Details Dropdown
+
+**Scope:** `EpicCreationWizard.tsx`, `FeatureCreationWizard.tsx`
+
+**Tracking URL pattern:**
+- After a successful ADO push, display a "Tracking" card in-place rather than immediately navigating away. User sees: work item ID badge, "View in Azure DevOps ↗" anchor (`target="_blank" rel="noreferrer"`), and a "⎘ Copy URL" button.
+- Copy URL: `navigator.clipboard.writeText(url)` → brief "✓ Copied" state via local `useState<boolean>` + `setTimeout(2000)` reset.
+- For Epics: `EPIC_PUSHED` handler stores `{ adoWorkItemId, adoWorkItemUrl, hierarchyStatus }` in `epicPushResult` state instead of calling `onNavigate` immediately. `Step5Confirm` renders the success+tracking view when `epicPushResult` is set. "Done" button calls `onDone` → navigate.
+- For Features: `FeaturePushedResult` interface gained `adoWorkItemUrl?: string` field (payload already had it from Linus). `Step5SavePush` conditionally renders the tracking card when `isSuccess` and wraps it in a `<>` fragment alongside the success banner.
+- `adoWorkItemUrl` was already present in `FEATURE_PUSHED` and `EPIC_PUSHED` event payloads in both `types.ts` and `src/shared/messages.ts` — no changes needed there.
+
+**ADO Details accordion pattern (Epic Step 1):**
+- Replace flat always-visible section with a controlled `<button>` + animated body pattern.
+- Collapsed by default (`useState(false)`). Summary line shows configured area path: `area || epicDefaults.defaultArea`.
+- Body uses `max-h` CSS transition: `max-h-[1400px] opacity-100` (open) / `max-h-0 opacity-0` (closed) — must set max-h high enough to fit all content.
+- Settings sub-accordion is nested inside the ADO Details accordion body. Both use the same chevron `▶` rotate-90 pattern.
+- `aria-expanded` on the trigger button, `aria-hidden` on the body panel, `aria-controls` pointing to the panel `id`.
+- When wrapping an existing section: remove the old outer `<div className="pt-3 border-t">` wrapper and replace with the accordion `<div className="rounded-md border overflow-hidden">` at the same DOM level.
+
 ### 2026-04-30 — WCAG 2.1 AA Component Accessibility Pass
 
 **Scope:** FeatureCreationWizard.tsx, DashboardView.tsx, PbiStudio.tsx, StatusBadge.tsx, App.tsx
@@ -119,7 +163,41 @@
 
 ---
 
-### 2026-05-XX — FeatureCreationWizard Bug Fixes: Generation Timeout & Empty-Response Guard
+### 2026-05-XX — EpicCreationWizard: 3 UI Fixes (Teal Color, Remove Context Step, ADO Fields)
+
+**Scope:** `EpicCreationWizard.tsx`, `styles.css`, `tailwind.css`, `types.ts`, `src/shared/messages.ts`
+**Branch:** `feature/epic-creation`
+
+**Task 1 — Remove "Context & Repos" step:**
+- Removed old Step 2 (Context & Repos) entirely from STEPS array and component tree
+- Wizard is now 4 steps: Epic Overview → AI Generation → Review & Edit → Confirm & Save
+- All step number refs (step === 3/4/5 → 2/3/4), navigation conditions (step < 5 → step < 4), and "Back to Edit" button (step 4 → step 3) updated
+- `repos`, `selectedRepoIds`, `reposRef`, `selectedRepoIdsRef` state and refs removed from main wizard
+- `handleGenerate` and save handlers now pass `selectedRepoIds: []` — backend handles empty array gracefully
+- `setRepos()` call removed from STATE_UPDATED handler
+
+**Task 2 — Purple → Teal color:**
+- `webview-ui/src/styles/tailwind.css`: `--tw-epic` changed from `#7c3aed` → `#2dd4bf` (dark) and `#6d28d9` → `#0f766e` (light), with matching bg/muted/border teal tokens
+- `webview-ui/src/styles.css`: Special `.nav-item[data-navid="epic-creation"][aria-current="page"]` violet override removed; uses standard `var(--sidebar-active)` teal now
+
+**Task 3 — New ADO fields + Settings accordion:**
+- Added `EpicDefaults` interface and `DEFAULT_EPIC_SETTINGS` constant (iPay_Scrum defaults) at top of file
+- `EPIC_DEFAULTS_KEY = 'po-tools:epicDefaults'` for localStorage persistence
+- Step1Overview completely rewritten with 6 new optional fields: ADO URL, Area Path, Iteration, Target Date, T-Shirt Size, Effort
+- Settings accordion (collapsible) lets user save default Area/Iteration/URL to localStorage
+- New state vars in main wizard: `targetDate`, `tShirtSize`, `effort`, `url`, `area`, `iteration`, `epicDefaults`
+- `epicDefaults` initializes from localStorage (safe try/catch), falls back to DEFAULT_EPIC_SETTINGS
+- Edit prefill updated: restores new fields from saved draft
+- `buildEpicPayload()` helper centralizes payload construction for both save and push handlers
+- Types synced: `tShirtSize?`, `area?`, `iteration?`, `epicUrl?`, `effort?`, `targetDate?` added to `EpicDraft` in both `types.ts` and `src/shared/messages.ts`
+
+**Key patterns:**
+- `localStorage.getItem` + JSON.parse in useState initializer for persistent defaults (wrap in try/catch)
+- Build a payload helper (`buildEpicPayload()`) when handleSave and handlePush share the same structure — avoids duplication drift
+- CSS tokens: `--tw-epic*` live in `tailwind.css` not `styles.css`. Both dark (:root) and light (body.vscode-light) overrides must be updated.
+- When removing a wizard step, trace ALL references: STEPS array, step rendering conditionals, navigation buttons (step < N), "Back to Edit" (step === N), canGoNext, prefill handlers
+
+
 
 **Bug 1 (Checkbox multi-select):**
 After thorough code review, the existing `checked={selectedRepoIds.includes(repo.id)}` pattern in `Step2Context` is already correct — one checkbox ↔ one boolean derived from an array. No code change was needed. The bug as described in the task had already been implemented with the right pattern (likely from the original wizard session).
@@ -1658,4 +1736,40 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 
 **Bugs requiring backend fix:**
 - `createId()` in `src/services/repoImportService.ts` truncates base64url to 24 chars (18 bytes) → collisions on common paths. Recommend: full base64url or crypto sha256 hash (no truncation).
+
+
+
+### Epic Creation Frontend (2026-04-30)
+- EpicCreationWizard mirrors FeatureCreationWizard exactly — 5-step wizard pattern
+- Dashboard Epic tier: accordion at top, nested Feature mini-cards inside Epic
+- DashboardView now shows: Epics → Orphaned Features → Standalone PBIs
+- App.tsx: added epic-creation route, focusEpicId state, Epics nav entry
+- Objectives field: dynamic list of text inputs (add/remove), min 1 required
+- All WCAG 2.1 AA patterns from FeatureCreationWizard carried over
+
+---
+
+## 2026-05-01 01:00 — Brand Asset Integration
+
+**Task:** Integrate Jack Henry logo and 50th Anniversary banner into webview UI
+
+**Changes Made:**
+- Created webview-ui/src/assets/ directory structure
+- Moved and renamed Jack Henry.png → jack-henry-logo.png 
+- Moved and renamed anniversary banner → jh-anniversary-banner.png
+- Updated Sidebar.tsx to display Jack Henry logo with CSS filter for visibility on dark sidebar
+- Updated Topbar.tsx to display anniversary banner as full-width header element
+- Updated styles.css with new classes: .sidebar-logo, .sidebar-logo-wrap, .topbar-banner, .topbar-banner-img, .topbar-banner-fade, .topbar-content
+- Removed .brand-mark styling (no longer needed)
+- Restructured .brand to flex-column layout
+- Restructured .topbar to flex-column with banner at top
+- Deleted original PNG files from repo root
+
+**Build Status:** ✅ Clean build (vite 6.4.2, 2.07s)
+
+**Learnings:**
+- Vite automatically optimizes image assets during build (jack-henry-logo: 4.21 kB, anniversary-banner: 1.63 MB)
+- CSS ilter: brightness(0) invert(1) works perfectly to convert dark logos to white for dark backgrounds
+- object-fit: cover + object-position: center 30% provides responsive banner cropping
+- Gradient overlay (.topbar-banner-fade) integrates banner visually with content below
 

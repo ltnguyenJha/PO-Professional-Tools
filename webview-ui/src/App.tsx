@@ -16,6 +16,7 @@ import { ProjectsView } from './views/ProjectsView';
 import { PbiStudio } from './views/PbiStudio';
 import { BulkBreakdownView } from './views/BulkBreakdownView';
 import { FeatureCreationWizard } from './views/FeatureCreationWizard';
+import { EpicCreationWizard } from './views/EpicCreationWizard';
 import { SettingsView } from './views/SettingsView';
 import { RdiTab } from './components/rdi/RdiTab';
 
@@ -61,13 +62,14 @@ export function App(): JSX.Element {
     { ok: boolean; message: string } | undefined
   >();
   const [focusDraftId, setFocusDraftId] = useState<string | undefined>(undefined);
+  const [focusEpicId, setFocusEpicId] = useState<string | undefined>(undefined);
   const [adoProgress, setAdoProgress] = useState<AdoProgressPayload>(EMPTY_ADO_PROGRESS);
   const [featureGeneratedPbiIds, setFeatureGeneratedPbiIds] = useState<string[] | undefined>();
   const [featurePushProgress, setFeaturePushProgress] = useState<{
     featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string;
   } | null>(null);
   const [featurePushResult, setFeaturePushResult] = useState<{
-    featureId: string; adoWorkItemId?: number; childCount: number; failedIds?: string[];
+    featureId: string; adoWorkItemId?: number; childAdoIds: Record<string, number>; hierarchyStatus: import('./types').HierarchyStatus;
   } | null>(null);
   const toastIdRef = useRef(0);
 
@@ -165,6 +167,11 @@ export function App(): JSX.Element {
     setView('studio');
   }, []);
 
+  const navigateToEpicCreation = useCallback((epicId?: string) => {
+    setFocusEpicId(epicId);
+    setView('epic-creation');
+  }, []);
+
   const header = useMemo(() => {
     switch (view) {
       case 'dashboard':
@@ -198,6 +205,11 @@ export function App(): JSX.Element {
           title: 'Feature Creation',
           subtitle: 'AI-driven feature decomposition into Product Backlog Items.'
         };
+      case 'epic-creation':
+        return {
+          title: 'Epic Creation',
+          subtitle: 'Define a strategic initiative and generate linked Features.'
+        };
       case 'rdis':
         return { title: 'RDIs', subtitle: 'Create and manage Release Deployment Items.' };
       case 'settings':
@@ -225,7 +237,12 @@ export function App(): JSX.Element {
         <Topbar title={header.title} subtitle={header.subtitle} actions={header.actions} />
 
         {view === 'dashboard' && (
-          <DashboardView state={state} onNavigate={(target) => setView(target)} onNavigateToStudio={navigateToStudio} />
+          <DashboardView
+            state={state}
+            onNavigate={(target) => setView(target)}
+            onNavigateToStudio={navigateToStudio}
+            onNavigateToEpicCreation={navigateToEpicCreation}
+          />
         )}
         {view === 'projects' && (
           <ProjectsView projects={state.projects} adoProgress={adoProgress} send={sendMessage} />
@@ -256,6 +273,16 @@ export function App(): JSX.Element {
           />
         )}
         {view === 'rdis' && <RdiTab />}
+        {view === 'epic-creation' && (
+          <EpicCreationWizard
+            epicId={focusEpicId}
+            onNavigate={(v, epicId) => {
+              if (epicId) setFocusEpicId(epicId);
+              setView(v as import('./components/Sidebar').ViewId);
+            }}
+            vscode={vscodeApi}
+          />
+        )}
         {view === 'settings' && (
           <SettingsView
             adoSettings={state.adoSettings}

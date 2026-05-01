@@ -6,6 +6,7 @@ import {
   AdoSettings,
   BugReportInput,
   BulkBreakdownRequest,
+  EpicDraft,
   ExtensionEvent,
   FeatureDraft,
   HierarchyStatus,
@@ -14,7 +15,7 @@ import {
   RdiDraft,
   WebviewRequest
 } from '../shared/messages';
-import { iterationLeafFromPath } from '../shared/iterationUtils';
+import { iterationLeafFromPath, resolveIterationPathForPush } from '../shared/iterationUtils';
 import { buildLinkedProjectContext } from '../services/linkedProjectContext';
 import { AdoService } from '../services/adoService';
 import { CodeAnalyzer } from '../services/codeAnalyzer';
@@ -24,6 +25,7 @@ import { RdiDraftService } from '../services/rdiDraftService';
 import { RepoImportService } from '../services/repoImportService';
 import { SecretStorageService } from '../services/secretStorageService';
 import { SettingsService } from '../services/settingsService';
+import { TestPlanService } from '../services/testPlanService';
 
 export class DashboardPanel {
   private static currentPanel: DashboardPanel | undefined;
@@ -64,7 +66,8 @@ export class DashboardPanel {
     private readonly secretStorage: SecretStorageService = new SecretStorageService(context),
     private readonly settingsService: SettingsService = new SettingsService(context),
     private readonly adoService: AdoService = new AdoService(),
-    private readonly copilotService: CopilotService = new CopilotService(context)
+    private readonly copilotService: CopilotService = new CopilotService(context),
+    private readonly testPlanService: TestPlanService = new TestPlanService()
   ) {
     this.panel.webview.html = this.getHtml();
 
@@ -254,6 +257,28 @@ export class DashboardPanel {
       case 'PUSH_FEATURE_TO_ADO':
         await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren, message.payload.targetDate);
         return;
+      // Epic draft handlers
+      case 'CREATE_EPIC_DRAFT':
+        await this.handleCreateEpicDraft(message.payload);
+        return;
+      case 'UPDATE_EPIC_DRAFT':
+        await this.handleUpdateEpicDraft(message.payload);
+        return;
+      case 'DELETE_EPIC_DRAFT':
+        await this.handleDeleteEpicDraft(message.payload.epicId);
+        return;
+      case 'LINK_FEATURE_TO_EPIC':
+        await this.handleLinkFeatureToEpic(message.payload.epicId, message.payload.featureId);
+        return;
+      case 'UNLINK_FEATURE_FROM_EPIC':
+        await this.handleUnlinkFeatureFromEpic(message.payload.epicId, message.payload.featureId);
+        return;
+      case 'PUSH_EPIC_TO_ADO':
+        await this.handlePushEpicToAdo(message.payload.epicId, message.payload.pushChildren);
+        return;
+      case 'GENERATE_FEATURES_FROM_EPIC':
+        await this.handleGenerateFeaturesFromEpic(message.payload);
+        return;
       default:
         return;
     }
@@ -420,6 +445,10 @@ export class DashboardPanel {
       });
       const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
       await this.applyPushResult(result.created, result.errors);
+      // Asynchronously create test plan, suite, and AI-generated test cases for the new PBI
+      if (result.created.length > 0) {
+        void this.triggerTestPlanWorkflow(ctx, toPush, result.created[0].workItemId, draftId);
+      }
     } finally {
       this.postAdoProgress({ busy: false, message: '', scope: 'single' });
     }
@@ -475,6 +504,8 @@ export class DashboardPanel {
       };
       await this.draftService.upsert(this.context.globalState, cleared);
       this.postToast('success', `Updated work item #${draft.adoWorkItemId} in Azure DevOps.`);
+      // Asynchronously add new AI-generated test cases to the existing suite (no duplicates)
+      void this.triggerTestCaseRefinement(ctx, draft);
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       this.postToast('error', `Update failed: ${messageText}`);
@@ -1202,6 +1233,220 @@ export class DashboardPanel {
     await this.postState();
   }
 
+  /**
+   * After a successful PBI push: find or create the sprint test plan, create a test suite
+   * for the new PBI, generate AI integration test cases, link them to the suite and PBI.
+   * Runs asynchronously after push; shows its own progress toasts; persists plan/suite IDs to draft.
+   */
+  private async triggerTestPlanWorkflow(
+    ctx: { settings: AdoSettings; pat: string },
+    draft: PbiDraft,
+    workItemId: number,
+    draftId: string
+  ): Promise<void> {
+    try {
+      const settings = ctx.settings;
+      const teamName = (settings.team ?? 'Team').trim();
+      const iterationPath = resolveIterationPathForPush(settings, draft);
+      const planName = this.testPlanService.buildTestPlanName(teamName, iterationPath);
+
+      this.postToast('info', `Setting up test plan "${planName}"…`);
+
+      // 1. Find or create the sprint test plan
+      const { planId, rootSuiteId } = await this.testPlanService.getOrCreateTestPlan(
+        settings, ctx.pat, planName, iterationPath
+      );
+
+      // 2. Create a test suite named "[PBI#] - [title]"
+      const suiteName = `${workItemId} - ${draft.title}`;
+      const suiteId = await this.testPlanService.createTestSuite(
+        settings, ctx.pat, planId, rootSuiteId, suiteName
+      );
+
+      this.postToast('info', 'Generating integration test cases…');
+
+      // 3. Generate test cases using AI
+      const linkedContext = await this.buildLinkedContextForDraft(draft);
+      const testCases = await this.copilotService.generateIntegrationTestCases(draft, {
+        linkedProjectContext: linkedContext || undefined
+      });
+
+      if (testCases.length === 0) {
+        this.postToast('warning', 'AI did not produce test cases; skipping test suite population.');
+        return;
+      }
+
+      // 4. Create test case work items and link them to the PBI
+      const testCaseIds = await this.testPlanService.createTestCaseWorkItems(
+        settings, ctx.pat, testCases, workItemId
+      );
+
+      // 5. Add test cases to the suite
+      await this.testPlanService.addTestCasesToSuite(
+        settings, ctx.pat, planId, suiteId, testCaseIds
+      );
+
+      // 6. Persist plan/suite IDs to draft so update flow knows where to add new cases
+      const currentDraft = this.findDraft(draftId);
+      if (currentDraft) {
+        await this.draftService.upsert(this.context.globalState, {
+          ...currentDraft,
+          testPlanId: planId,
+          testSuiteId: suiteId
+        });
+        await this.postState();
+      }
+
+      this.postToast(
+        'success',
+        `Created ${testCaseIds.length} test case(s) in suite "${suiteName}".`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test plan workflow failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      const userMsg = msg.includes('401')
+        ? 'Test plan setup requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test plan setup failed (PBI pushed successfully): ${msg}`;
+      this.postToast('warning', userMsg);
+    }
+  }
+
+  /**
+   * After a PBI update: generate new AI test cases and add only non-duplicate ones to the
+   * existing test suite. If no suite is tracked on the draft, looks up the plan by name.
+   */
+  private async triggerTestCaseRefinement(
+    ctx: { settings: AdoSettings; pat: string },
+    draft: PbiDraft
+  ): Promise<void> {
+    if (!draft.adoWorkItemId) {
+      return;
+    }
+    try {
+      const settings = ctx.settings;
+
+      let planId = draft.testPlanId;
+      let suiteId = draft.testSuiteId;
+
+      // If plan/suite IDs are missing, attempt to look them up by name
+      if (!planId || !suiteId) {
+        const teamName = (settings.team ?? 'Team').trim();
+        const iterationPath = resolveIterationPathForPush(settings, draft);
+        const planName = this.testPlanService.buildTestPlanName(teamName, iterationPath);
+        const found = await this.testPlanService.getOrCreateTestPlan(
+          settings, ctx.pat, planName, iterationPath
+        );
+        planId = found.planId;
+
+        // Find existing suite by stable PBI ID prefix before creating a new one
+        const existingSuiteId = await this.testPlanService.findTestSuiteByPbiId(
+          settings, ctx.pat, planId, draft.adoWorkItemId
+        );
+        if (existingSuiteId) {
+          suiteId = existingSuiteId;
+        } else {
+          const suiteName = `${draft.adoWorkItemId} - ${draft.title}`;
+          suiteId = await this.testPlanService.createTestSuite(
+            settings, ctx.pat, planId, found.rootSuiteId, suiteName
+          );
+        }
+      }
+
+      this.postToast('info', 'Generating new test cases for updated PBI…');
+
+      // Get existing titles to avoid duplicates
+      const existingTitles = await this.testPlanService.getExistingTestCaseTitles(
+        settings, ctx.pat, planId, suiteId
+      );
+      const existingSet = new Set(existingTitles.map((t) => t.toLowerCase()));
+
+      // Generate test cases using AI
+      const linkedContext = await this.buildLinkedContextForDraft(draft);
+      const allTestCases = await this.copilotService.generateIntegrationTestCases(draft, {
+        linkedProjectContext: linkedContext || undefined
+      });
+
+      const newTestCases = allTestCases.filter(
+        (tc) => !existingSet.has(tc.title.toLowerCase())
+      );
+
+      if (newTestCases.length === 0) {
+        this.postToast('info', 'No new test cases to add (all AI suggestions already exist).');
+        return;
+      }
+
+      const testCaseIds = await this.testPlanService.createTestCaseWorkItems(
+        settings, ctx.pat, newTestCases, draft.adoWorkItemId
+      );
+      await this.testPlanService.addTestCasesToSuite(
+        settings, ctx.pat, planId, suiteId, testCaseIds
+      );
+
+      // Persist IDs back to draft if they were missing
+      const currentDraft = this.findDraft(draft.id);
+      if (currentDraft && (!currentDraft.testPlanId || !currentDraft.testSuiteId)) {
+        await this.draftService.upsert(this.context.globalState, {
+          ...currentDraft,
+          testPlanId: planId,
+          testSuiteId: suiteId
+        });
+        await this.postState();
+      }
+
+      this.postToast('success', `Added ${testCaseIds.length} new test case(s) to existing suite.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test case refinement failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      const userMsg = msg.includes('401')
+        ? 'Test case update requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test case update failed (PBI updated successfully): ${msg}`;
+      this.postToast('warning', userMsg);
+    }
+  }
+
+  /** Builds linked project context string for the draft's associated repo projects. */
+  private async buildLinkedContextForDraft(draft: PbiDraft): Promise<string> {
+    try {
+      const importedProjects = this.importService.getAll();
+      const draftProjects = importedProjects.filter((p) =>
+        draft.projectId === STANDALONE_PROJECT_ID || p.id === draft.projectId
+      );
+      if (draftProjects.length === 0) {
+        return '';
+      }
+      const contexts = await Promise.all(
+        draftProjects.map((p) => buildLinkedProjectContext(p, this.context))
+      );
+      return contexts.filter((c) => c.length > 0).join('\n\n');
+    } catch {
+      return '';
+    }
+  }
+
   private async handleWizardDraftLoad(draftId: string): Promise<void> {
     const draft = this.findDraft(draftId);
     if (!draft) {
@@ -1448,6 +1693,256 @@ export class DashboardPanel {
     await this.context.globalState.update('featureDrafts', features);
   }
 
+  // ─── Epic Draft Persistence ───────────────────────────────────────────────
+
+  private getEpicDrafts(): EpicDraft[] {
+    return this.context.globalState.get<EpicDraft[]>('epicDrafts', []);
+  }
+
+  private async saveEpicDrafts(epics: EpicDraft[]): Promise<void> {
+    await this.context.globalState.update('epicDrafts', epics);
+  }
+
+  // ─── Epic Draft Handlers ──────────────────────────────────────────────────
+
+  private async handleCreateEpicDraft(
+    payload: {
+      title: string;
+      description: string;
+      objectives: string[];
+      scope: string;
+      linkedFeatureIds: string[];
+      selectedRepoIds: string[];
+      estimatedVelocity?: number;
+      targetDate?: string;
+      aiGeneratedFeatures?: boolean;
+    }
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const epic: EpicDraft = {
+      ...payload,
+      id: Date.now().toString(),
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now
+    };
+    const epics = this.getEpicDrafts();
+    await this.saveEpicDrafts([...epics, epic]);
+    this.post({ type: 'EPIC_DRAFT_CREATED', payload: epic });
+    await this.postState();
+  }
+
+  private async handleUpdateEpicDraft(epic: EpicDraft): Promise<void> {
+    const updated: EpicDraft = { ...epic, updatedAt: new Date().toISOString() };
+    const epics = this.getEpicDrafts();
+    const idx = epics.findIndex((e) => e.id === updated.id);
+    if (idx === -1) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+    epics[idx] = updated;
+    await this.saveEpicDrafts(epics);
+    this.post({ type: 'EPIC_DRAFT_UPDATED', payload: updated });
+    await this.postState();
+  }
+
+  private async handleDeleteEpicDraft(epicId: string): Promise<void> {
+    const epics = this.getEpicDrafts().filter((e) => e.id !== epicId);
+    await this.saveEpicDrafts(epics);
+
+    // Clear parentEpicId on any linked features
+    const features = this.getFeatureDrafts().map((f) =>
+      f.parentEpicId === epicId ? { ...f, parentEpicId: undefined } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'EPIC_DRAFT_DELETED', payload: { epicId } });
+    await this.postState();
+  }
+
+  private async handleLinkFeatureToEpic(epicId: string, featureId: string): Promise<void> {
+    const epics = this.getEpicDrafts();
+    const epicIdx = epics.findIndex((e) => e.id === epicId);
+    if (epicIdx === -1) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+    const epic = epics[epicIdx];
+    if (!epic.linkedFeatureIds.includes(featureId)) {
+      epics[epicIdx] = {
+        ...epic,
+        linkedFeatureIds: [...epic.linkedFeatureIds, featureId],
+        updatedAt: new Date().toISOString()
+      };
+      await this.saveEpicDrafts(epics);
+    }
+
+    const features = this.getFeatureDrafts().map((f) =>
+      f.id === featureId ? { ...f, parentEpicId: epicId, updatedAt: new Date().toISOString() } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'FEATURE_LINKED_TO_EPIC', payload: { epicId, featureId } });
+    await this.postState();
+  }
+
+  private async handleUnlinkFeatureFromEpic(epicId: string, featureId: string): Promise<void> {
+    const epics = this.getEpicDrafts();
+    const epicIdx = epics.findIndex((e) => e.id === epicId);
+    if (epicIdx !== -1) {
+      const epic = epics[epicIdx];
+      epics[epicIdx] = {
+        ...epic,
+        linkedFeatureIds: epic.linkedFeatureIds.filter((id) => id !== featureId),
+        updatedAt: new Date().toISOString()
+      };
+      await this.saveEpicDrafts(epics);
+    }
+
+    const features = this.getFeatureDrafts().map((f) =>
+      f.id === featureId ? { ...f, parentEpicId: undefined, updatedAt: new Date().toISOString() } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'FEATURE_UNLINKED_FROM_EPIC', payload: { epicId, featureId } });
+    await this.postState();
+  }
+
+  private async handleGenerateFeaturesFromEpic(
+    payload: {
+      epicId: string;
+      title: string;
+      description: string;
+      objectives: string[];
+      scope: string;
+      selectedRepoIds: string[];
+      featureCount?: number;
+    }
+  ): Promise<void> {
+    const { epicId, title, description, objectives, scope, featureCount } = payload;
+
+    this.post({ type: 'AI_PROGRESS', payload: { message: 'Generating features from epic…', busy: true } });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      const rawSuggestions = await this.copilotService.generateFeaturesFromEpic(
+        { title, description, objectives, scope },
+        cts.token,
+        { featureCount }
+      );
+
+      const suggestions = rawSuggestions.map((item, idx) => ({
+        clientId: `${Date.now()}_${idx}`,
+        title: item.title,
+        description: item.description
+      }));
+
+      this.post({ type: 'EPIC_GENERATION_COMPLETE', payload: { epicId, suggestions } });
+      this.postToast('success', `Generated ${suggestions.length} feature suggestions.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error generating features';
+      this.post({ type: 'EPIC_GENERATION_ERROR', payload: { epicId, message } });
+      this.postToast('error', message);
+    } finally {
+      cts.dispose();
+      this.post({ type: 'AI_PROGRESS', payload: { message: '', busy: false } });
+    }
+  }
+
+  private async handlePushEpicToAdo(epicId: string, pushChildren: boolean): Promise<void> {
+    const epic = this.getEpicDrafts().find((e) => e.id === epicId);
+    if (!epic) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      return;
+    }
+
+    const { settings, pat } = ctx;
+    const orgUrl = settings.orgUrl.endsWith('/') ? settings.orgUrl.slice(0, -1) : settings.orgUrl;
+
+    try {
+      this.post({
+        type: 'EPIC_PUSH_PROGRESS',
+        payload: { epicId, phase: 'epic', current: 0, total: 1, message: 'Creating Epic in Azure DevOps…' }
+      });
+      this.postAdoProgress({ busy: true, message: 'Pushing Epic to Azure DevOps…', scope: 'single' });
+
+      const epicFeatures = pushChildren
+        ? this.getFeatureDrafts().filter((f) => epic.linkedFeatureIds.includes(f.id) || f.parentEpicId === epic.id)
+        : [];
+
+      const result = await this.adoService.pushEpicHierarchy(
+        settings,
+        pat,
+        epic,
+        epicFeatures,
+        pushChildren
+      );
+
+      const now = new Date().toISOString();
+      const allFeaturesLinked = epicFeatures.length === 0 || result.featureResults.length >= epicFeatures.length;
+      const hierarchyStatus: HierarchyStatus =
+        epicFeatures.length === 0
+          ? 'pushed'
+          : result.featureErrors.length === 0 && allFeaturesLinked
+          ? 'pushed'
+          : 'partial';
+
+      const updatedEpic: EpicDraft = {
+        ...epic,
+        adoId: result.epicWorkItemId,
+        adoUrl: result.epicWorkItemUrl,
+        status: hierarchyStatus,
+        updatedAt: now
+      };
+
+      const epics = this.getEpicDrafts().map((e) => e.id === epicId ? updatedEpic : e);
+      await this.saveEpicDrafts(epics);
+
+      // Update feature ADO IDs from results
+      if (result.featureResults.length > 0) {
+        const features = this.getFeatureDrafts().map((f) => {
+          const fr = result.featureResults.find((r) => r.featureId === f.id);
+          if (!fr) { return f; }
+          return { ...f, adoWorkItemId: fr.adoWorkItemId, adoWorkItemUrl: fr.adoWorkItemUrl, hierarchyStatus: 'pushed' as HierarchyStatus, updatedAt: now };
+        });
+        await this.saveFeatureDrafts(features);
+      }
+
+      const linkedFeatureAdoIds: Record<string, number> = {};
+      for (const fr of result.featureResults) {
+        linkedFeatureAdoIds[fr.featureId] = fr.adoWorkItemId;
+      }
+
+      this.post({
+        type: 'EPIC_PUSHED',
+        payload: {
+          epicId,
+          adoWorkItemId: result.epicWorkItemId,
+          adoWorkItemUrl: result.epicWorkItemUrl,
+          linkedFeatureAdoIds,
+          hierarchyStatus
+        }
+      });
+
+      if (result.featureErrors.length > 0) {
+        this.postToast('error', `Epic pushed as #${result.epicWorkItemId}. ${result.featureErrors.length} feature(s) failed.`);
+      } else {
+        this.postToast('success', `Epic pushed as #${result.epicWorkItemId} with ${result.featureResults.length} feature(s).`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'EPIC_PUSH_ERROR', payload: { epicId, message } });
+      this.postToast('error', `Epic push failed: ${message}`);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'single' });
+    }
+    await this.postState();
+  }
+
   // ─── Feature Draft Handlers ───────────────────────────────────────────────
 
   private async handleCreateFeatureDraft(
@@ -1463,6 +1958,20 @@ export class DashboardPanel {
     };
     const features = this.getFeatureDrafts();
     await this.saveFeatureDrafts([...features, feature]);
+
+    if (payload.parentEpicId) {
+      const epics = this.getEpicDrafts();
+      const epicIdx = epics.findIndex((e) => e.id === payload.parentEpicId);
+      if (epicIdx !== -1 && !epics[epicIdx].linkedFeatureIds.includes(feature.id)) {
+        epics[epicIdx] = {
+          ...epics[epicIdx],
+          linkedFeatureIds: [...epics[epicIdx].linkedFeatureIds, feature.id],
+          updatedAt: now
+        };
+        await this.saveEpicDrafts(epics);
+      }
+    }
+
     this.post({ type: 'FEATURE_DRAFT_CREATED', payload: feature });
     await this.postState();
   }
@@ -1621,7 +2130,7 @@ export class DashboardPanel {
       for (const pbi of childPbis) {
         this.post({
           type: 'FEATURE_PUSH_PROGRESS',
-          payload: { featureId, message: `Pushing "${pbi.title}"…`, progress, total }
+          payload: { featureId, phase: 'children', current: progress, total, message: `Pushing "${pbi.title}"…` }
         });
         progress++;
       }
@@ -1646,6 +2155,7 @@ export class DashboardPanel {
       const updatedFeature: FeatureDraft = {
         ...feature,
         adoWorkItemId: result.featureWorkItemId,
+        adoWorkItemUrl: result.featureWorkItemUrl,
         hierarchyStatus,
         updatedAt: now
       };
@@ -1682,6 +2192,7 @@ export class DashboardPanel {
         payload: {
           featureId,
           adoWorkItemId: result.featureWorkItemId,
+          adoWorkItemUrl: result.featureWorkItemUrl,
           childAdoIds,
           hierarchyStatus
         }
@@ -1719,6 +2230,7 @@ export class DashboardPanel {
         pbiDrafts: this.draftService.getAll(this.context.globalState),
         rdiDrafts: this.rdiDraftService.listDrafts(this.context.globalState),
         featureDrafts: this.getFeatureDrafts(),
+        epicDrafts: this.getEpicDrafts(),
         adoSettings: this.settingsService.getAdoSettings(),
         uiSettings: this.settingsService.getUiSettings(),
         hasAdoPat: Boolean(pat && pat.length > 0)

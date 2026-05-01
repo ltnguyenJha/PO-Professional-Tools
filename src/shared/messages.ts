@@ -36,11 +36,55 @@ export interface FeatureDraft {
   parentEpicId?: string;
   childPbiIds: string[];
   adoWorkItemId?: number;
+  adoWorkItemUrl?: string;
   hierarchyStatus: HierarchyStatus;
   createdAt: string;
   updatedAt: string;
   /** ISO date string (YYYY-MM-DD) for the ADO Feature target date field. */
   targetDate?: string;
+}
+
+export interface EpicDraft {
+  /** Unique nanoid identifier */
+  id: string;
+  /** Epic title - displayed in Dashboard and ADO */
+  title: string;
+  /** High-level description of the initiative */
+  description: string;
+  /** 3-5 high-level objectives / OKRs */
+  objectives: string[];
+  /** What is in scope and out of scope for this epic */
+  scope: string;
+  /** IDs of FeatureDrafts linked to this epic */
+  linkedFeatureIds: string[];
+  /** Repository paths selected for AI context */
+  selectedRepoIds: string[];
+  /** Lifecycle status */
+  status: HierarchyStatus;
+  /** ADO Work Item ID after push */
+  adoId?: number;
+  /** ADO Work Item URL after push */
+  adoUrl?: string;
+  /** ISO timestamp of creation */
+  createdAt: string;
+  /** ISO timestamp of last update */
+  updatedAt: string;
+  /** Optional story point / sprint velocity estimate */
+  estimatedVelocity?: number;
+  /** True if features were AI-generated (vs manually added) */
+  aiGeneratedFeatures?: boolean;
+  /** ISO date string (YYYY-MM-DD). Optional target completion date. */
+  targetDate?: string;
+  /** T-shirt size estimate (XS/S/M/L/XL/XXL) */
+  tShirtSize?: string;
+  /** ADO area path for this epic */
+  area?: string;
+  /** ADO iteration path for this epic */
+  iteration?: string;
+  /** Reference ADO board URL for this epic */
+  epicUrl?: string;
+  /** Story point effort estimate */
+  effort?: number;
 }
 
 /** Files to upload as Azure DevOps work item attachments (diagrams, mermaid, etc.). */
@@ -88,6 +132,10 @@ export interface PbiDraft {
   featureUserFlow?: string;
   featureBusinessRules?: string;
   featureUserStoryStatement?: string;
+  /** ADO Test Plan ID linked to this PBI's iteration. Populated after first push. */
+  testPlanId?: number;
+  /** ADO Test Suite ID created for this PBI. Populated after first push. */
+  testSuiteId?: number;
 }
 
 export interface AdoSettings {
@@ -176,6 +224,7 @@ export interface AppStatePayload {
   pbiDrafts: PbiDraft[];
   rdiDrafts: RdiDraft[];
   featureDrafts: FeatureDraft[];
+  epicDrafts: EpicDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -330,6 +379,49 @@ export type WebviewRequest =
   | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
   | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number; targetDate?: string } }
   | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; includeChildren: boolean; targetDate?: string } }
+  // Epic draft messages
+  | {
+      type: 'CREATE_EPIC_DRAFT';
+      payload: {
+        title: string;
+        description: string;
+        objectives: string[];
+        scope: string;
+        linkedFeatureIds: string[];
+        selectedRepoIds: string[];
+        estimatedVelocity?: number;
+        targetDate?: string;
+        aiGeneratedFeatures?: boolean;
+        tShirtSize?: string;
+        area?: string;
+        iteration?: string;
+        epicUrl?: string;
+        effort?: number;
+      };
+    }
+  | { type: 'UPDATE_EPIC_DRAFT'; payload: EpicDraft }
+  | { type: 'DELETE_EPIC_DRAFT'; payload: { epicId: string } }
+  | { type: 'LINK_FEATURE_TO_EPIC'; payload: { epicId: string; featureId: string } }
+  | { type: 'UNLINK_FEATURE_FROM_EPIC'; payload: { epicId: string; featureId: string } }
+  | {
+      type: 'PUSH_EPIC_TO_ADO';
+      payload: {
+        epicId: string;
+        pushChildren: boolean;
+      };
+    }
+  | {
+      type: 'GENERATE_FEATURES_FROM_EPIC';
+      payload: {
+        epicId: string;
+        title: string;
+        description: string;
+        objectives: string[];
+        scope: string;
+        selectedRepoIds: string[];
+        featureCount?: number;
+      };
+    }
   // RDI messages
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }
@@ -373,8 +465,47 @@ export type ExtensionEvent =
   | { type: 'FEATURE_DRAFT_DELETED'; payload: { featureId: string } }
   | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
   | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
-  | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; message: string; progress: number; total: number } }
-  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId: number; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
+  | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string } }
+  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; adoWorkItemUrl?: string; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
+  // Epic draft events
+  | { type: 'EPIC_DRAFT_CREATED'; payload: EpicDraft }
+  | { type: 'EPIC_DRAFT_UPDATED'; payload: EpicDraft }
+  | { type: 'EPIC_DRAFT_DELETED'; payload: { epicId: string } }
+  | {
+      type: 'EPIC_GENERATION_COMPLETE';
+      payload: {
+        epicId: string;
+        suggestions: Array<{
+          clientId: string;
+          title: string;
+          description: string;
+        }>;
+      };
+    }
+  | { type: 'EPIC_GENERATION_ERROR'; payload: { epicId: string; message: string } }
+  | {
+      type: 'EPIC_PUSH_PROGRESS';
+      payload: {
+        epicId: string;
+        phase: 'epic' | 'features';
+        current: number;
+        total: number;
+        message: string;
+      };
+    }
+  | {
+      type: 'EPIC_PUSHED';
+      payload: {
+        epicId: string;
+        adoWorkItemId: number;
+        adoWorkItemUrl: string;
+        linkedFeatureAdoIds: Record<string, number>;
+        hierarchyStatus: HierarchyStatus;
+      };
+    }
+  | { type: 'EPIC_PUSH_ERROR'; payload: { epicId: string; message: string } }
+  | { type: 'FEATURE_LINKED_TO_EPIC'; payload: { epicId: string; featureId: string } }
+  | { type: 'FEATURE_UNLINKED_FROM_EPIC'; payload: { epicId: string; featureId: string } }
   // RDI events
   | { type: 'rdiDraftCreated'; draft: RdiDraft }
   | { type: 'rdiDraftLoaded'; draft: RdiDraft }

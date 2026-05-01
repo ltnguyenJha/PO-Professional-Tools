@@ -114,6 +114,37 @@
 **Spec location:** `webview-ui/design/feature-creation-ux-spec.md`  
 **Decisions:** `.squad/decisions/inbox/tess-feature-ux-design.md`
 
+### Theme Settings Design Spec (2026-04-30)
+
+**What I designed:**
+- Complete UX specification for per-view theme customization covering PBI Studio, Epics, and Feature Creation
+- Three access patterns: Global Settings section, Per-view gear icon popover, Command Palette
+- Settings fields per view:
+  - **PBI Studio:** accent color (8 options), card style (compact/comfortable/spacious), font size
+  - **Epics:** accent color (6 options), currently defaults to violet
+  - **Feature Creation:** accent color (5 options), form density (standard/compact)
+- Live preview panel to verify changes before applying
+- Storage via `ExtensionContext.globalState` under key `'poTools.ui.themeSettings'`
+- Color palette with light + dark mode variants, all WCAG 2.1 AA compliant
+
+**Key UX decisions:**
+- Settings live in existing Settings view as new "Appearance" section (natural discovery)
+- Per-view popover for quick changes without context-switching
+- Changes apply immediately with live preview (reduces uncertainty)
+- Reset button to restore defaults (safety net)
+- Preset color palettes, not custom hex picker (reduces complexity, ensures contrast compliance)
+
+**Key files referenced:**
+- `webview-ui/src/styles/tailwind.css` — VS Code bridge tokens, `--tw-epic` accent vars
+- `webview-ui/tailwind.config.js` — color token mapping
+- `webview-ui/src/views/EpicCreationWizard.tsx` — uses `--tw-epic` for step indicators
+- `webview-ui/src/views/FeatureCreationWizard.tsx` — uses `--tw-vscode-accent` for steps
+- `webview-ui/src/views/SettingsView.tsx` — existing settings pattern (collapsible sections)
+- `src/services/settingsService.ts` — `UiSettings` storage via `globalState`
+- `src/shared/messages.ts` — `UiSettings`, `ThemePreference` types
+
+**Spec location:** `docs/design/theme-settings-spec.md`
+
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.
