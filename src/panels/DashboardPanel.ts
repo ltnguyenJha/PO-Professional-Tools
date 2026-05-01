@@ -1286,6 +1286,11 @@ export class DashboardPanel {
         statusCode: adoErr.statusCode,
         result: adoErr.result,
         serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
         stack: err instanceof Error ? err.stack : undefined
       });
       const userMsg = msg.includes('401')
@@ -1386,6 +1391,11 @@ export class DashboardPanel {
         statusCode: adoErr.statusCode,
         result: adoErr.result,
         serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
         stack: err instanceof Error ? err.stack : undefined
       });
       const userMsg = msg.includes('401')
