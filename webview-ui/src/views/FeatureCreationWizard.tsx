@@ -48,6 +48,7 @@ export interface FeatureCreationWizardProps {
   pushProgress?: FeaturePushProgress | null;
   pushResult?: FeaturePushedResult | null;
   onClearPushResult: () => void;
+  focusFeatureId?: string;
 }
 
 // ─── Step Indicator ──────────────────────────────────────────────────────────
@@ -992,13 +993,16 @@ export function FeatureCreationWizard({
   pushProgress,
   pushResult,
   onClearPushResult,
+  focusFeatureId,
 }: FeatureCreationWizardProps): JSX.Element {
   const linkTargets = appState.linkTargets ?? appState.projects;
   const epicDrafts = appState.epicDrafts ?? [];
 
+  const isEditMode = !!focusFeatureId;
+
   // Stable ID for this wizard session
   const [featureDraftId] = useState(
-    () => `feature-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    () => focusFeatureId ?? `feature-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
   );
 
   // Step state
@@ -1031,6 +1035,24 @@ export function FeatureCreationWizard({
       }
     };
   }, []);
+
+  // Pre-populate form fields when editing an existing feature
+  useEffect(() => {
+    if (!focusFeatureId) return;
+    const existing = (appState.featureDrafts ?? []).find((f) => f.id === focusFeatureId);
+    if (!existing) return;
+    setTitle(existing.title);
+    setDescription(existing.description);
+    setWhy(existing.why ?? '');
+    setUserFlow(existing.userFlow ?? '');
+    setBusinessRules(existing.businessRules ?? '');
+    setTargetDate(existing.targetDate ?? '');
+    if (existing.parentEpicId) setParentEpicId(existing.parentEpicId);
+    const paths = linkTargets
+      .filter((r) => existing.repoIds.includes(r.id))
+      .map((r) => r.path);
+    if (paths.length) setSelectedRepoIds(paths);
+  }, []); // run once on mount
 
   // Step 4 local edits
   const [localEdits, setLocalEdits] = useState<Record<string, LocalPbiEdit>>({});
@@ -1188,21 +1210,44 @@ export function FeatureCreationWizard({
   };
 
   const handleSaveAsDraft = () => {
-    send({
-      type: 'CREATE_FEATURE_DRAFT',
-      payload: {
-        id: featureDraftId,
-        title: title.trim(),
-        description: description.trim(),
-        why: why.trim() || undefined,
-        userFlow: userFlow.trim() || undefined,
-        businessRules: businessRules.trim() || undefined,
-        repoIds: getRepoIdPayloads(),
-        parentEpicId,
-        childPbiIds: getChildPbiIds(),
-        targetDate: targetDate || undefined,
-      },
-    });
+    if (isEditMode) {
+      const existing = (appState.featureDrafts ?? []).find((f) => f.id === featureDraftId);
+      if (existing) {
+        send({
+          type: 'UPDATE_FEATURE_DRAFT',
+          payload: {
+            draft: {
+              ...existing,
+              title: title.trim(),
+              description: description.trim(),
+              why: why.trim() || undefined,
+              userFlow: userFlow.trim() || undefined,
+              businessRules: businessRules.trim() || undefined,
+              repoIds: getRepoIdPayloads(),
+              parentEpicId,
+              childPbiIds: getChildPbiIds(),
+              targetDate: targetDate || undefined,
+            },
+          },
+        });
+      }
+    } else {
+      send({
+        type: 'CREATE_FEATURE_DRAFT',
+        payload: {
+          id: featureDraftId,
+          title: title.trim(),
+          description: description.trim(),
+          why: why.trim() || undefined,
+          userFlow: userFlow.trim() || undefined,
+          businessRules: businessRules.trim() || undefined,
+          repoIds: getRepoIdPayloads(),
+          parentEpicId,
+          childPbiIds: getChildPbiIds(),
+          targetDate: targetDate || undefined,
+        },
+      });
+    }
     onNavigate('dashboard');
   };
 
