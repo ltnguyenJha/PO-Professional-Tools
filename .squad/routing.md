@@ -13,6 +13,7 @@ How to decide who handles what.
 | System architecture, data models, message contracts, ADO hierarchy | Basher | Architecture docs, shared type definitions, settings structure, Epic/Feature/PBI design |
 | Architecture, scope, code review, PR review | Danny | Design decisions, trade-off analysis, reviewing PRs |
 | Tests, quality, edge cases, build validation | Livingston | Writing tests, verifying TypeScript clean, build checks |
+| Automated test suites, CI pipeline, post-deployment smoke tests | Frank | GitHub Actions, automation frameworks, smoke test scripts |
 | Session logging, decisions, cross-agent memory | Scribe | Automatic — never needs routing |
 | Work queue, backlog, GitHub issue monitoring | Ralph | Backlog status, issue triage, PR monitoring |
 
@@ -28,6 +29,7 @@ How to decide who handles what.
 | `squad:linus` | Backend work: extension API, services | Linus |
 | `squad:basher` | Architecture work: system design, data models, message contracts, ADO hierarchy | Basher |
 | `squad:livingston` | Testing: test cases, quality review | Livingston |
+| `squad:frank` | QA automation: test suites, CI pipeline, smoke tests | Frank |
 
 ## Architect Routing (Basher)
 
