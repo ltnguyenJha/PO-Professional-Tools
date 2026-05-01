@@ -252,7 +252,7 @@ export class DashboardPanel {
         await this.handleGenerateUserStoriesFromFeature(message.payload);
         return;
       case 'PUSH_FEATURE_TO_ADO':
-        await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren);
+        await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren, message.payload.targetDate);
         return;
       default:
         return;
@@ -1497,7 +1497,7 @@ export class DashboardPanel {
   }
 
   private async handleGenerateUserStoriesFromFeature(
-    payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number }
+    payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number; targetDate?: string }
   ): Promise<void> {
     const { featureId, storyCount } = payload;
 
@@ -1515,7 +1515,8 @@ export class DashboardPanel {
       childPbiIds: [],
       hierarchyStatus: 'draft',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      targetDate: payload.targetDate,
     };
 
     this.post({
@@ -1592,7 +1593,8 @@ export class DashboardPanel {
 
   private async handlePushFeatureToAdo(
     featureId: string,
-    includeChildren: boolean
+    includeChildren: boolean,
+    targetDate?: string
   ): Promise<void> {
     const feature = this.getFeatureDrafts().find((f) => f.id === featureId);
     if (!feature) {
@@ -1628,7 +1630,8 @@ export class DashboardPanel {
         ctx.settings,
         ctx.pat,
         feature,
-        childPbis
+        childPbis,
+        targetDate ?? feature.targetDate
       );
 
       // Persist updated feature
