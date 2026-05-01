@@ -102,3 +102,19 @@ The legacy system (`styles.css`) and Tailwind bridge can coexist indefinitely as
 - **2026-04-30 17:00:** Completed Dashboard Redesign + Tailwind CSS Setup task. Installed Tailwind v3, created bridge variable system, replaced DashboardView with Epic→Feature→Story hierarchy accordion, added StatusBadge component. Build ✅, tests ✅. Branch: `feature/saul-tailwind-dashboard-redesign`.
 - **2026-04-30 21:44:** Team sync: All three agent decisions merged into `.squad/decisions.md` (Danny architecture, Tess UX flows, Saul Tailwind implementation). Orchestration logs + session log written. Decision inbox deleted. Ready for PR + team review. Decisions record updated.
 - **2026-05-01:** CSS consistency pass — suppressed @tailwind IDE warnings, completed full light-mode bridge variable coverage, added `--tw-vscode-surface` token, created `.squad/skills/design-system/SKILL.md` as canonical design reference. Build ✅.
+- **2026-05-01:** WCAG AA overhaul on `feature/ui-wcag-improvements` — expanded Tailwind config (tokens, spacing, touch targets, transitions, animations, typography), comprehensive tailwind.css bridge rebuild (10 new vars, full light-mode coverage, base styles, utility classes), styles.css focus/a11y fixes, `@tailwindcss/forms` installed, WCAG section added to SKILL.md. Build ✅.
+
+## Learnings
+
+### 2026-05-01 — WCAG AA Comprehensive Overhaul
+
+**`--tw-vscode-muted` vs `--tw-vscode-fg-muted`:** Added `--tw-vscode-muted` as a semantically-named alias alongside the existing `--tw-vscode-fg-muted`. Both point to `--vscode-descriptionForeground` but with slightly different dark-theme fallbacks (#999999 vs #858585) to match the task spec. Keep both — legacy components use fg-muted, new ones can use muted.
+
+**`@tailwindcss/forms` with `preflight: false`:** The forms plugin works fine alongside `preflight: false`. It only applies styles to form elements (input, select, etc.) scoped to actual elements, not a full reset. No conflict with VS Code webview base styles.
+
+**`color-mix()` in utility badges:** The `.badge-*` utility classes use `color-mix(in srgb, ...)` for soft backgrounds. This is supported in all modern webview engines (Chromium ≥ 111). Fallback is not needed for VS Code webviews.
+
+**Touch target rule nuance:** Applied `min-height: 44px; min-width: 44px` globally to buttons/anchors in `tailwind.css`, but added `a:not(.btn):not([class*="button"]) { min-height: unset; }` to avoid breaking inline text links. Inline links must opt-in to touch sizing via `.btn` class.
+
+**`prefers-reduced-motion` placement:** Added to both `tailwind.css` (for Tailwind-based components) and `styles.css` (for legacy components). Both files are loaded; the `!important` overrides ensure the rule wins over animation declarations in both systems.
+

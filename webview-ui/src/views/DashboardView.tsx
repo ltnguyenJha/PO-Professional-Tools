@@ -21,13 +21,15 @@ function AdoStatusChip({
 }) {
   return (
     <button
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 border-0 cursor-pointer"
+      type="button"
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 min-h-[44px] text-xs font-medium transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
       style={{
         background: adoReady ? 'var(--tw-vscode-success-bg)' : 'var(--tw-vscode-warning-bg)',
         color: adoReady ? 'var(--tw-vscode-success)' : 'var(--tw-vscode-warning)',
       }}
       onClick={() => onNavigate('settings')}
       title={adoReady ? `Connected to ${projectName}` : 'Click to configure ADO in Settings'}
+      aria-label={adoReady ? `ADO connected to ${projectName}. Click to open settings.` : 'ADO setup required. Click to configure in Settings.'}
     >
       <span
         className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
@@ -71,9 +73,17 @@ function AccordionHeader({
 }) {
   return (
     <button
-      className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-opacity hover:opacity-80 border-0 cursor-pointer"
+      type="button"
+      className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
       style={{ background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}
       onClick={onClick}
+      aria-expanded={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <ChevronIcon open={open} />
       <span
@@ -117,24 +127,23 @@ function EpicAccordion({
         badge={<StatusBadge status={epic.status ?? 'draft'} />}
         count={features.length > 0 ? features.length : undefined}
       />
-      {expanded && (
-        <div
-          className="border-t"
-          style={{ borderColor: 'var(--tw-vscode-border)' }}
-        >
-          {features.length > 0 ? (
-            <div className="px-3 py-2 space-y-2">
-              {features.map((f) => (
-                <FeatureCard key={f.id} feature={f} storyCount={0} onNavigate={onNavigate} />
-              ))}
-            </div>
-          ) : (
-            <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-              No features linked to this epic yet.
-            </p>
-          )}
-        </div>
-      )}
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out border-t ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+        aria-hidden={!expanded}
+      >
+        {features.length > 0 ? (
+          <div className="px-3 py-2 space-y-2">
+            {features.map((f) => (
+              <FeatureCard key={f.id} feature={f} storyCount={0} onNavigate={onNavigate} />
+            ))}
+          </div>
+        ) : (
+          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            No features linked to this epic yet.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -166,7 +175,8 @@ function FeatureCard({
         </span>
       )}
       <button
-        className="btn btn-ghost btn-sm shrink-0"
+        type="button"
+        className="btn btn-ghost btn-sm shrink-0 min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
         onClick={() => onNavigate('bulk')}
         title="Open in Feature Creation"
       >
@@ -201,11 +211,12 @@ function FeatureGroup({
         labelMuted
         count={features.length}
       />
-      {open && (
-        <div
-          className="px-3 py-2 space-y-2 border-t"
-          style={{ borderColor: 'var(--tw-vscode-border)' }}
-        >
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out border-t ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+        aria-hidden={!open}
+      >
+        <div className="px-3 py-2 space-y-2">
           {features.map((f) => (
             <FeatureCard
               key={f.id}
@@ -215,7 +226,7 @@ function FeatureGroup({
             />
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -241,26 +252,29 @@ function StandaloneStories({
         labelMuted
         count={stories.length}
       />
-      {open && (
-        <div className="border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-          {stories.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-opacity"
-              style={{ borderColor: 'var(--tw-vscode-border)' }}
-              onClick={() => onNavigate('studio')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onNavigate('studio')}
-            >
-              <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
-                {s.title}
-              </span>
-              <StatusBadge status={s.status ?? 'draft'} />
-            </div>
-          ))}
-        </div>
-      )}
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out border-t ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+        aria-hidden={!open}
+      >
+        {stories.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center gap-2 px-3 py-2 min-h-[44px] border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+            style={{ borderColor: 'var(--tw-vscode-border)' }}
+            onClick={() => onNavigate('studio')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onNavigate('studio')}
+            aria-label={`Open "${s.title}" in PBI Studio`}
+          >
+            <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+              {s.title}
+            </span>
+            <StatusBadge status={s.status ?? 'draft'} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -295,12 +309,13 @@ function RecentActivity({
         {items.map((item) => (
           <div
             key={item.id}
-            className="px-3 py-2 border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-opacity"
+            className="px-3 py-2 min-h-[44px] border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
             style={{ borderColor: 'var(--tw-vscode-border)' }}
             onClick={() => onNavigate('studio')}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onNavigate('studio')}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onNavigate('studio')}
+            aria-label={`Open "${item.title}" in PBI Studio`}
           >
             <div className="flex items-start gap-1.5">
               <span
@@ -367,9 +382,11 @@ function FeatureDraftCard({
     >
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-opacity hover:opacity-80 border-0 cursor-pointer"
+        className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
         style={{ background: 'var(--tw-vscode-bg-alt)' }}
         onClick={() => setExpanded((o) => !o)}
+        aria-expanded={expanded}
+        aria-label={`${feature.title} — ${expanded ? 'collapse' : 'expand'} details`}
       >
         <ChevronIcon open={expanded} />
         <span
@@ -390,63 +407,67 @@ function FeatureDraftCard({
         {(hierarchyStatus === 'draft' || hierarchyStatus === 'partial') && (
           <button
             type="button"
-            className="btn btn-ghost btn-sm shrink-0 text-xs"
+            className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
             onClick={(e) => {
               e.stopPropagation();
               onNavigate('bulk');
             }}
             title="Push to ADO"
+            aria-label={`Push ${feature.title} to ADO`}
           >
             ⬆ Push
           </button>
         )}
       </button>
 
-      {expanded && (
-        <div className="border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-          {childPbis.length === 0 ? (
-            <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-              No Product Backlog Items yet.
-            </p>
-          ) : (
-            <div>
-              <div className="px-3 py-1.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-                <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-                  {pushedCount > 0 && `${pushedCount} pushed`}
-                  {pushedCount > 0 && draftCount > 0 && ' · '}
-                  {draftCount > 0 && `${draftCount} draft`}
-                </span>
-              </div>
-              {childPbis.map((pbi) => (
-                <div
-                  key={pbi.id}
-                  className="flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0"
-                  style={{ borderColor: 'var(--tw-vscode-border)', paddingLeft: '2rem' }}
-                >
-                  <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
-                    {pbi.title}
-                  </span>
-                  {pbi.effortDays && (
-                    <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-                      {pbi.effortDays}pt
-                    </span>
-                  )}
-                  <StatusBadge status={pbi.status ?? 'draft'} size="xs" />
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm shrink-0"
-                    style={{ fontSize: '0.65rem' }}
-                    onClick={() => onNavigateToStudio(pbi.id)}
-                    title="Edit in PBI Studio"
-                  >
-                    ✏ Edit
-                  </button>
-                </div>
-              ))}
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out border-t ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+        aria-hidden={!expanded}
+      >
+        {childPbis.length === 0 ? (
+          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            No Product Backlog Items yet.
+          </p>
+        ) : (
+          <div>
+            <div className="px-3 py-1.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--tw-vscode-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                {pushedCount > 0 && `${pushedCount} pushed`}
+                {pushedCount > 0 && draftCount > 0 && ' · '}
+                {draftCount > 0 && `${draftCount} draft`}
+              </span>
             </div>
-          )}
-        </div>
-      )}
+            {childPbis.map((pbi) => (
+              <div
+                key={pbi.id}
+                className="flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0"
+                style={{ borderColor: 'var(--tw-vscode-border)', paddingLeft: '2rem' }}
+              >
+                <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+                  {pbi.title}
+                </span>
+                {pbi.effortDays && (
+                  <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                    {pbi.effortDays}pt
+                  </span>
+                )}
+                <StatusBadge status={pbi.status ?? 'draft'} size="xs" />
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm shrink-0 min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                  style={{ fontSize: '0.65rem' }}
+                  onClick={() => onNavigateToStudio(pbi.id)}
+                  title="Edit in PBI Studio"
+                  aria-label={`Edit "${pbi.title}" in PBI Studio`}
+                >
+                  ✏ Edit
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -468,10 +489,10 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
         Create Features or User Stories to build your product backlog hierarchy.
       </p>
       <div className="flex gap-2 flex-wrap justify-center">
-        <button className="btn btn-primary btn-sm" onClick={() => onNavigate('bulk')}>
+        <button type="button" className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('bulk')}>
           Create Feature
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('studio')}>
+        <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('studio')}>
           Open PBI Studio
         </button>
       </div>
@@ -593,7 +614,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
               {featureDrafts.length === 0 && features.length === 0 && epics.length === 0 && stories.length > 0 && (
                 <div className="rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}>
                   No features yet.{' '}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onNavigate('bulk')}>
+                  <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('bulk')}>
                     Create your first feature
                   </button>{' '}
                   to break work into stories.
