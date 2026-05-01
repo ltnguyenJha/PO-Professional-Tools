@@ -17,7 +17,12 @@ const vscode = {
   ViewColumn: { One: 1 },
   workspace: {
     getConfiguration: jest.fn(() => ({ get: jest.fn() })),
+    onDidChangeWorkspaceFolders: jest.fn(() => ({ dispose: jest.fn() })),
   },
+  env: {
+    openExternal: jest.fn(),
+  },
+  CancellationTokenSource: jest.fn(() => ({ token: {}, dispose: jest.fn() })),
 };
 
 module.exports = vscode;
