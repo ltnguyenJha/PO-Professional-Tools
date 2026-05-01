@@ -75,6 +75,16 @@ export interface EpicDraft {
   aiGeneratedFeatures?: boolean;
   /** ISO date string (YYYY-MM-DD). Optional target completion date. */
   targetDate?: string;
+  /** T-shirt size estimate (XS/S/M/L/XL/XXL) */
+  tShirtSize?: string;
+  /** ADO area path for this epic */
+  area?: string;
+  /** ADO iteration path for this epic */
+  iteration?: string;
+  /** Reference ADO board URL for this epic */
+  epicUrl?: string;
+  /** Story point effort estimate */
+  effort?: number;
 }
 
 /** Files to upload as Azure DevOps work item attachments (diagrams, mermaid, etc.). */
@@ -378,6 +388,11 @@ export type WebviewRequest =
         estimatedVelocity?: number;
         targetDate?: string;
         aiGeneratedFeatures?: boolean;
+        tShirtSize?: string;
+        area?: string;
+        iteration?: string;
+        epicUrl?: string;
+        effort?: number;
       };
     }
   | { type: 'UPDATE_EPIC_DRAFT'; payload: EpicDraft }

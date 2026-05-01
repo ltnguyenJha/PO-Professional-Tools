@@ -26,8 +26,8 @@
   FEATURE_PUSHED: { childCount, failedIds } -> { adoWorkItemId?, childAdoIds, hierarchyStatus }
 - FeatureCreationWizard.tsx has local `FeaturePushedResult` interface that must be kept in sync with FEATURE_PUSHED payload
 
-### pickModel() fallback chain (2026-04-24)
-`vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a three-pass fallback: `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw.
+### pickModel() fallback chain (updated 2026-05-01)
+`vscode.lm.selectChatModels({ vendor: 'copilot' })` can return an empty array in org environments with custom LM providers or when the model list hasn't loaded. The robust pattern is a four-pass fallback: `{ vendor:'copilot', family:'gpt-5.4' }` → `{ vendor:'copilot', family:'gpt-4o' }` → `{ vendor:'copilot' }` → `{}` (any available model). The `preferred` find chain mirrors this order: `gpt-5.4` > `gpt-4o` > `gpt-4` > `models[0]`. On total failure, use `vscode.window.showErrorMessage` with an actionable button rather than a silent throw. User preference: always try the newest/highest capable model first, with safe fallbacks below.
 
 ### CancellationTokenSource lifecycle in DashboardPanel handlers (2026-04-24)
 `new vscode.CancellationTokenSource().token` leaks the source object (it is never disposed). Always store the source: `const cts = new vscode.CancellationTokenSource()`, pass `cts.token` to service calls, and call `cts.dispose()` in the `finally` block so the underlying VS Code resource is released regardless of success or error.

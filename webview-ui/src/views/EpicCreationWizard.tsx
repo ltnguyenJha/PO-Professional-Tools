@@ -3,8 +3,6 @@ import type {
   EpicDraft,
   ExtensionEvent,
   WebviewRequest,
-  ImportedProject,
-  HierarchyStatus,
 } from '../types';
 import { LoadingBar } from '../components/LoadingBar';
 
@@ -15,6 +13,20 @@ interface GeneratedFeature {
   title: string;
   description: string;
 }
+
+interface EpicDefaults {
+  defaultArea: string;
+  defaultIteration: string;
+  defaultUrl: string;
+}
+
+const EPIC_DEFAULTS_KEY = 'po-tools:epicDefaults';
+
+const DEFAULT_EPIC_SETTINGS: EpicDefaults = {
+  defaultArea: 'iPay_Scrum\\P3 Portfolio',
+  defaultIteration: 'iPay_Scrum\\P3 Portfolio',
+  defaultUrl: 'https://dev.azure.com/JHA-11/iPay_Scrum/_boards/board/t/Umbrella%20Corp/Backlog%20items',
+};
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -28,10 +40,9 @@ export interface EpicCreationWizardProps {
 
 const STEPS = [
   { num: 1, label: 'Epic Overview' },
-  { num: 2, label: 'Context & Repos' },
-  { num: 3, label: 'AI Generation' },
-  { num: 4, label: 'Review & Edit' },
-  { num: 5, label: 'Confirm & Save' },
+  { num: 2, label: 'AI Generation' },
+  { num: 3, label: 'Review & Edit' },
+  { num: 4, label: 'Confirm & Save' },
 ];
 
 const MAX_OBJECTIVES = 7;
@@ -85,20 +96,38 @@ function StepIndicator({ current }: { current: number }) {
 
 // ─── Step 1: Epic Overview ────────────────────────────────────────────────────
 
+const T_SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+
 function Step1Overview({
   title, setTitle,
   description, setDescription,
   scope, setScope,
   objectives, setObjectives,
+  targetDate, setTargetDate,
+  tShirtSize, setTShirtSize,
+  effort, setEffort,
+  url, setUrl,
+  area, setArea,
+  iteration, setIteration,
+  epicDefaults, setEpicDefaults,
   touched, setTouched,
 }: {
   title: string; setTitle: (v: string) => void;
   description: string; setDescription: (v: string) => void;
   scope: string; setScope: (v: string) => void;
   objectives: string[]; setObjectives: (v: string[]) => void;
+  targetDate: string; setTargetDate: (v: string) => void;
+  tShirtSize: string; setTShirtSize: (v: string) => void;
+  effort: string; setEffort: (v: string) => void;
+  url: string; setUrl: (v: string) => void;
+  area: string; setArea: (v: string) => void;
+  iteration: string; setIteration: (v: string) => void;
+  epicDefaults: EpicDefaults; setEpicDefaults: (d: EpicDefaults) => void;
   touched: Set<string>;
   setTouched: (fn: (prev: Set<string>) => Set<string>) => void;
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const titleError = touched.has('title') && title.trim().length < 3
     ? 'Title must be at least 3 characters'
     : undefined;
@@ -122,6 +151,11 @@ function Step1Overview({
     const next = [...objectives];
     next[idx] = value;
     setObjectives(next);
+  };
+
+  const saveDefaults = (next: EpicDefaults) => {
+    setEpicDefaults(next);
+    try { localStorage.setItem(EPIC_DEFAULTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   };
 
   return (
@@ -270,137 +304,224 @@ function Step1Overview({
           </button>
         )}
       </div>
-    </div>
-  );
-}
 
-// ─── Step 2: Context & Repos ──────────────────────────────────────────────────
+      {/* ── ADO Fields ────────────────────────────────────────────── */}
+      <div
+        className="pt-3 border-t space-y-4"
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          ADO Details <span className="font-normal normal-case">(optional)</span>
+        </p>
 
-function Step2Context({
-  repos,
-  selectedRepoIds, setSelectedRepoIds,
-}: {
-  repos: ImportedProject[];
-  selectedRepoIds: string[];
-  setSelectedRepoIds: (ids: string[]) => void;
-}) {
-  const [repoSearch, setRepoSearch] = useState('');
-
-  const filtered = repoSearch.trim()
-    ? repos.filter(
-        (r) =>
-          r.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
-          r.path.toLowerCase().includes(repoSearch.toLowerCase()),
-      )
-    : repos;
-
-  const toggleRepo = (path: string) => {
-    setSelectedRepoIds(
-      selectedRepoIds.includes(path)
-        ? selectedRepoIds.filter((x) => x !== path)
-        : [...selectedRepoIds, path],
-    );
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-sm font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>
-            Select repos for AI context
+        {/* Target Date */}
+        <div>
+          <label htmlFor="epic-target-date" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+            Target Date
+            <span className="ml-1 text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(sets Target Date in ADO)</span>
           </label>
-          <div className="flex gap-2">
+          <input
+            id="epic-target-date"
+            type="date"
+            className="rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+          />
+        </div>
+
+        {/* T-Shirt Size + Effort */}
+        <div className="flex gap-3 flex-wrap">
+          <div className="flex-1 min-w-[140px]">
+            <label htmlFor="epic-tshirt" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+              T-Shirt Size
+            </label>
+            <select
+              id="epic-tshirt"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+              style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+              value={tShirtSize}
+              onChange={(e) => setTShirtSize(e.target.value)}
+            >
+              <option value="">— Select —</option>
+              {T_SHIRT_SIZES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[140px]">
+            <label htmlFor="epic-effort" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+              Effort <span className="text-xs font-normal" style={{ color: 'var(--tw-vscode-fg-muted)' }}>(story points)</span>
+            </label>
+            <input
+              id="epic-effort"
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+              style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+              value={effort}
+              placeholder="e.g. 40"
+              onChange={(e) => setEffort(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Area */}
+        <div>
+          <label htmlFor="epic-area" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+            Area Path
+          </label>
+          <input
+            id="epic-area"
+            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+            value={area}
+            placeholder={epicDefaults.defaultArea || 'e.g. MyProject\\Team'}
+            maxLength={300}
+            onChange={(e) => setArea(e.target.value)}
+          />
+        </div>
+
+        {/* Iteration */}
+        <div>
+          <label htmlFor="epic-iteration" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+            Iteration Path
+          </label>
+          <input
+            id="epic-iteration"
+            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+            value={iteration}
+            placeholder={epicDefaults.defaultIteration || 'e.g. MyProject\\Sprint 1'}
+            maxLength={300}
+            onChange={(e) => setIteration(e.target.value)}
+          />
+        </div>
+
+        {/* URL */}
+        <div>
+          <label htmlFor="epic-url" className="block text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+            ADO URL
+          </label>
+          <input
+            id="epic-url"
+            type="url"
+            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent outline-none focus:ring-1 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+            style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+            value={url}
+            placeholder={epicDefaults.defaultUrl || 'https://dev.azure.com/...'}
+            maxLength={1000}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* ── Settings Accordion ────────────────────────────────────── */}
+      <div
+        className="rounded-md border overflow-hidden"
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+      >
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+          style={{ background: 'var(--tw-vscode-bg-alt)' }}
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          aria-expanded={settingsOpen}
+          aria-controls="epic-settings-panel"
+        >
+          <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            <span aria-hidden="true">⚙</span> Settings — default values
+          </span>
+          <span
+            style={{
+              display: 'inline-block',
+              transform: settingsOpen ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.15s',
+              fontSize: '0.6rem',
+              color: 'var(--tw-vscode-fg-muted)',
+            }}
+            aria-hidden="true"
+          >
+            ▶
+          </span>
+        </button>
+        <div
+          id="epic-settings-panel"
+          className={`overflow-hidden transition-all duration-200 ease-out ${settingsOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}
+          aria-hidden={!settingsOpen}
+        >
+          <div className="px-3 py-3 space-y-3 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
+            <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              Defaults pre-fill Area, Iteration, and URL each time you create an Epic. Changes save automatically.
+            </p>
+
+            <div>
+              <label htmlFor="epic-default-area" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Default Area Path
+              </label>
+              <input
+                id="epic-default-area"
+                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                value={epicDefaults.defaultArea}
+                placeholder="e.g. iPay_Scrum\P3 Portfolio"
+                maxLength={300}
+                onChange={(e) => saveDefaults({ ...epicDefaults, defaultArea: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="epic-default-iteration" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Default Iteration Path
+              </label>
+              <input
+                id="epic-default-iteration"
+                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                value={epicDefaults.defaultIteration}
+                placeholder="e.g. iPay_Scrum\P3 Portfolio"
+                maxLength={300}
+                onChange={(e) => saveDefaults({ ...epicDefaults, defaultIteration: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="epic-default-url" className="block text-xs font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+                Default ADO URL
+              </label>
+              <input
+                id="epic-default-url"
+                type="url"
+                className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
+                style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
+                value={epicDefaults.defaultUrl}
+                placeholder="https://dev.azure.com/..."
+                maxLength={1000}
+                onChange={(e) => saveDefaults({ ...epicDefaults, defaultUrl: e.target.value })}
+              />
+            </div>
+
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSelectedRepoIds(repos.map((r) => r.path))}
+              className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
+              onClick={() => {
+                setArea(epicDefaults.defaultArea);
+                setIteration(epicDefaults.defaultIteration);
+                setUrl(epicDefaults.defaultUrl);
+              }}
             >
-              Select all
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSelectedRepoIds([])}
-            >
-              Clear all
+              ↓ Apply defaults to form
             </button>
           </div>
         </div>
-        <p className="text-xs mb-2" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-          Selected repos provide codebase context for AI feature generation.
-        </p>
-        <input
-          className="w-full rounded-md border px-3 py-1.5 text-sm bg-transparent outline-none mb-2 focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none transition-colors duration-200"
-          style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
-          placeholder="🔍 Search repos..."
-          aria-label="Search repositories"
-          value={repoSearch}
-          onChange={(e) => setRepoSearch(e.target.value)}
-        />
-        <div
-          className="rounded-md border overflow-y-auto"
-          style={{ borderColor: 'var(--tw-vscode-border)', maxHeight: '200px' }}
-        >
-          {repos.length === 0 ? (
-            <p className="px-3 py-4 text-xs text-center" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-              No repos imported yet.{' '}
-              <span style={{ color: 'var(--tw-vscode-accent)' }}>Import a project</span> in the
-              Projects view.
-              <br />
-              You can still generate features without codebase context.
-            </p>
-          ) : filtered.length === 0 ? (
-            <p className="px-3 py-3 text-xs text-center" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-              No repos match "{repoSearch}".{' '}
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRepoSearch('')}>
-                Clear search
-              </button>
-            </p>
-          ) : (
-            filtered.map((repo) => (
-              <label
-                key={repo.path}
-                className="flex items-center gap-2.5 px-3 py-2 min-h-[44px] border-b last:border-b-0 cursor-pointer hover:opacity-80 transition-colors duration-150"
-                style={{
-                  borderColor: 'var(--tw-vscode-border)',
-                  background: selectedRepoIds.includes(repo.path) ? 'var(--tw-epic-bg)' : undefined,
-                }}
-                title={repo.path}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedRepoIds.includes(repo.path)}
-                  onChange={() => toggleRepo(repo.path)}
-                  className="shrink-0 w-4 h-4 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
-                  aria-label={`Select repository ${repo.name}`}
-                />
-                <span className="flex-1 min-w-0">
-                  <span
-                    className="text-sm font-medium block truncate"
-                    style={{ color: 'var(--tw-vscode-fg)' }}
-                  >
-                    {repo.name}
-                  </span>
-                  <span
-                    className="text-xs block truncate"
-                    style={{ color: 'var(--tw-vscode-fg-muted)' }}
-                  >
-                    {repo.path}
-                  </span>
-                </span>
-              </label>
-            ))
-          )}
-        </div>
-        <p className="text-xs mt-1" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-          {selectedRepoIds.length} selected
-        </p>
       </div>
     </div>
   );
 }
 
-// ─── Step 3: AI Feature Generation ────────────────────────────────────────────
+// ─── Step 2: AI Feature Generation ───────────────────────────────────────────
 
 function Step3Generation({
   epicTitle,
@@ -904,17 +1025,31 @@ export function EpicCreationWizard({
   const [objectives, setObjectives] = useState(['', '', '']);
   const [touched, setTouched] = useState<Set<string>>(new Set());
 
-  // Step 2 fields
-  const [repos, setRepos] = useState<ImportedProject[]>([]);
-  const [selectedRepoIds, setSelectedRepoIds] = useState<string[]>([]);
+  // Step 1 ADO detail fields
+  const [targetDate, setTargetDate] = useState('');
+  const [tShirtSize, setTShirtSize] = useState('');
+  const [effort, setEffort] = useState('');
+  const [url, setUrl] = useState('');
+  const [area, setArea] = useState('');
+  const [iteration, setIteration] = useState('');
 
-  // Step 3
+  // Epic defaults (persisted in localStorage)
+  const [epicDefaults, setEpicDefaults] = useState<EpicDefaults>(() => {
+    try {
+      const stored = localStorage.getItem(EPIC_DEFAULTS_KEY);
+      return stored ? { ...DEFAULT_EPIC_SETTINGS, ...JSON.parse(stored) } : DEFAULT_EPIC_SETTINGS;
+    } catch {
+      return DEFAULT_EPIC_SETTINGS;
+    }
+  });
+
+  // Step 2: AI Generation
   const [generationBusy, setGenerationBusy] = useState(false);
   const [generationError, setGenerationError] = useState<string | undefined>();
   const [generatedFeatures, setGeneratedFeatures] = useState<GeneratedFeature[]>([]);
   const generationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Step 5
+  // Step 4: Confirm & Save
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | undefined>();
   const [savePhase, setSavePhase] = useState('');
@@ -927,15 +1062,11 @@ export function EpicCreationWizard({
 
   // Refs for latest values in async message handler
   const generatedFeaturesRef = useRef<GeneratedFeature[]>([]);
-  const selectedRepoIdsRef = useRef<string[]>([]);
-  const reposRef = useRef<ImportedProject[]>([]);
   const pendingActionRef = useRef<'draft' | 'push' | null>(null);
   const prefilledRef = useRef(false);
 
-  // Keep refs in sync with state
+  // Keep ref in sync with state
   generatedFeaturesRef.current = generatedFeatures;
-  selectedRepoIdsRef.current = selectedRepoIds;
-  reposRef.current = repos;
 
   // Focus first element on step change
   useEffect(() => {
@@ -958,7 +1089,6 @@ export function EpicCreationWizard({
 
       if (message.type === 'STATE_UPDATED') {
         const s = message.payload;
-        setRepos(s.linkTargets ?? s.projects);
         // Pre-fill in edit mode (only once)
         if (epicId && !prefilledRef.current) {
           const epic = s.epicDrafts.find((e) => e.id === epicId);
@@ -967,7 +1097,12 @@ export function EpicCreationWizard({
             setDescription(epic.description);
             setScope(epic.scope ?? '');
             setObjectives(epic.objectives.length > 0 ? epic.objectives : ['', '', '']);
-            setSelectedRepoIds(epic.selectedRepoIds);
+            if (epic.targetDate) setTargetDate(epic.targetDate);
+            if (epic.tShirtSize) setTShirtSize(epic.tShirtSize);
+            if (epic.effort != null) setEffort(String(epic.effort));
+            if (epic.area) setArea(epic.area);
+            if (epic.iteration) setIteration(epic.iteration);
+            if (epic.epicUrl) setUrl(epic.epicUrl);
             prefilledRef.current = true;
           }
         }
@@ -987,6 +1122,7 @@ export function EpicCreationWizard({
           setGenerationBusy(false);
           setGenerationError(undefined);
           setGeneratedFeatures(payload.suggestions);
+          setStep(3);
         }
         return;
       }
@@ -1006,10 +1142,7 @@ export function EpicCreationWizard({
 
       if (message.type === 'EPIC_DRAFT_CREATED') {
         const createdEpic = message.payload as EpicDraft;
-        // Create feature drafts linked to this epic
-        const allRepos = reposRef.current;
-        const selPaths = selectedRepoIdsRef.current;
-        const repoIds = allRepos.filter((r) => selPaths.includes(r.path)).map((r) => r.id);
+        // Create feature drafts linked to this epic (no repo context)
         for (const feature of generatedFeaturesRef.current) {
           const featureLocalId = `feature-epic-${Date.now()}-${Math.random()
             .toString(36)
@@ -1020,7 +1153,7 @@ export function EpicCreationWizard({
               id: featureLocalId,
               title: feature.title,
               description: feature.description,
-              repoIds,
+              repoIds: [],
               parentEpicId: createdEpic.id,
               childPbiIds: [],
             },
@@ -1067,14 +1200,13 @@ export function EpicCreationWizard({
 
   const canGoNext = (): boolean => {
     if (step === 1) return step1Valid;
-    if (step === 2) return true;
-    if (step === 3) return generatedFeatures.length > 0 && !generationBusy;
-    if (step === 4) return true;
+    if (step === 2) return generatedFeatures.length > 0 && !generationBusy;
+    if (step === 3) return true;
     return false;
   };
 
   const handleNext = () => {
-    if (step < 5) setStep(step + 1);
+    if (step < 4) setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -1104,10 +1236,6 @@ export function EpicCreationWizard({
       setGenerationError('Generation timed out — please try again');
     }, 30_000);
 
-    const allRepos = reposRef.current;
-    const selPaths = selectedRepoIdsRef.current;
-    const repoIds = allRepos.filter((r) => selPaths.includes(r.path)).map((r) => r.id);
-
     sendMsg({
       type: 'GENERATE_FEATURES_FROM_EPIC',
       payload: {
@@ -1116,30 +1244,33 @@ export function EpicCreationWizard({
         description: description.trim(),
         objectives: objectives.filter((o) => o.trim()),
         scope: scope.trim(),
-        selectedRepoIds: repoIds,
+        selectedRepoIds: [],
       },
     });
   };
+
+  const buildEpicPayload = () => ({
+    title: title.trim(),
+    description: description.trim(),
+    objectives: objectives.filter((o) => o.trim()),
+    scope: scope.trim(),
+    linkedFeatureIds: [],
+    selectedRepoIds: [],
+    aiGeneratedFeatures: generatedFeatures.length > 0,
+    targetDate: targetDate || undefined,
+    tShirtSize: tShirtSize || undefined,
+    effort: effort ? Number(effort) : undefined,
+    area: area.trim() || undefined,
+    iteration: iteration.trim() || undefined,
+    epicUrl: url.trim() || undefined,
+  });
 
   const handleSaveAsDraft = () => {
     setSaveBusy(true);
     setSaveError(undefined);
     setSavePhase('Creating Epic draft…');
     pendingActionRef.current = 'draft';
-    sendMsg({
-      type: 'CREATE_EPIC_DRAFT',
-      payload: {
-        title: title.trim(),
-        description: description.trim(),
-        objectives: objectives.filter((o) => o.trim()),
-        scope: scope.trim(),
-        linkedFeatureIds: [],
-        selectedRepoIds: repos
-          .filter((r) => selectedRepoIds.includes(r.path))
-          .map((r) => r.id),
-        aiGeneratedFeatures: generatedFeatures.length > 0,
-      },
-    });
+    sendMsg({ type: 'CREATE_EPIC_DRAFT', payload: buildEpicPayload() });
   };
 
   const handlePushToAdo = () => {
@@ -1147,20 +1278,7 @@ export function EpicCreationWizard({
     setSaveError(undefined);
     setSavePhase('Creating Epic draft…');
     pendingActionRef.current = 'push';
-    sendMsg({
-      type: 'CREATE_EPIC_DRAFT',
-      payload: {
-        title: title.trim(),
-        description: description.trim(),
-        objectives: objectives.filter((o) => o.trim()),
-        scope: scope.trim(),
-        linkedFeatureIds: [],
-        selectedRepoIds: repos
-          .filter((r) => selectedRepoIds.includes(r.path))
-          .map((r) => r.id),
-        aiGeneratedFeatures: generatedFeatures.length > 0,
-      },
-    });
+    sendMsg({ type: 'CREATE_EPIC_DRAFT', payload: buildEpicPayload() });
   };
 
   return (
@@ -1185,26 +1303,21 @@ export function EpicCreationWizard({
         <div className="min-h-[200px]">
           {step === 1 && (
             <Step1Overview
-              title={title}
-              setTitle={setTitle}
-              description={description}
-              setDescription={setDescription}
-              scope={scope}
-              setScope={setScope}
-              objectives={objectives}
-              setObjectives={setObjectives}
-              touched={touched}
-              setTouched={setTouched}
+              title={title} setTitle={setTitle}
+              description={description} setDescription={setDescription}
+              scope={scope} setScope={setScope}
+              objectives={objectives} setObjectives={setObjectives}
+              targetDate={targetDate} setTargetDate={setTargetDate}
+              tShirtSize={tShirtSize} setTShirtSize={setTShirtSize}
+              effort={effort} setEffort={setEffort}
+              url={url} setUrl={setUrl}
+              area={area} setArea={setArea}
+              iteration={iteration} setIteration={setIteration}
+              epicDefaults={epicDefaults} setEpicDefaults={setEpicDefaults}
+              touched={touched} setTouched={setTouched}
             />
           )}
           {step === 2 && (
-            <Step2Context
-              repos={repos}
-              selectedRepoIds={selectedRepoIds}
-              setSelectedRepoIds={setSelectedRepoIds}
-            />
-          )}
-          {step === 3 && (
             <Step3Generation
               epicTitle={title}
               generationBusy={generationBusy}
@@ -1214,10 +1327,10 @@ export function EpicCreationWizard({
               onGenerate={handleGenerate}
             />
           )}
-          {step === 4 && (
+          {step === 3 && (
             <Step4Review epicTitle={title} generatedFeatures={generatedFeatures} />
           )}
-          {step === 5 && (
+          {step === 4 && (
             <Step5Confirm
               title={title}
               description={description}
@@ -1239,7 +1352,7 @@ export function EpicCreationWizard({
           style={{ borderColor: 'var(--tw-vscode-border)' }}
         >
           <div className="flex flex-col sm:flex-row gap-2">
-            {step > 1 && step < 5 && (
+            {step > 1 && step < 4 && (
               <button
                 type="button"
                 className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
@@ -1248,11 +1361,11 @@ export function EpicCreationWizard({
                 ← Back
               </button>
             )}
-            {step === 4 && (
+            {step === 3 && (
               <button
                 type="button"
                 className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
               >
                 ← Back to Edit
               </button>
@@ -1265,7 +1378,7 @@ export function EpicCreationWizard({
               Cancel
             </button>
           </div>
-          {step < 5 && (
+          {step < 4 && (
             <button
               type="button"
               className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
@@ -1273,7 +1386,7 @@ export function EpicCreationWizard({
               disabled={!canGoNext()}
               onClick={handleNext}
             >
-              {step === 4 ? 'Continue to Save →' : 'Next →'}
+              {step === 3 ? 'Continue to Save →' : 'Next →'}
             </button>
           )}
         </div>

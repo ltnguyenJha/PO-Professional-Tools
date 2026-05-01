@@ -271,10 +271,9 @@ button {
   font-weight: 600;
 }
 
-/* Epic nav item: violet active accent */
+/* Epic nav item: use same teal active accent as rest of sidebar */
 .nav-item[data-navid="epic-creation"][aria-current="page"] {
-  background: rgba(109, 40, 217, 0.14);
-  color: #a78bfa;   /* violet-400 — readable on dark sidebar */
+  background: var(--sidebar-active);
   font-weight: 600;
 }
 
