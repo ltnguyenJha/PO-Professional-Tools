@@ -135,3 +135,12 @@ The legacy system (`styles.css`) and Tailwind bridge can coexist indefinitely as
 
 All patterns documented in Rusty's decision entry for team reference.
 
+### Epic Creation Visual Design (2026-04-30)
+- Hierarchy visual language: Epic=violet, Feature=blue, PBI=green (left-border color system)
+- Status badges: consistent 4-state system (draft=slate, ready=blue, partial=amber, pushed=green)
+- Empty states: always include a primary CTA in the empty state (don't just show "nothing here")
+- Light mode WCAG AA: violet-600 on white = ~5.2:1 contrast ratio ✅; used violet-700 (`#6d28d9`) as the light-mode `--tw-epic` override for extra safety
+- Dashboard nested cards: parent accordion (Epic, violet border-l-4) → child rows (Feature, blue border-l-2) → not further nested (PBI count only)
+- CSS variable pattern for tier accents: add `--tw-epic` / `--tw-epic-bg` / `--tw-epic-fg` / `--tw-epic-muted` / `--tw-epic-border` to tailwind.css + matching color tokens in tailwind.config.js; then use as inline styles for theme-adaptive violet
+- Button inline style override: use `style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}` alongside `btn btn-primary` to restyle without class duplication
+- Sidebar epic nav: add `data-navid={entry.id}` to nav buttons, then style `[data-navid="epic-creation"][aria-current="page"]` in styles.css with violet — no TypeScript logic changes needed
