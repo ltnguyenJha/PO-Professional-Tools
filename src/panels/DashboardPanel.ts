@@ -1280,7 +1280,14 @@ export class DashboardPanel {
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[PO Tools] Test plan workflow failed:', msg);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test plan workflow failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        stack: err instanceof Error ? err.stack : undefined
+      });
       const userMsg = msg.includes('401')
         ? 'Test plan setup requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
         : `Test plan setup failed (PBI pushed successfully): ${msg}`;
@@ -1373,7 +1380,14 @@ export class DashboardPanel {
       this.postToast('success', `Added ${testCaseIds.length} new test case(s) to existing suite.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[PO Tools] Test case refinement failed:', msg);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test case refinement failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        stack: err instanceof Error ? err.stack : undefined
+      });
       const userMsg = msg.includes('401')
         ? 'Test case update requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
         : `Test case update failed (PBI updated successfully): ${msg}`;
