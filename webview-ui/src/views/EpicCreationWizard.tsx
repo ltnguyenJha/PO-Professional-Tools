@@ -50,15 +50,15 @@ function StepIndicator({ current }: { current: number }) {
             {idx > 0 && (
               <div
                 className="h-px w-4 shrink-0"
-                style={{ background: isDone ? 'var(--tw-vscode-accent)' : 'var(--tw-vscode-border)' }}
+                style={{ background: isDone ? 'var(--tw-epic)' : 'var(--tw-vscode-border)' }}
               />
             )}
             <div className="flex items-center gap-1.5">
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors"
                 style={{
-                  background: isDone || isActive ? 'var(--tw-vscode-accent)' : 'var(--tw-vscode-bg-alt)',
-                  color: isDone || isActive ? 'var(--tw-vscode-accent-fg)' : 'var(--tw-vscode-fg-muted)',
+                  background: isActive ? 'var(--tw-epic)' : isDone ? 'var(--tw-epic-muted)' : 'var(--tw-vscode-bg-alt)',
+                  color: isActive ? 'var(--tw-epic-fg)' : isDone ? 'var(--tw-epic)' : 'var(--tw-vscode-fg-muted)',
                   border: isDone || isActive ? 'none' : '1.5px solid var(--tw-vscode-border)',
                 }}
                 aria-label={`Step ${step.num}: ${step.label}${isDone ? ' (completed)' : isActive ? ' (current)' : ''}`}
@@ -263,6 +263,7 @@ function Step1Overview({
           <button
             type="button"
             className="btn btn-ghost btn-sm mt-2 min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
             onClick={addObjective}
           >
             + Add objective
@@ -360,7 +361,10 @@ function Step2Context({
               <label
                 key={repo.path}
                 className="flex items-center gap-2.5 px-3 py-2 min-h-[44px] border-b last:border-b-0 cursor-pointer hover:opacity-80 transition-colors duration-150"
-                style={{ borderColor: 'var(--tw-vscode-border)' }}
+                style={{
+                  borderColor: 'var(--tw-vscode-border)',
+                  background: selectedRepoIds.includes(repo.path) ? 'var(--tw-epic-bg)' : undefined,
+                }}
                 title={repo.path}
               >
                 <input
@@ -492,6 +496,7 @@ function Step3Generation({
           <button
             type="button"
             className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
             onClick={onGenerate}
           >
             ← Try again
@@ -526,6 +531,7 @@ function Step3Generation({
         <button
           type="button"
           className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
           onClick={onGenerate}
         >
           ✨ Generate Features
@@ -544,6 +550,7 @@ function Step3Generation({
         <button
           type="button"
           className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
           onClick={onGenerate}
         >
           🔄 Regenerate
@@ -554,7 +561,7 @@ function Step3Generation({
           <div
             key={feature.clientId}
             className="rounded-md border px-3 py-3 space-y-2"
-            style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg)' }}
+            style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-vscode-bg)' }}
           >
             <div className="flex items-start gap-2">
               <span
@@ -605,6 +612,7 @@ function Step3Generation({
       <button
         type="button"
         className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+        style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
         onClick={addFeatureManually}
       >
         + Add Feature manually
@@ -645,7 +653,7 @@ function Step4Review({
       >
         <span
           className="rounded px-1.5 py-0.5 font-medium text-xs"
-          style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+          style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
         >
           Epic
         </span>
@@ -666,7 +674,7 @@ function Step4Review({
             <div
               key={feature.clientId}
               className="rounded-md overflow-hidden border"
-              style={{ borderColor: 'var(--tw-vscode-border)' }}
+              style={{ borderColor: 'var(--tw-vscode-border)', borderLeft: '2px solid var(--tw-epic)' }}
             >
               <button
                 type="button"
@@ -766,7 +774,7 @@ function Step5Confirm({
       {/* Summary card */}
       <div
         className="rounded-md border px-4 py-4 space-y-3"
-        style={{ background: 'var(--tw-vscode-bg-alt)', borderColor: 'var(--tw-vscode-border)' }}
+        style={{ background: 'var(--tw-epic-bg)', borderColor: 'var(--tw-epic-border)', borderLeft: '4px solid var(--tw-epic)' }}
       >
         <div>
           <p className="text-xs uppercase tracking-wider font-semibold mb-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -815,7 +823,7 @@ function Step5Confirm({
         >
           <span
             className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-            style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+            style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
           >
             {generatedFeatures.length} Feature{generatedFeatures.length !== 1 ? 's' : ''}
           </span>
@@ -852,6 +860,7 @@ function Step5Confirm({
         <button
           type="button"
           className="btn btn-ghost min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ borderColor: 'var(--tw-epic)', color: 'var(--tw-epic)' }}
           disabled={saveBusy}
           onClick={onSaveAsDraft}
         >
@@ -860,6 +869,7 @@ function Step5Confirm({
         <button
           type="button"
           className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
           disabled={saveBusy}
           onClick={onPushToAdo}
         >
@@ -1155,7 +1165,7 @@ export function EpicCreationWizard({
 
   return (
     <div className="content">
-      <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
+      <div className="card" style={{ maxWidth: 680, margin: '0 auto', borderLeft: '4px solid var(--tw-epic)' }}>
         <StepIndicator current={step} />
 
         <div className="mb-4">
@@ -1259,6 +1269,7 @@ export function EpicCreationWizard({
             <button
               type="button"
               className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
               disabled={!canGoNext()}
               onClick={handleNext}
             >

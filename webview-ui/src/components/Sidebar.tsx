@@ -41,6 +41,7 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
           <button
             key={entry.id}
             className="nav-item"
+            data-navid={entry.id}
             aria-current={active === entry.id ? 'page' : undefined}
             aria-label={`Navigate to ${entry.label}`}
             onClick={() => onNavigate(entry.id)}

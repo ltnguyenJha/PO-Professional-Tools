@@ -81,10 +81,17 @@
 
   /* Focus ring */
   --tw-vscode-focus: var(--vscode-focusBorder, #007fd4);
+
+  /* ── Epic tier — violet accent (dark/default) ───────────────── */
+  --tw-epic:         #7c3aed;
+  --tw-epic-bg:      rgba(124, 58, 237, 0.15);
+  --tw-epic-fg:      #ffffff;
+  --tw-epic-muted:   #ddd6fe;
+  --tw-epic-border:  rgba(124, 58, 237, 0.45);
 }
 
 /* ----------------------------------------------------------------
-   Light theme overrides — ALL bridge variables re-declared with
+   Light theme overrides— ALL bridge variables re-declared with
    light-safe tokens and fallbacks.  In VS Code light themes:
    - panel-border can be transparent → use widget-border fallback
    - sidebar-background can match editor-background → add gray fallback
@@ -138,6 +145,12 @@ body.vscode-light {
 
   /* Focus ring */
   --tw-vscode-focus: var(--vscode-focusBorder, #0090f1);
+
+  /* ── Epic tier light overrides — violet-700 = 5.3:1 on white ✅ */
+  --tw-epic:         #6d28d9;
+  --tw-epic-bg:      rgba(109, 40, 217, 0.08);
+  --tw-epic-muted:   #ede9fe;
+  --tw-epic-border:  rgba(109, 40, 217, 0.35);
 }
 
 body.vscode-high-contrast {

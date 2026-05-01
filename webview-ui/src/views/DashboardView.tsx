@@ -389,8 +389,12 @@ function FeatureMiniCard({
 }) {
   return (
     <div
-      className="flex items-center gap-2 rounded-md px-2.5 py-2 border"
-      style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg)' }}
+      className="flex items-center gap-2 rounded-md px-2.5 py-2 border ml-4"
+      style={{
+        borderColor: 'var(--tw-vscode-border)',
+        background: 'var(--tw-vscode-bg)',
+        borderLeft: '2px solid var(--tw-vscode-info)',
+      }}
     >
       <span
         className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
@@ -434,7 +438,7 @@ function EpicDraftCard({
   return (
     <div
       className="rounded-lg overflow-hidden border"
-      style={{ borderColor: 'var(--tw-vscode-border)' }}
+      style={{ borderColor: 'var(--tw-vscode-border)', borderLeftWidth: '4px', borderLeftColor: 'var(--tw-epic)' }}
     >
       <button
         type="button"
@@ -447,7 +451,7 @@ function EpicDraftCard({
         <ChevronIcon open={expanded} />
         <span
           className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
-          style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+          style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
         >
           Epic
         </span>
@@ -491,8 +495,8 @@ function EpicDraftCard({
         aria-hidden={!expanded}
       >
         {linkedFeatures.length === 0 ? (
-          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-            No features linked to this Epic yet.
+          <p className="px-3 py-2 text-xs italic" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            No features yet — Edit Epic to add features.
           </p>
         ) : (
           <div className="px-3 py-2 space-y-2">
@@ -536,14 +540,15 @@ function EpicsSection({
       {/* Section header */}
       <div className="flex items-center justify-between px-1 mb-1">
         <h2
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--tw-vscode-fg-muted)' }}
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+          style={{ color: 'var(--tw-epic)' }}
         >
-          Epics
+          <span aria-hidden="true">⬟</span> Epics
         </h2>
         <button
           type="button"
           className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
           onClick={onCreateEpic}
           aria-label="Create a new Epic"
         >
@@ -554,8 +559,9 @@ function EpicsSection({
       {epicDrafts.length === 0 ? (
         <div
           className="rounded-lg border px-4 py-5 flex flex-col items-center text-center"
-          style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)' }}
+          style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-epic-bg)' }}
         >
+          <div className="text-3xl mb-2 select-none" aria-hidden="true" style={{ color: 'var(--tw-epic)', opacity: 0.4 }}>⬟</div>
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
             No Epics yet
           </p>
@@ -565,6 +571,7 @@ function EpicsSection({
           <button
             type="button"
             className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
             onClick={onCreateEpic}
           >
             Create Epic
@@ -868,7 +875,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                       className="text-xs font-semibold uppercase tracking-wider px-1"
                       style={{ color: 'var(--tw-vscode-fg-muted)' }}
                     >
-                      Orphaned Features
+                      Standalone Features
                     </h3>
                   )}
                   {orphanedFeatureDrafts.map((feature) => {
