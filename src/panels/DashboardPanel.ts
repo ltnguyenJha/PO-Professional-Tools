@@ -1648,18 +1648,22 @@ export class DashboardPanel {
       });
       this.postAdoProgress({ busy: true, message: 'Pushing Epic to Azure DevOps…', scope: 'single' });
 
+      const epicFeatures = pushChildren
+        ? this.getFeatureDrafts().filter((f) => epic.linkedFeatureIds.includes(f.id) || f.parentEpicId === epic.id)
+        : [];
+
       const result = await this.adoService.pushEpicHierarchy(
         settings,
         pat,
         epic,
-        pushChildren ? this.getFeatureDrafts().filter((f) => epic.linkedFeatureIds.includes(f.id)) : [],
+        epicFeatures,
         pushChildren
       );
 
       const now = new Date().toISOString();
-      const allFeaturesLinked = epic.linkedFeatureIds.length === 0 || result.featureResults.length >= epic.linkedFeatureIds.length;
+      const allFeaturesLinked = epicFeatures.length === 0 || result.featureResults.length >= epicFeatures.length;
       const hierarchyStatus: HierarchyStatus =
-        epic.linkedFeatureIds.length === 0
+        epicFeatures.length === 0
           ? 'pushed'
           : result.featureErrors.length === 0 && allFeaturesLinked
           ? 'pushed'
@@ -1732,6 +1736,20 @@ export class DashboardPanel {
     };
     const features = this.getFeatureDrafts();
     await this.saveFeatureDrafts([...features, feature]);
+
+    if (payload.parentEpicId) {
+      const epics = this.getEpicDrafts();
+      const epicIdx = epics.findIndex((e) => e.id === payload.parentEpicId);
+      if (epicIdx !== -1 && !epics[epicIdx].linkedFeatureIds.includes(feature.id)) {
+        epics[epicIdx] = {
+          ...epics[epicIdx],
+          linkedFeatureIds: [...epics[epicIdx].linkedFeatureIds, feature.id],
+          updatedAt: now
+        };
+        await this.saveEpicDrafts(epics);
+      }
+    }
+
     this.post({ type: 'FEATURE_DRAFT_CREATED', payload: feature });
     await this.postState();
   }

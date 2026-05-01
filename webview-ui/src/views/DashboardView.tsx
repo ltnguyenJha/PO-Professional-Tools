@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AppStatePayload, PbiDraft, FeatureDraft, EpicDraft, HierarchyStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { vscodeApi } from '../utils/useVsCodeApi';
 
 interface Props {
   state: AppStatePayload;
@@ -412,17 +413,16 @@ function FeatureMiniCard({
         </span>
       )}
       {feature.adoWorkItemUrl && (
-        <a
-          href={feature.adoWorkItemUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] rounded"
+        <button
+          type="button"
+          className="text-xs shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] rounded border-0 bg-transparent cursor-pointer p-0"
           style={{ color: 'var(--tw-vscode-fg-muted)' }}
           title="View in Azure DevOps"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: feature.adoWorkItemUrl! } }); }}
+          aria-label="View Feature in Azure DevOps"
         >
           ↗
-        </a>
+        </button>
       )}
     </div>
   );
@@ -490,17 +490,15 @@ function EpicDraftCard({
           ✏ Edit
         </button>
         {epic.adoUrl && (
-          <a
-            href={epic.adoUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: epic.adoUrl! } }); }}
             title="View Epic in Azure DevOps"
             aria-label={`View Epic in Azure DevOps: ${epic.title}`}
           >
             ↗ ADO
-          </a>
+          </button>
         )}
         {epic.status !== 'pushed' && (
           <button
@@ -687,17 +685,15 @@ function FeatureDraftCard({
           </button>
         )}
         {feature.adoWorkItemUrl && (
-          <a
-            href={feature.adoWorkItemUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: feature.adoWorkItemUrl! } }); }}
             title="View Feature in Azure DevOps"
             aria-label={`View Feature in Azure DevOps: ${feature.title}`}
           >
             ↗ ADO
-          </a>
+          </button>
         )}
       </button>
 
