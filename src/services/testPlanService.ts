@@ -77,7 +77,8 @@ export class TestPlanService {
     iterationPath: string
   ): Promise<{ planId: number; rootSuiteId: number }> {
     const connection = this.createConnection(settings, pat);
-    const testPlanApi = await connection.getTestPlanApi();
+    const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
+    const testPlanApi = await connection.getTestPlanApi(orgUrl);
 
     // Paginate through all plans to find a match by name
     let continuationToken: string | undefined;
@@ -117,7 +118,8 @@ export class TestPlanService {
     suiteName: string
   ): Promise<number> {
     const connection = this.createConnection(settings, pat);
-    const testPlanApi = await connection.getTestPlanApi();
+    const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
+    const testPlanApi = await connection.getTestPlanApi(orgUrl);
 
     const suite = await testPlanApi.createTestSuite(
       {
@@ -197,7 +199,8 @@ export class TestPlanService {
       return;
     }
     const connection = this.createConnection(settings, pat);
-    const testPlanApi = await connection.getTestPlanApi();
+    const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
+    const testPlanApi = await connection.getTestPlanApi(orgUrl);
 
     const params = testCaseIds.map((id) => ({ workItem: { id } }));
     await testPlanApi.addTestCasesToSuite(params, settings.projectName, planId, suiteId);
@@ -217,7 +220,8 @@ export class TestPlanService {
     pbiWorkItemId: number
   ): Promise<number | undefined> {
     const connection = this.createConnection(settings, pat);
-    const testPlanApi = await connection.getTestPlanApi();
+    const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
+    const testPlanApi = await connection.getTestPlanApi(orgUrl);
 
     const prefix = `${pbiWorkItemId} - `;
     let continuationToken: string | undefined;
@@ -248,7 +252,8 @@ export class TestPlanService {
     suiteId: number
   ): Promise<string[]> {
     const connection = this.createConnection(settings, pat);
-    const testPlanApi = await connection.getTestPlanApi();
+    const orgUrl = this.normalizeOrgUrl(settings.orgUrl);
+    const testPlanApi = await connection.getTestPlanApi(orgUrl);
 
     const page = await testPlanApi.getTestCaseList(
       settings.projectName,

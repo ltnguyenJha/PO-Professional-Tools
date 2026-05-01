@@ -1281,7 +1281,10 @@ export class DashboardPanel {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[PO Tools] Test plan workflow failed:', msg);
-      this.postToast('warning', `Test plan setup failed (PBI pushed successfully): ${msg}`);
+      const userMsg = msg.includes('401')
+        ? 'Test plan setup requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test plan setup failed (PBI pushed successfully): ${msg}`;
+      this.postToast('warning', userMsg);
     }
   }
 
@@ -1371,7 +1374,10 @@ export class DashboardPanel {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[PO Tools] Test case refinement failed:', msg);
-      this.postToast('warning', `Test case update failed (PBI updated successfully): ${msg}`);
+      const userMsg = msg.includes('401')
+        ? 'Test case update requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test case update failed (PBI updated successfully): ${msg}`;
+      this.postToast('warning', userMsg);
     }
   }
 
