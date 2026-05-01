@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { AppStatePayload, PbiDraft, FeatureDraft } from '../types';
+import type { AppStatePayload, PbiDraft, FeatureDraft, EpicDraft, HierarchyStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 
 interface Props {
   state: AppStatePayload;
-  onNavigate: (view: 'projects' | 'studio' | 'bulk' | 'settings') => void;
+  onNavigate: (view: 'projects' | 'studio' | 'bulk' | 'settings' | 'epic-creation') => void;
   onNavigateToStudio?: (draftId?: string) => void;
+  onNavigateToEpicCreation?: (epicId?: string) => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -359,6 +360,240 @@ function HierarchyStatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Epic status badge (spec: draft=gray, ready=blue, partial=amber, pushed=green)
+function EpicStatusBadge({ status }: { status: HierarchyStatus }) {
+  const configs: Record<HierarchyStatus, { label: string; bg: string; text: string }> = {
+    draft:   { label: 'Draft',   bg: 'var(--tw-vscode-badge-bg)',   text: 'var(--tw-vscode-muted)' },
+    ready:   { label: 'Ready',   bg: 'var(--tw-vscode-info-bg)',    text: 'var(--tw-vscode-info)' },
+    partial: { label: 'Partial', bg: 'var(--tw-vscode-warning-bg)', text: 'var(--tw-vscode-warning)' },
+    pushed:  { label: 'Pushed',  bg: 'var(--tw-vscode-success-bg)', text: 'var(--tw-vscode-success)' },
+  };
+  const cfg = configs[status] ?? configs.draft;
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Feature mini-card inside an Epic accordion ───────────────────────────────
+function FeatureMiniCard({
+  feature,
+  pbiCount,
+}: {
+  feature: FeatureDraft;
+  pbiCount: number;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-md px-2.5 py-2 border"
+      style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg)' }}
+    >
+      <span
+        className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
+        style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+      >
+        Feature
+      </span>
+      <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+        {feature.title}
+      </span>
+      <HierarchyStatusBadge status={feature.hierarchyStatus ?? 'draft'} />
+      {pbiCount > 0 && (
+        <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          {pbiCount} PBI{pbiCount !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── EpicDraftCard — proper EpicDraft accordion with nested Feature mini-cards
+function EpicDraftCard({
+  epic,
+  linkedFeatures,
+  pbiDrafts,
+  expanded,
+  onToggle,
+  onEditEpic,
+  onPushEpic,
+}: {
+  epic: EpicDraft;
+  linkedFeatures: FeatureDraft[];
+  pbiDrafts: PbiDraft[];
+  expanded: boolean;
+  onToggle: () => void;
+  onEditEpic: () => void;
+  onPushEpic: () => void;
+}) {
+  const featureCount = linkedFeatures.length;
+
+  return (
+    <div
+      className="rounded-lg overflow-hidden border"
+      style={{ borderColor: 'var(--tw-vscode-border)' }}
+    >
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+        style={{ background: 'var(--tw-vscode-bg-alt)' }}
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-label={`${epic.title} — ${expanded ? 'collapse' : 'expand'} epic details`}
+      >
+        <ChevronIcon open={expanded} />
+        <span
+          className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
+          style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+        >
+          Epic
+        </span>
+        <span
+          className="flex-1 text-sm truncate font-medium"
+          style={{ color: 'var(--tw-vscode-fg)' }}
+        >
+          {epic.title}
+        </span>
+        <EpicStatusBadge status={epic.status} />
+        {featureCount > 0 && (
+          <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            {featureCount} Feature{featureCount !== 1 ? 's' : ''}
+          </span>
+        )}
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          onClick={(e) => { e.stopPropagation(); onEditEpic(); }}
+          title={`Edit Epic: ${epic.title}`}
+          aria-label={`Edit Epic: ${epic.title}`}
+        >
+          ✏ Edit
+        </button>
+        {epic.status !== 'pushed' && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            onClick={(e) => { e.stopPropagation(); onPushEpic(); }}
+            title={`Push Epic to ADO: ${epic.title}`}
+            aria-label={`Push Epic to ADO: ${epic.title}`}
+          >
+            ⬆ Push
+          </button>
+        )}
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out border-t ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ borderColor: 'var(--tw-vscode-border)' }}
+        aria-hidden={!expanded}
+      >
+        {linkedFeatures.length === 0 ? (
+          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            No features linked to this Epic yet.
+          </p>
+        ) : (
+          <div className="px-3 py-2 space-y-2">
+            {linkedFeatures.map((feature) => {
+              const pbiCount = pbiDrafts.filter(
+                (p) => p.parentFeatureId === feature.id,
+              ).length;
+              return (
+                <FeatureMiniCard key={feature.id} feature={feature} pbiCount={pbiCount} />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Epics section (top of dashboard) ────────────────────────────────────────
+function EpicsSection({
+  epicDrafts,
+  featureDrafts,
+  pbiDrafts,
+  expandedEpicIds,
+  onToggleEpic,
+  onEditEpic,
+  onPushEpic,
+  onCreateEpic,
+}: {
+  epicDrafts: EpicDraft[];
+  featureDrafts: FeatureDraft[];
+  pbiDrafts: PbiDraft[];
+  expandedEpicIds: Set<string>;
+  onToggleEpic: (id: string) => void;
+  onEditEpic: (id: string) => void;
+  onPushEpic: (id: string) => void;
+  onCreateEpic: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {/* Section header */}
+      <div className="flex items-center justify-between px-1 mb-1">
+        <h2
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--tw-vscode-fg-muted)' }}
+        >
+          Epics
+        </h2>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+          onClick={onCreateEpic}
+          aria-label="Create a new Epic"
+        >
+          + Create Epic
+        </button>
+      </div>
+
+      {epicDrafts.length === 0 ? (
+        <div
+          className="rounded-lg border px-4 py-5 flex flex-col items-center text-center"
+          style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)' }}
+        >
+          <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+            No Epics yet
+          </p>
+          <p className="text-xs mb-3" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+            Create an Epic to group related Features into strategic initiatives.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+            onClick={onCreateEpic}
+          >
+            Create Epic
+          </button>
+        </div>
+      ) : (
+        epicDrafts.map((epic) => {
+          const linked = featureDrafts.filter(
+            (f) => f.parentEpicId === epic.id || epic.linkedFeatureIds.includes(f.id),
+          );
+          return (
+            <EpicDraftCard
+              key={epic.id}
+              epic={epic}
+              linkedFeatures={linked}
+              pbiDrafts={pbiDrafts}
+              expanded={expandedEpicIds.has(epic.id)}
+              onToggle={() => onToggleEpic(epic.id)}
+              onEditEpic={() => onEditEpic(epic.id)}
+              onPushEpic={() => onPushEpic(epic.id)}
+            />
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+
 function FeatureDraftCard({
   feature,
   childPbis,
@@ -502,11 +737,10 @@ function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props): JSX.Element {
+export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigateToEpicCreation }: Props): JSX.Element {
   const { pbiDrafts, adoSettings, hasAdoPat, featureDrafts: rawFeatureDrafts, epicDrafts: rawEpicDrafts } = state;
   const featureDrafts = rawFeatureDrafts ?? [];
-  // epicDrafts used for future expansion
-  void (rawEpicDrafts ?? []);
+  const epicDrafts = rawEpicDrafts ?? [];
 
   // Derive hierarchy groups from the flat draft list using workItemType
   const epics = pbiDrafts.filter((d) => d.workItemType === 'Epic');
@@ -526,7 +760,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
     .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
     .slice(0, 5);
 
-  const hasContent = epics.length > 0 || features.length > 0 || stories.length > 0 || featureDrafts.length > 0;
+  const hasContent = epics.length > 0 || features.length > 0 || stories.length > 0 || featureDrafts.length > 0 || epicDrafts.length > 0;
 
   const toggleEpic = (epicId: string) => {
     setExpandedEpics((prev) => {
@@ -537,7 +771,11 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
     });
   };
 
-  const storyCountFor = (_featureId: string) => 0;
+  // Orphaned features: no parentEpicId or parentEpicId not found in epicDrafts
+  const epicIds = new Set(epicDrafts.map((e) => e.id));
+  const orphanedFeatureDrafts = featureDrafts.filter(
+    (f) => !f.parentEpicId || !epicIds.has(f.parentEpicId),
+  );
 
   const navigateToStudio = (draftId?: string) => {
     if (draftId && onNavigateToStudio) {
@@ -545,6 +783,26 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
     } else {
       onNavigate('studio');
     }
+  };
+
+  const handleCreateEpic = () => {
+    if (onNavigateToEpicCreation) {
+      onNavigateToEpicCreation();
+    } else {
+      onNavigate('epic-creation');
+    }
+  };
+
+  const handleEditEpic = (epicId: string) => {
+    if (onNavigateToEpicCreation) {
+      onNavigateToEpicCreation(epicId);
+    } else {
+      onNavigate('epic-creation');
+    }
+  };
+
+  const handlePushEpic = (_epicId: string) => {
+    onNavigate('epic-creation');
   };
 
   return (
@@ -568,7 +826,19 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
             <EmptyState onNavigate={onNavigate} />
           ) : (
             <div className="space-y-2">
-              {/* Epics (expandable) */}
+              {/* ── Epics section (always shown) ───────────────────────── */}
+              <EpicsSection
+                epicDrafts={epicDrafts}
+                featureDrafts={featureDrafts}
+                pbiDrafts={pbiDrafts}
+                expandedEpicIds={expandedEpics}
+                onToggleEpic={toggleEpic}
+                onEditEpic={handleEditEpic}
+                onPushEpic={handlePushEpic}
+                onCreateEpic={handleCreateEpic}
+              />
+
+              {/* Epics from pbiDrafts workItemType='Epic' (legacy) */}
               {epics.map((epic) => (
                 <EpicAccordion
                   key={epic.id}
@@ -580,20 +850,28 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
                 />
               ))}
 
-              {/* Uncategorized Features */}
+              {/* Uncategorized Features (old-style pbiDrafts with workItemType='Feature') */}
               {features.length > 0 && (
                 <FeatureGroup
                   label="Uncategorized Features"
                   features={features}
-                  storyCountFor={storyCountFor}
+                  storyCountFor={() => 0}
                   onNavigate={onNavigate}
                 />
               )}
 
-              {/* FeatureDrafts (hierarchy-based features from wizard) */}
-              {featureDrafts.length > 0 && (
+              {/* FeatureDrafts — orphaned (no parent epic) or all when no epics */}
+              {orphanedFeatureDrafts.length > 0 && (
                 <div className="space-y-2">
-                  {featureDrafts.map((feature) => {
+                  {epicDrafts.length > 0 && (
+                    <h3
+                      className="text-xs font-semibold uppercase tracking-wider px-1"
+                      style={{ color: 'var(--tw-vscode-fg-muted)' }}
+                    >
+                      Orphaned Features
+                    </h3>
+                  )}
+                  {orphanedFeatureDrafts.map((feature) => {
                     const childPbis = feature.childPbiIds
                       .map((id) => pbiDrafts.find((d) => d.id === id))
                       .filter((d): d is PbiDraft => Boolean(d));
@@ -611,7 +889,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
               )}
 
               {/* CTA when no features/epics but stories exist */}
-              {featureDrafts.length === 0 && features.length === 0 && epics.length === 0 && stories.length > 0 && (
+              {featureDrafts.length === 0 && features.length === 0 && epics.length === 0 && epicDrafts.length === 0 && stories.length > 0 && (
                 <div className="rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--tw-vscode-border)', background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}>
                   No features yet.{' '}
                   <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('bulk')}>
@@ -622,7 +900,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio }: Props):
               )}
 
               {/* Standalone Stories — shown only when no Features/Epics exist yet */}
-              {stories.length > 0 && features.length === 0 && epics.length === 0 && (
+              {stories.length > 0 && features.length === 0 && epics.length === 0 && epicDrafts.length === 0 && (
                 <StandaloneStories stories={stories} onNavigate={onNavigate} />
               )}
             </div>
