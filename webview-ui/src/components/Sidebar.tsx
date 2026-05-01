@@ -1,4 +1,5 @@
 import type { ThemePreference } from '../types';
+import jackHenryLogo from '../assets/jack-henry-logo.png';
 
 export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'rdis' | 'settings' | 'epic-creation';
 
@@ -29,10 +30,15 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
   return (
     <aside className="sidebar" role="navigation" aria-label="Main navigation">
       <div className="brand">
-        <div className="brand-mark" aria-hidden="true">PO</div>
+        <div className="sidebar-logo-wrap">
+          <img
+            src={jackHenryLogo}
+            alt="Jack Henry"
+            className="sidebar-logo"
+          />
+        </div>
         <div className="brand-text">
           <h1>PO Pro Tools</h1>
-          <span>Jack Henry Edition</span>
         </div>
       </div>
 

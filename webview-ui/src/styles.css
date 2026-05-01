@@ -207,31 +207,32 @@ button {
 
 .brand {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
+  flex-direction: column;
+  gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
 }
 
-.brand-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent) 0%, #0ea5a3 100%);
-  display: grid;
-  place-items: center;
-  color: #001f1a;
-  font-weight: 800;
+.sidebar-logo-wrap {
+  padding: var(--space-xs) 0;
+}
+
+.sidebar-logo {
+  max-width: 120px;
+  height: auto;
+  max-height: 28px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+  display: block;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.01em;
-}
-
-.brand-text span {
+  font-size: 0.8rem;
   color: var(--sidebar-muted);
-  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .nav {
@@ -330,15 +331,46 @@ button {
 
 .topbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  padding: var(--space-md) var(--space-2xl);
+  flex-direction: column;
   border-bottom: 1px solid var(--line);
   background: var(--bg-elev);
   position: sticky;
   top: 0;
   z-index: 3;
+  overflow: hidden;
+}
+
+.topbar-banner {
+  position: relative;
+  height: 72px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.topbar-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  display: block;
+}
+
+.topbar-banner-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.08) 0%,
+    var(--bg-elev) 100%
+  );
+}
+
+.topbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-2xl);
 }
 
 .topbar h2 {
