@@ -88,6 +88,10 @@ export interface PbiDraft {
   featureUserFlow?: string;
   featureBusinessRules?: string;
   featureUserStoryStatement?: string;
+  /** ADO Test Plan ID linked to this PBI's iteration. Populated after first push. */
+  testPlanId?: number;
+  /** ADO Test Suite ID created for this PBI. Populated after first push. */
+  testSuiteId?: number;
 }
 
 export interface AdoSettings {

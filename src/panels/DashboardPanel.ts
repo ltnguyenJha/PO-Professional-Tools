@@ -14,7 +14,7 @@ import {
   RdiDraft,
   WebviewRequest
 } from '../shared/messages';
-import { iterationLeafFromPath } from '../shared/iterationUtils';
+import { iterationLeafFromPath, resolveIterationPathForPush } from '../shared/iterationUtils';
 import { buildLinkedProjectContext } from '../services/linkedProjectContext';
 import { AdoService } from '../services/adoService';
 import { CodeAnalyzer } from '../services/codeAnalyzer';
@@ -24,6 +24,7 @@ import { RdiDraftService } from '../services/rdiDraftService';
 import { RepoImportService } from '../services/repoImportService';
 import { SecretStorageService } from '../services/secretStorageService';
 import { SettingsService } from '../services/settingsService';
+import { TestPlanService } from '../services/testPlanService';
 
 export class DashboardPanel {
   private static currentPanel: DashboardPanel | undefined;
@@ -64,7 +65,8 @@ export class DashboardPanel {
     private readonly secretStorage: SecretStorageService = new SecretStorageService(context),
     private readonly settingsService: SettingsService = new SettingsService(context),
     private readonly adoService: AdoService = new AdoService(),
-    private readonly copilotService: CopilotService = new CopilotService(context)
+    private readonly copilotService: CopilotService = new CopilotService(context),
+    private readonly testPlanService: TestPlanService = new TestPlanService()
   ) {
     this.panel.webview.html = this.getHtml();
 
@@ -420,6 +422,10 @@ export class DashboardPanel {
       });
       const result = await this.adoService.pushDrafts(ctx.settings, ctx.pat, [toPush]);
       await this.applyPushResult(result.created, result.errors);
+      // Asynchronously create test plan, suite, and AI-generated test cases for the new PBI
+      if (result.created.length > 0) {
+        void this.triggerTestPlanWorkflow(ctx, toPush, result.created[0].workItemId, draftId);
+      }
     } finally {
       this.postAdoProgress({ busy: false, message: '', scope: 'single' });
     }
@@ -475,6 +481,8 @@ export class DashboardPanel {
       };
       await this.draftService.upsert(this.context.globalState, cleared);
       this.postToast('success', `Updated work item #${draft.adoWorkItemId} in Azure DevOps.`);
+      // Asynchronously add new AI-generated test cases to the existing suite (no duplicates)
+      void this.triggerTestCaseRefinement(ctx, draft);
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       this.postToast('error', `Update failed: ${messageText}`);
@@ -1200,6 +1208,220 @@ export class DashboardPanel {
       );
     }
     await this.postState();
+  }
+
+  /**
+   * After a successful PBI push: find or create the sprint test plan, create a test suite
+   * for the new PBI, generate AI integration test cases, link them to the suite and PBI.
+   * Runs asynchronously after push; shows its own progress toasts; persists plan/suite IDs to draft.
+   */
+  private async triggerTestPlanWorkflow(
+    ctx: { settings: AdoSettings; pat: string },
+    draft: PbiDraft,
+    workItemId: number,
+    draftId: string
+  ): Promise<void> {
+    try {
+      const settings = ctx.settings;
+      const teamName = (settings.team ?? 'Team').trim();
+      const iterationPath = resolveIterationPathForPush(settings, draft);
+      const planName = this.testPlanService.buildTestPlanName(teamName, iterationPath);
+
+      this.postToast('info', `Setting up test plan "${planName}"…`);
+
+      // 1. Find or create the sprint test plan
+      const { planId, rootSuiteId } = await this.testPlanService.getOrCreateTestPlan(
+        settings, ctx.pat, planName, iterationPath
+      );
+
+      // 2. Create a test suite named "[PBI#] - [title]"
+      const suiteName = `${workItemId} - ${draft.title}`;
+      const suiteId = await this.testPlanService.createTestSuite(
+        settings, ctx.pat, planId, rootSuiteId, suiteName
+      );
+
+      this.postToast('info', 'Generating integration test cases…');
+
+      // 3. Generate test cases using AI
+      const linkedContext = await this.buildLinkedContextForDraft(draft);
+      const testCases = await this.copilotService.generateIntegrationTestCases(draft, {
+        linkedProjectContext: linkedContext || undefined
+      });
+
+      if (testCases.length === 0) {
+        this.postToast('warning', 'AI did not produce test cases; skipping test suite population.');
+        return;
+      }
+
+      // 4. Create test case work items and link them to the PBI
+      const testCaseIds = await this.testPlanService.createTestCaseWorkItems(
+        settings, ctx.pat, testCases, workItemId
+      );
+
+      // 5. Add test cases to the suite
+      await this.testPlanService.addTestCasesToSuite(
+        settings, ctx.pat, planId, suiteId, testCaseIds
+      );
+
+      // 6. Persist plan/suite IDs to draft so update flow knows where to add new cases
+      const currentDraft = this.findDraft(draftId);
+      if (currentDraft) {
+        await this.draftService.upsert(this.context.globalState, {
+          ...currentDraft,
+          testPlanId: planId,
+          testSuiteId: suiteId
+        });
+        await this.postState();
+      }
+
+      this.postToast(
+        'success',
+        `Created ${testCaseIds.length} test case(s) in suite "${suiteName}".`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test plan workflow failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      const userMsg = msg.includes('401')
+        ? 'Test plan setup requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test plan setup failed (PBI pushed successfully): ${msg}`;
+      this.postToast('warning', userMsg);
+    }
+  }
+
+  /**
+   * After a PBI update: generate new AI test cases and add only non-duplicate ones to the
+   * existing test suite. If no suite is tracked on the draft, looks up the plan by name.
+   */
+  private async triggerTestCaseRefinement(
+    ctx: { settings: AdoSettings; pat: string },
+    draft: PbiDraft
+  ): Promise<void> {
+    if (!draft.adoWorkItemId) {
+      return;
+    }
+    try {
+      const settings = ctx.settings;
+
+      let planId = draft.testPlanId;
+      let suiteId = draft.testSuiteId;
+
+      // If plan/suite IDs are missing, attempt to look them up by name
+      if (!planId || !suiteId) {
+        const teamName = (settings.team ?? 'Team').trim();
+        const iterationPath = resolveIterationPathForPush(settings, draft);
+        const planName = this.testPlanService.buildTestPlanName(teamName, iterationPath);
+        const found = await this.testPlanService.getOrCreateTestPlan(
+          settings, ctx.pat, planName, iterationPath
+        );
+        planId = found.planId;
+
+        // Find existing suite by stable PBI ID prefix before creating a new one
+        const existingSuiteId = await this.testPlanService.findTestSuiteByPbiId(
+          settings, ctx.pat, planId, draft.adoWorkItemId
+        );
+        if (existingSuiteId) {
+          suiteId = existingSuiteId;
+        } else {
+          const suiteName = `${draft.adoWorkItemId} - ${draft.title}`;
+          suiteId = await this.testPlanService.createTestSuite(
+            settings, ctx.pat, planId, found.rootSuiteId, suiteName
+          );
+        }
+      }
+
+      this.postToast('info', 'Generating new test cases for updated PBI…');
+
+      // Get existing titles to avoid duplicates
+      const existingTitles = await this.testPlanService.getExistingTestCaseTitles(
+        settings, ctx.pat, planId, suiteId
+      );
+      const existingSet = new Set(existingTitles.map((t) => t.toLowerCase()));
+
+      // Generate test cases using AI
+      const linkedContext = await this.buildLinkedContextForDraft(draft);
+      const allTestCases = await this.copilotService.generateIntegrationTestCases(draft, {
+        linkedProjectContext: linkedContext || undefined
+      });
+
+      const newTestCases = allTestCases.filter(
+        (tc) => !existingSet.has(tc.title.toLowerCase())
+      );
+
+      if (newTestCases.length === 0) {
+        this.postToast('info', 'No new test cases to add (all AI suggestions already exist).');
+        return;
+      }
+
+      const testCaseIds = await this.testPlanService.createTestCaseWorkItems(
+        settings, ctx.pat, newTestCases, draft.adoWorkItemId
+      );
+      await this.testPlanService.addTestCasesToSuite(
+        settings, ctx.pat, planId, suiteId, testCaseIds
+      );
+
+      // Persist IDs back to draft if they were missing
+      const currentDraft = this.findDraft(draft.id);
+      if (currentDraft && (!currentDraft.testPlanId || !currentDraft.testSuiteId)) {
+        await this.draftService.upsert(this.context.globalState, {
+          ...currentDraft,
+          testPlanId: planId,
+          testSuiteId: suiteId
+        });
+        await this.postState();
+      }
+
+      this.postToast('success', `Added ${testCaseIds.length} new test case(s) to existing suite.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const adoErr = err as Record<string, unknown>;
+      console.error('[PO Tools] Test case refinement failed:', {
+        message: msg,
+        statusCode: adoErr.statusCode,
+        result: adoErr.result,
+        serverError: adoErr.serverError,
+        patPresent: !!ctx.pat,
+        patLength: ctx.pat?.length,
+        patPrefix: ctx.pat ? `${ctx.pat.slice(0, 4)}...` : '(none)',
+        orgUrl: ctx.settings.orgUrl,
+        project: ctx.settings.projectName,
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      const userMsg = msg.includes('401')
+        ? 'Test case update requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
+        : `Test case update failed (PBI updated successfully): ${msg}`;
+      this.postToast('warning', userMsg);
+    }
+  }
+
+  /** Builds linked project context string for the draft's associated repo projects. */
+  private async buildLinkedContextForDraft(draft: PbiDraft): Promise<string> {
+    try {
+      const importedProjects = this.importService.getAll();
+      const draftProjects = importedProjects.filter((p) =>
+        draft.projectId === STANDALONE_PROJECT_ID || p.id === draft.projectId
+      );
+      if (draftProjects.length === 0) {
+        return '';
+      }
+      const contexts = await Promise.all(
+        draftProjects.map((p) => buildLinkedProjectContext(p, this.context))
+      );
+      return contexts.filter((c) => c.length > 0).join('\n\n');
+    } catch {
+      return '';
+    }
   }
 
   private async handleWizardDraftLoad(draftId: string): Promise<void> {
