@@ -5,7 +5,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
-import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
+import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, FeatureDraft, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -1248,5 +1248,80 @@ export class CopilotService {
       .join('\n');
 
     await this.openChatWithPrompt(prompt);
+  }
+
+  /**
+   * Generates Product Backlog Items (user stories) from a Feature Draft using AI.
+   * Returns an array of PbiDraft-shaped objects (without id/timestamps — caller assigns those).
+   */
+  public async generateUserStoriesFromFeature(
+    feature: FeatureDraft,
+    token: vscode.CancellationToken,
+    options?: { storyCount?: number; linkedProjectContext?: string }
+  ): Promise<Array<{ title: string; description: string; effort: number }>> {
+    const model = await this.pickModel();
+    const count = options?.storyCount ?? 5;
+
+    const systemPrompt = [
+      'You are a product owner assistant. Break a feature into Product Backlog Items (user stories).',
+      'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+      '',
+      `Schema: { "stories": [ { "title": string, "description": string, "effort": number } ] }`,
+      '',
+      'TITLE: "As a [user], I want [goal], so that [benefit]." format. Under 150 characters.',
+      'DESCRIPTION: 2–3 sentences of context, scope, and user value.',
+      'EFFORT: Story points 1–8 (Fibonacci: 1, 2, 3, 5, 8).',
+      '',
+      `Generate ${count} to ${Math.min(count + 2, 7)} stories unless the feature naturally decomposes to fewer.`,
+      'Each story must be independently deliverable (INVEST principle).',
+      'Never output invalid JSON.'
+    ].join('\n');
+
+    const contextParts: string[] = [];
+    if (feature.why) { contextParts.push(`Why / Business Value:\n${feature.why}`); }
+    if (feature.userFlow) { contextParts.push(`User Flow:\n${feature.userFlow}`); }
+    if (feature.businessRules) { contextParts.push(`Business Rules:\n${feature.businessRules}`); }
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (ground stories in actual codebase):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const userPrompt =
+      linkedPart +
+      [
+        `Feature Title: ${feature.title}`,
+        '',
+        feature.description ? `Feature Description:\n${feature.description}` : '',
+        '',
+        ...contextParts,
+        '',
+        `Return JSON: { "stories": [ { "title": string, "description": string, "effort": number } ] }`
+      ]
+        .filter((l) => l !== undefined)
+        .join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemPrompt),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+
+    const rawStories = Array.isArray(parsed.stories) ? parsed.stories : [];
+    return rawStories
+      .map((s: unknown): { title: string; description: string; effort: number } | null => {
+        if (!s || typeof s !== 'object') { return null; }
+        const r = s as Record<string, unknown>;
+        const title = typeof r.title === 'string' ? r.title.trim() : '';
+        if (!title) { return null; }
+        return {
+          title,
+          description: typeof r.description === 'string' ? r.description.trim() : '',
+          effort: typeof r.effort === 'number' ? Math.min(8, Math.max(1, Math.round(r.effort))) : 2
+        };
+      })
+      .filter((s): s is { title: string; description: string; effort: number } => s !== null);
   }
 }

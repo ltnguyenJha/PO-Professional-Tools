@@ -12,6 +12,125 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-XX — Repo Checkbox All-or-Nothing & Edit-in-Studio Navigation
+
+**Bug 1 — Repo checkboxes "all or nothing" (root cause finally found):**
+- `createId()` in `src/services/repoImportService.ts` slices base64url to 24 chars = 18 source bytes.
+- Two repos whose paths share the same first 18 characters (extremely common on Windows: `C:\Users\username\...`) get **identical IDs**.
+- All checkboxes used `repo.id` as key and checked value. With duplicate IDs, selecting any one repo caused all to appear selected (all share same `id`).
+- **Fix:** Step2Context now uses `repo.path` (filesystem path — always unique) as the internal identifier: `key={repo.path}`, `checked={selectedRepoIds.includes(repo.path)}`, `onChange={() => toggleRepo(repo.path)}`, "Select all" uses `repos.map(r => r.path)`.
+- API payloads still receive `repo.id` values via `getRepoIdPayloads()` which maps selected paths back to IDs.
+- **Never trust `repo.id` for unique UI keys if the underlying hash is truncated.** Always use a field that is guaranteed unique in the data model — typically the primary key (`path` for repos).
+- The extension's `createId` truncation is a backend bug (Linus's domain) — filed in decisions inbox.
+
+**Bug 2 — "Edit in PBI Studio" ignores target item:**
+- `handleEditInStudio` in FeatureCreationWizard had `_pbiId` (unused param) and just called `onNavigate('studio')`.
+- `navigateToStudio` in DashboardView similarly ignored `_draftId` and just called `onNavigate('studio')`.
+- PbiStudio already had `focusDraftId` / `onConsumedFocusDraft` plumbing that scrolls to and selects the item — it just was never being populated before navigation.
+- **Fix:** Added `onEditInStudio?: (pbiId: string) => void` to `FeatureCreationWizardProps`. App.tsx provides `navigateToStudio(draftId?)` via `useCallback` that calls `setFocusDraftId(draftId)` then `setView('studio')`. DashboardView accepts `onNavigateToStudio` prop and uses it when a draftId is present.
+- **Pattern:** When navigating to a detail view, ALWAYS pass the item ID at the same time as the navigation — do not rely on the destination view to infer context from ambient state.
+
+### 2026-05-01 — GENERATE_USER_STORIES_GENERATED Handler Fix: Spinner Resolution
+
+**Problem:** Feature Creation Wizard Step 3 spinner never resolved when user clicks "Generate User Stories". Two root causes identified and fixed:
+
+**Issue 1 — No Timeout:**
+- useEffect only exits when `generatedPbiIds` arrives from extension
+- If backend silently fails or drops the message, spinner spins forever
+- Solution: Added 30-second timeout via `useRef<ReturnType<typeof setTimeout> | null>` (not useState to avoid re-renders)
+- Timeout clears busy flag and shows error "Generation failed — please try again"
+- Timeout is cleared in: success path, empty-response path, unmount cleanup
+- Never double-fires (cleared in ALL resolution paths)
+
+**Issue 2 — Empty-Array Response Not Handled:**
+- Original guard: `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`
+- If backend emits empty `generatedDraftIds: []`, condition fails and spinner never clears
+- Solution: Changed guard to `generatedPbiIds !== undefined && generationBusy`
+  - Empty array now surfaces error "No stories were generated — please try again"
+  - Non-empty array advances to Step 4 normally
+
+**Key Patterns:**
+- Always use `useRef` (not state) for timeout IDs to avoid re-render loops
+- Clean up setTimeout on unmount via effect cleanup return
+- Use `!== undefined` not `.length > 0` to detect response arrival (backend might legitimately return [])
+- Clear timeout in ALL resolution paths to prevent double-firing
+
+**Files Modified:**
+- `webview-ui/src/views/FeatureCreationWizard.tsx` — Added useRef import, generationTimeoutRef, timeout handling, updated guard condition
+
+---
+
+### 2026-05-XX — FeatureCreationWizard Bug Fixes: Generation Timeout & Empty-Response Guard
+
+**Bug 1 (Checkbox multi-select):**
+After thorough code review, the existing `checked={selectedRepoIds.includes(repo.id)}` pattern in `Step2Context` is already correct — one checkbox ↔ one boolean derived from an array. No code change was needed. The bug as described in the task had already been implemented with the right pattern (likely from the original wizard session).
+
+**Bug 2 (Spinner never resolves):**
+Two root causes, both fixed:
+
+1. **No timeout:** The generation `useEffect` only exits when `generatedPbiIds` arrives from the extension. If the backend silently fails or drops the message, the spinner spins forever. Fixed by adding a 30-second `setTimeout` via `useRef<ReturnType<typeof setTimeout>>`. The timeout fires `setGenerationBusy(false)` + `setGenerationError('Generation failed — please try again')`. The timeout is always cleared in the success/empty-response paths and on component unmount (cleanup effect).
+
+2. **Empty-array response not handled:** The original condition was `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`. If the backend emits `USER_STORIES_GENERATED` with an empty `generatedDraftIds: []`, the condition fails and the spinner never clears. Fixed by changing the guard to `generatedPbiIds !== undefined && generationBusy` and then branching: empty array → show error, non-empty → normal advance to step 4.
+
+**Patterns to remember:**
+- Always use `useRef` (not state) for timeout IDs to avoid re-render loops.
+- Clean up `setTimeout` on unmount via a `return () => clearTimeout(ref.current)` effect.
+- When checking "did a response arrive?", use `!== undefined` not `.length > 0` — the backend might legitimately return an empty array, which is also a response worth handling.
+- The `generationTimeoutRef.current` must be cleared in ALL resolution paths (success, empty, timeout itself) to avoid double-firing.
+- App.tsx wiring for `USER_STORIES_GENERATED` → `setFeatureGeneratedPbiIds` was already correct; the bug was purely in the wizard's guard condition and missing timeout.
+
+### 2026-04-30 — Feature Creation Wizard + Dashboard Hierarchy + PBI Studio Integration
+
+**Problem solved:**
+- No dedicated Feature creation flow — users used BulkBreakdownView which was generic and didn't support the Epic→Feature→PBI hierarchy.
+- Dashboard had no FeatureDraft-aware rendering; only showed PbiDraft objects with workItemType='Feature'.
+- PBI Studio had no visual indication when a PBI was part of a Feature.
+
+**Solution implemented:**
+
+**1. `FeatureCreationWizard.tsx` (5-step wizard):**
+- Step 1: Feature Details (title, description, why, userFlow, businessRules) with `WorkItemHierarchyBox` showing non-editable "Feature → Product Backlog Items" hierarchy info.
+- Step 2: Context & Repos (multi-select from linkTargets with search, epic assignment dropdown — graceful if epicDrafts is empty).
+- Step 3: AI Generation (dispatch `GENERATE_USER_STORIES_FROM_FEATURE`, loading state, auto-advances to Step 4 on `USER_STORIES_GENERATED`).
+- Step 4: Story Review (inline title editing via auto-resize textarea, effort dropdown [1,2,3,5,8,13], collapsible description, "Edit in PBI Studio" button, delete with confirm, "Add story" for manual entries).
+- Step 5: Save & Push (`CREATE_FEATURE_DRAFT` → dashboard, or `PUSH_FEATURE_TO_ADO` → progress bar → success/partial state).
+- Cancel dialog when content exists.
+- Stable `featureDraftId` generated at mount, reused for generation and save.
+
+**2. `types.ts` updates:**
+- Added `HierarchyStatus`, `FeatureDraft`, `EpicDraft` types.
+- Added `parentFeatureId?: string` to `PbiDraft`.
+- Added `featureDrafts?: FeatureDraft[]` and `epicDrafts?: EpicDraft[]` to `AppStatePayload`.
+- Added FEATURE_* event and request message types.
+
+**3. `App.tsx` updates:**
+- Replaced `BulkBreakdownView` with `FeatureCreationWizard` for the `bulk` view.
+- Added `featureGeneratedPbiIds`, `featurePushProgress`, `featurePushResult` state.
+- Added 5 new message event handlers: FEATURE_DRAFT_CREATED, FEATURE_DRAFT_UPDATED, USER_STORIES_GENERATED, FEATURE_PUSH_PROGRESS, FEATURE_PUSHED.
+- Fixed EMPTY_STATE to include `rdiDrafts: []`, `featureDrafts: []`, `epicDrafts: []`.
+
+**Cross-Team Work (2026-04-30):**
+- Coordinated with Linus on message types (`GENERATE_USER_STORIES_FROM_FEATURE`, `CREATE_FEATURE_DRAFT`, etc.) and state shape (`FeatureDraft`, `HierarchyStatus`)
+- Coordinated with Saul on light-mode token mapping for status badges — all status colors now WCAG AA compliant in all themes
+- Established pattern: stable `featureDraftId` generated at wizard mount, reused for generation and save
+- Full type sync: `webview-ui/src/types.ts` mirrors all types from `src/shared/messages.ts`
+
+**4. `DashboardView.tsx` updates:**
+- Added `HierarchyStatusBadge` (draft/ready/pushed/partial with color coding).
+- Added `FeatureDraftCard` component: accordion with child PBI list, push button, status rollup.
+- Added empty-state CTA: "No features yet. Create your first feature to break work into stories."
+- Gracefully handles `appState.featureDrafts ?? []`.
+
+**5. `PbiStudio.tsx` updates:**
+- Added "Part of Feature" badge in sidebar list when `draft.parentFeatureId` is set.
+- Badge shows truncated feature title (28 chars max) with full title in tooltip.
+
+**Key patterns:**
+- **Wizard local edit state pattern**: Track per-item edits in `Record<string, LocalPbiEdit>` keyed by PBI ID; submit all at once on save. Avoids partial state syncs during review.
+- **Auto-advance on event**: `useEffect` monitoring the `generatedPbiIds` prop — when it changes and we're busy, automatically advance step and initialize local edits.
+- **Non-breaking hierarchy extension**: `FeatureDraftCard` coexists with legacy `FeatureGroup` (PbiDraft-based); no existing functionality was removed.
+- **Stable wizard session ID**: `useState(() => generateId())` gives a stable, unique ID for the wizard lifetime, reset on remount.
+
 ### 2026-04-30 — Settings Layout Restructure: Top Sticky Save Button
 
 **Problem solved:**

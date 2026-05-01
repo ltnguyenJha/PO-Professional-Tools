@@ -2922,6 +2922,149 @@ Update git-workflow.md with step 6: "Update GitHub Issue — Ensure issue is clo
 
 ---
 
+# Feature Creation Implementation — Key Decisions (2026-04-30)
+
+**Session:** Feature Creation Wizard + Dashboard Integration + Phase 1 Data Layer  
+**Date:** 2026-04-30  
+**Agents:** Saul (UI Designer), Linus (Backend Dev), Rusty (Frontend Dev)  
+**Commits:** 8d70088, 78d5ee1, 1235d3e  
+
+## 1. Work Item Types Are FIXED (Feature → PBI Hierarchy)
+
+**Decision:** Feature parent type and Product Backlog Item child type are non-editable labels. The `WorkItemHierarchyBox` component renders them as read-only info badges with the caption "(These types are fixed and cannot be changed)".
+
+**Rationale:** ADO parent-child relationships are enforced by the backend via `System.LinkTypes.Hierarchy-Reverse`. Allowing UI affordances to change these types would create confusion when ADO rejects the modification. Better to make constraints visible.
+
+**Implementation:** `webview-ui/src/components/FeatureCreationWizard.tsx` (Step 1), `webview-ui/src/components/WorkItemHierarchyBox.tsx` (styled chip display).
+
+---
+
+## 2. Feature Creation Intake: 5-Step Wizard (Single File)
+
+**Decision:** Implemented as a single `FeatureCreationWizard.tsx` file with step sub-components (`Step1Details`, `Step2Context`, `Step3Generate`, `Step4Review`, `Step5SavePush`) rather than separate files per step.
+
+**Rationale:** For first iteration, single-file architecture reduces inter-file coordination overhead and keeps all wizard state in one place. Can be split if file grows >600 lines.
+
+**Steps:**
+1. **Details:** Title, description, why, userFlow, businessRules + WorkItemHierarchyBox showing non-editable hierarchy
+2. **Context:** Multi-select linkTargets with search, epic assignment dropdown (graceful if epicDrafts empty)
+3. **AI Generation:** Dispatch `GENERATE_USER_STORIES_FROM_FEATURE`, loading state, auto-advances on `USER_STORIES_GENERATED` event
+4. **Review:** Inline title editing (auto-resize textarea), effort dropdown [1,2,3,5,8,13], collapsible descriptions, "Edit in PBI Studio" button, delete with confirm, manual "Add story" entries
+5. **Save & Push:** `CREATE_FEATURE_DRAFT` (dashboard) or `PUSH_FEATURE_TO_ADO` (with progress bar, success/partial state)
+
+---
+
+## 3. Auto-Advance from Step 3 (Generation) to Step 4 (Review)
+
+**Decision:** When `USER_STORIES_GENERATED` event arrives (detected via `generatedPbiIds` prop change), wizard automatically advances from Step 3 to Step 4 without requiring user click.
+
+**Rationale:** Per UX spec: "On success: Automatically transitions to Step 4 (Review) with a subtle fade-in. Do not require user to click 'Next'." Reduces friction post-generation.
+
+**Implementation:** `useEffect` in FeatureCreationWizard watches `generatedPbiIds` and calls `setCurrentStep(4)` when array becomes non-empty.
+
+---
+
+## 4. Local PBI Edits in Wizard State (Not Dispatched Until Save)
+
+**Decision:** Title and effort edits in Step 4 are stored in local wizard state (`localEdits: Record<string, LocalPbiEdit>`) keyed by PBI ID. They are NOT dispatched to extension until user clicks "Save as Draft" or "Push to ADO".
+
+**Rationale:** Avoids spamming extension with partial updates while user reviews. Final `CREATE_FEATURE_DRAFT` or `PUSH_FEATURE_TO_ADO` payload includes all data in one atomic request.
+
+**Implementation:** Step 4 textarea and effort dropdown update `localEdits` state; on Step 5, `localEdits` are merged into PbiDraft objects before dispatch.
+
+---
+
+## 5. Manual Story Addition with Temporary IDs
+
+**Decision:** "Add story" button in Step 4 creates local `PbiDraft` objects with `manual-*` prefix IDs, stored only in `manualStories` wizard state. These are submitted with `CREATE_FEATURE_DRAFT`/`PUSH_FEATURE_TO_ADO`.
+
+**Rationale:** Avoids creating orphan drafts in extension state if user abandons wizard. IDs are temporary; backend assigns real IDs on push.
+
+**Implementation:** onClick handler generates `manual-${Date.now()}-${Math.random()}` ID, stores in `manualStories` array, renders in Step 4 list alongside AI-generated stories.
+
+---
+
+## 6. FeatureDraftCard Separate from Legacy PbiDraft Features
+
+**Decision:** Added `FeatureDraftCard` component for `FeatureDraft` objects on Dashboard. Legacy PbiDraft objects with `workItemType='Feature'` continue to render via existing `FeatureGroup` component.
+
+**Rationale:** Non-breaking. Existing PbiDraft-based features (created via old BulkBreakdownView) remain visible. New wizard-created FeatureDraft objects appear in separate section with child PBIs shown in accordion.
+
+**Implementation:** `webview-ui/src/views/DashboardView.tsx` conditionally renders `<FeatureDraftCard>` for items in `appState.featureDrafts`, `<FeatureGroup>` for items in `appState.pbiDrafts` with `workItemType='Feature'`.
+
+---
+
+## 7. "Part of Feature" Badge in PBI Studio (Non-Interactive)
+
+**Decision:** In PBI Studio sidebar PBI list, when PBI has `parentFeatureId` set, an inline badge shows truncated feature title (28 chars). Badge is non-interactive (doesn't navigate).
+
+**Rationale:** Provides traceability without requiring feature detail view. Badge is read-only for now; can be upgraded to navigate to feature detail when that view exists.
+
+**Implementation:** `webview-ui/src/views/PbiStudio.tsx` checks `pbi.parentFeatureId` and renders conditional badge element with feature title text.
+
+---
+
+## 8. Stable featureDraftId Per Wizard Session
+
+**Decision:** `featureDraftId` is generated once at component mount using `useState(() => generateId())`. This ID is used in `GENERATE_USER_STORIES_FROM_FEATURE` so backend can link generated PBIs to it via `parentFeatureId`.
+
+**Rationale:** Ensures all PBIs generated in a session are linked to same (eventual) Feature, even before Feature is formally saved. React unmounts wizard on navigation away, so re-opening gives fresh ID.
+
+**Implementation:** FeatureCreationWizard init state: `const [featureDraftId] = useState(() => generateId())`. Passed to `GENERATE_USER_STORIES_FROM_FEATURE` payload and used as `FeatureDraft.featureDraftId` on create.
+
+---
+
+## 9. Light-Mode Status Foreground Token Mapping
+
+**Decision:** In `body.vscode-light`, override both soft-background AND foreground text variables for status colors. The `:root` block uses dark-theme-optimized source tokens (e.g., `--vscode-notificationsInfoIcon-foreground = #75beff`) with poor contrast on white backgrounds.
+
+**Rationale:** VS Code light-mode tokens need high-contrast overrides. Selected tokens:
+- Success: `--vscode-testing-iconPassed` (7.0:1 ✅)
+- Warning: `--vscode-gitDecoration-modifiedResourceForeground` (7.6:1 ✅)
+- Info: `--vscode-textLink-foreground` (5.9:1 ✅)
+- Error: `--vscode-editorError-foreground` (5.1:1 ✅)
+
+**Implementation:** `webview-ui/src/styles/tailwind.css` extended `body.vscode-light` block with 10-line CSS overrides for `--tw-vscode-*` bridge variables.
+
+**Files Changed:** `webview-ui/src/styles/tailwind.css` (Saul, Commit 8d70088).
+
+---
+
+## 10. ADO Hierarchy Link Type: System.LinkTypes.Hierarchy-Reverse
+
+**Decision:** Parent-child ADO link is established via `System.LinkTypes.Hierarchy-Reverse` on the PBI (child work item). The Feature (parent) remains unlinked from PBI perspective.
+
+**Rationale:** ADO hierarchy links are directional. Hierarchy-Reverse links from child to parent, establishing containment relationship. This pattern is standard in Azure DevOps for work item hierarchies.
+
+**Implementation:** `src/services/adoService.ts` `linkPbiToFeature()` method creates link with direction Hierarchy-Reverse from PBI to Feature.
+
+**Files Changed:** `src/services/adoService.ts` (Linus, Commit 78d5ee1).
+
+---
+
+## 11. All PBIs Created via Feature Intake Have parentFeatureId Set
+
+**Decision:** Every PbiDraft created via Feature Creation Wizard (AI-generated or manual) has `parentFeatureId` set to the containing Feature's ID. This is set immediately, even before Feature is saved to ADO.
+
+**Rationale:** Enables frontend to show PBI→Feature relationship in PBI Studio ("Part of Feature" badge) and Dashboard (child PBI accordion). Backend uses `parentFeatureId` to create ADO link on push.
+
+**Implementation:** 
+- Wizard Step 4: Auto-populate `parentFeatureId` on AI-generated PBIs and manual entries
+- Backend: `src/panels/DashboardPanel.ts` handlers read `parentFeatureId` from each PBI, use in `linkPbiToFeature()` call
+- Frontend: `webview-ui/src/types.ts` extended `PbiDraft` with `parentFeatureId?: string`
+
+---
+
+## 12. Feature Status Rollup: Derived from Child PBI Status
+
+**Decision:** Feature status (draft/ready/pushed/partial) is derived from child PBI statuses, not stored as separate field on Feature. Partial state means "some children pushed, some not".
+
+**Rationale:** Single source of truth. Feature status always reflects current state of its children without needing separate sync logic.
+
+**Implementation:** `DashboardView.tsx` `FeatureDraftCard` computes `rollupStatus` by examining all child PbiDraft statuses and returning appropriate HierarchyStatus enum.
+
+---
+
 ## Merged from .squad/decisions/inbox/ (2026-04-30)
 
 ### Business Rules Navigation Fix (2026-04-30)
@@ -3331,3 +3474,356 @@ Stale builds caused VS Code Insiders to load an old version of the extension, le
 
 ---
 
+### Epic → Feature → User Story Hierarchy Architecture (2026-04-30)
+
+**Author:** Danny (Lead)  
+**Date:** 2026-04-30  
+**Status:** Proposed (awaiting team review)  
+
+**Proposal:** `docs/architecture/epic-feature-story-hierarchy.md`
+
+## Key Decisions Made
+
+### 1. Separate Types (not PbiDraft extension)
+
+`FeatureDraft` and `EpicDraft` are independent types. PbiDraft is already overloaded with bug/feature/story fields. Separate types enable cleaner validation and independent lifecycles.
+
+### 2. ID-based Relationships (not inline)
+
+Parent-child stored via ID references (`childUserStoryIds`, `featureIds`, `parentFeatureId`). Single source of truth, no duplication, enables independent editing in PBI Studio.
+
+### 3. Feature Creation Replaces Bulk Breakdown
+
+The `bulk` ViewId is repurposed: same route, new wizard component. Old `BulkBreakdownView` deprecated over 2 sprints.
+
+### 4. High-Level Edit Only in Feature Wizard
+
+Step 4 (Review) only allows title + effort editing. Detailed story editing redirects to PBI Studio. Enforces separation of concerns.
+
+### 5. ADO Push Uses Hierarchy-Forward Links
+
+Feature → Story relationship uses `System.LinkTypes.Hierarchy-Forward` (standard ADO parent-child). Re-push updates existing work items.
+
+### 6. HierarchyStatus Includes 'partial'
+
+New status `'partial'` covers the case where parent is pushed but some children aren't. Critical for UX feedback.
+
+### 7. Nav Order: Epics & Features Between Dashboard and Projects
+
+High-level planning view logically sits above detail work (Projects, Studio).
+
+## Requires Input From
+
+- **Linus:** Feasibility of multi-repo context assembly for AI prompts
+- **Rusty:** TailwindCSS dashboard rendering approach, wizard step UX patterns
+- **Team:** Open questions in proposal Section 9
+
+## Blocking On
+
+Nothing — this is a greenfield addition. All changes are additive to existing types.
+
+---
+
+### UX Decisions — Feature Creation & Epics (2026-04-30)
+
+**Author:** Tess (UX Designer)  
+**Date:** 2026-04-30  
+**Status:** Proposed (pending team review)  
+
+**Spec:** `webview-ui/design/feature-creation-ux-spec.md`
+
+## Decision 1 — Feature Creation is a Dedicated View (Not Embedded in PBI Studio)
+
+**Decision:** Feature Creation becomes its own top-level view (`'features'` ViewId), replacing the current `'bulk'` view. It is NOT embedded in PBI Studio.
+
+**Rationale:** The user's mental model separates "capturing + breaking down a new feature" from "editing existing User Stories." Keeping them separate reduces cognitive load and prevents accidental deep-editing during the capture flow.
+
+**Impact:**
+- `Sidebar.tsx`: Rename ViewId `'bulk'` → `'features'`; update label to "Feature Creation"
+- `App.tsx`: Route `features` to new `FeatureCreationView` component (not `BulkBreakdownView`)
+- `BulkBreakdownView` may be deprecated or kept as a power-user tool under a different route
+
+## Decision 2 — 4-Step Wizard Structure
+
+**Decision:** Feature Creation uses a 4-step wizard: Feature Details → Repos & AI Context → AI Breakdown (generating) → Review & Push.
+
+**Rationale:** The previous wizard (embedded FeatureWizard in PBI Studio) had 6 steps covering Story + Feature Definition + Business Rules + Technical Details + Test Cases + Summary. That's too heavy for the "capture + breakdown" flow. The new 4-step flow covers capture and AI breakdown only; detailed editing is explicitly deferred to PBI Studio.
+
+**Impact:** New `FeatureCreationWizard` component with 4 step components. Existing `FeatureWizard` remains untouched in PBI Studio.
+
+## Decision 3 — Auto-Advance from AI Generation to Review (No Manual "Next" Click)
+
+**Decision:** When AI story generation completes successfully, the wizard automatically advances to Step 4 (Review) without requiring the user to click "Next."
+
+**Rationale:** The user is waiting passively for generation to complete. Requiring a click after a completed loading state adds unnecessary friction. Auto-advance mirrors modern AI tool UX patterns (similar to how GitHub Copilot chat shows results inline).
+
+## Decision 4 — Story Review Allows Inline Title + Effort Editing Only
+
+**Decision:** In the Review step, only **title** and **effort** are editable inline. All other fields (description, acceptance criteria, test cases, INVEST scoring) require PBI Studio.
+
+**Rationale:**
+1. Keeps the wizard focused on "quick review" not "full editing"
+2. Prevents scope creep — if users can edit everything here, the wizard becomes a second PBI Studio
+3. The "Edit in PBI Studio" CTA redirects users to the right tool for deep work
+
+**CTA labeling:** `✏ Edit in PBI Studio` (not just "Edit") to make the destination explicit.
+
+## Decision 5 — Add "Epics" as a New Sidebar View
+
+**Decision:** Add `'epics'` as a new ViewId in the sidebar. Position it second in the nav order (after Dashboard, before Feature Creation).
+
+**Proposed nav order:**
+1. Dashboard
+2. **Epics** (new)
+3. Feature Creation
+4. PBI Studio
+5. Projects
+6. RDIs
+7. Settings
+
+**Rationale:** Epics is the primary "work hierarchy" view and will be the most-visited view once a user has created Epics. It belongs near the top.
+
+## Decision 6 — Dashboard Removes KPI Grid, Adds Work Hierarchy
+
+**Decision:** Remove the KPI grid (Projects / Drafts / Pushed / ADO count cards) and the "Get Started" card from the Dashboard. Replace with:
+1. A **Work Hierarchy section** showing Epic → Feature → Story in a collapsible tree
+2. A **Quick Actions section** (2–3 compact action cards)
+3. A **conditional ADO banner** (shown only when ADO is not configured)
+
+**Rationale:**
+- KPI counts (Projects: 3, Drafts: 12, Pushed: 5) are low-signal for a Product Owner. A PO needs to know *what* is in flight, not how many items there are.
+- "Get Started" card is first-run content — it becomes noise after the first session. Replace with a first-run guard (`projects.length === 0 && pbiDrafts.length === 0`).
+- The hierarchy section gives immediate situational awareness: what Epics are active, which Features are ready to push, what's in draft.
+
+**Implementation note:** The Work Hierarchy tree on Dashboard should share the same tree component as the Epics view (`<WorkHierarchyTree>`) but in **read-only mode** (no push buttons on dashboard).
+
+## Decision 7 — Status Indicators Always Use Text + Color (Never Color Alone)
+
+**Decision:** Status badges throughout the app (Epics view, Dashboard hierarchy, Review chips) must display both a colored indicator AND a text label. Example: `🟡 Draft`, `🟢 Ready`, `🔵 In Progress`.
+
+**Rationale:** WCAG 2.1 AA — information must not be conveyed by color alone. Users with color-vision deficiency must be able to read status without relying on color.
+
+## Decision 8 — Repo Selection is Multi-Select with Search (Not a Single Dropdown)
+
+**Decision:** Step 2 of the Feature Creation wizard uses a **searchable multi-select list** (checkbox list with search filter) instead of a single `<select>` dropdown.
+
+**Rationale:** The user has many repos. A single dropdown requires scrolling to find and select multiple items. A checkbox list with search is significantly faster for multi-selection on long lists.
+
+**Component:** Either extend existing `<SearchableDropdown>` or build new `<RepoMultiSelect>` component. The list renders all repos from `linkTargets`.
+
+---
+
+### Tailwind CSS Setup + Dashboard Redesign (2026-04-30)
+
+**Author:** Saul (UI Designer)  
+**Date:** 2026-04-30  
+**Status:** Implemented  
+
+**Branch:** `feature/saul-tailwind-dashboard-redesign`
+
+## Decision 1: Tailwind CSS v3 (not v4)
+
+Pin to `tailwindcss@^3.4.0`. Tailwind v4 moves the PostCSS plugin to a separate `@tailwindcss/postcss` package and drops `tailwind.config.js` in favour of CSS-based config. v3 is more stable for our PostCSS + Vite pipeline and gives us the declarative `tailwind.config.js` approach required for the VS Code bridge token strategy.
+
+**install command:** `npm install -D tailwindcss@^3.4.0 postcss autoprefixer`
+
+## Decision 2: VS Code Bridge Variable Pattern
+
+Do not use Tailwind's static colors for theme-sensitive surfaces. Instead:
+
+1. Define `--tw-vscode-*` custom properties in `src/styles/tailwind.css` that delegate to `--vscode-*` runtime tokens with hardcoded fallbacks.
+2. Register those as Tailwind custom color utilities in `tailwind.config.js`.
+3. Use `body.vscode-light` / `body.vscode-dark` selectors (injected by VS Code) for status soft backgrounds that need to vary by theme.
+
+This gives us `bg-tw-bg`, `text-tw-fg`, `border-tw-border`, etc. as Tailwind classes while staying fully theme-adaptive.
+
+## Decision 3: Tailwind preflight disabled
+
+`corePlugins.preflight: false` — VS Code webviews receive base element styles from the host application. Tailwind's CSS reset would conflict with these, causing visual regressions in non-Dashboard views.
+
+## Decision 4: Additive CSS strategy (no big-bang migration)
+
+Existing custom CSS classes (`.card`, `.btn`, `.kpi`, `.studio-item`, `.chip`) remain in `styles.css` and are used by PBI Studio, Settings, and Projects views. Tailwind is used exclusively for new views: Dashboard and Feature Creation. No cross-contamination.
+
+When to use Tailwind vs custom CSS:
+- **New view or new major component** → Tailwind-first
+- **Existing view with incremental improvement** → keep existing classes, add Tailwind for structural layout only if needed
+
+## Decision 5: Dashboard removes KPI cards + "Get started"
+
+Removed:
+- **KPI grid** (Projects count, Routes/APIs scanned, Drafts count, Pushed count) — low information density for experienced users
+- **"Get started" card** — onboarding noise; users already know the workflow
+
+Kept:
+- **ADO status** — compact chip in top-right corner (clickable → Settings)
+- **Recent Activity** — last 5 items across all draft types, sidebar at panel-wide breakpoints
+
+Added:
+- **Epic → Feature → Story hierarchy accordion** — the primary focus; shows work item structure
+- **Empty state CTA** — guides new users without cluttering the experienced user view
+
+## Decision 6: Hierarchy uses workItemType (not future epicId/featureId)
+
+The current `PbiDraft` type has no `epicId` or `featureId` fields. The hierarchy is derived from `workItemType`:
+- `'Epic'` → top-level accordion entries
+- `'Feature'` → grouped under "Uncategorized Features" (no parent link yet)
+- `'User Story' | 'Product Backlog Item' | undefined` → "Standalone Stories"
+
+When `epicId`/`featureId` are added to the type system, the `deriveHierarchy` logic in `DashboardView.tsx` can be updated to build actual parent-child trees without changing the component's visual structure.
+
+## Decision 7: Custom `panel-wide` breakpoint at 700px
+
+VS Code webview panels render at variable widths (as narrow as 200px in split view). Tailwind's default `sm` (640px) is adequate but `panel-wide: 700px` is more semantically correct and gives the two-column layout more breathing room.
+
+```js
+// tailwind.config.js
+screens: { 'panel-wide': '700px' }
+```
+
+Usage: `className="flex flex-col panel-wide:flex-row gap-4"`
+
+## New Components
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| `StatusBadge` | `src/components/StatusBadge.tsx` | Theme-aware status chip. Props: `status: PbiStatus`, `size?: 'sm' \| 'xs'` |
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `webview-ui/package.json` | Added `tailwindcss@^3.4.0`, `postcss`, `autoprefixer` to devDependencies |
+| `webview-ui/postcss.config.js` | New — PostCSS plugin registration |
+| `webview-ui/tailwind.config.js` | New — Tailwind config with VS Code bridge colors |
+| `webview-ui/src/styles/tailwind.css` | New — `@tailwind` directives + bridge variable definitions |
+| `webview-ui/src/main.tsx` | Added `import './styles/tailwind.css'` |
+| `webview-ui/src/views/DashboardView.tsx` | Full replacement — hierarchy accordion layout |
+| `webview-ui/src/components/StatusBadge.tsx` | New — reusable status badge component |
+| `webview-ui/design/tailwind-setup.md` | New — implementation guide for Rusty |
+
+---
+
+### Bugfix: GENERATE_USER_STORIES_FROM_FEATURE — Two Handler Bugs Fixed (2026-05-01)
+
+**Authors:** Linus (Backend Dev), Rusty (Frontend Dev)  
+**Status:** ✅ COMPLETED  
+**Date:** 2026-04-30 → 2026-05-01  
+**Commits:** 698c4e1 (Linus), build passing (Rusty)  
+**Branch:** feature/saul-tailwind-dashboard-redesign
+
+## Problems Identified
+
+### Bug 1 (Backend): Payload Field Name Mismatch — `generatedPbis` vs `generatedDraftIds`
+
+**Symptom:** User clicks "Generate User Stories" in Feature Creation Wizard (Step 3) → loading spinner never resolves → stuck forever.
+
+**Root Cause:**
+- Backend handler posted `USER_STORIES_GENERATED` event with payload: `{ featureId, generatedPbis: PbiDraft[] }`
+- Frontend (App.tsx) expected: `message.payload.generatedDraftIds` (string[])
+- Expected field was always `undefined` → wizard useEffect condition never fired → `generationBusy` flag never cleared → infinite spinner
+
+**Secondary Issue:** Feature lookup failed because feature not yet saved to state
+- Wizard generates stable `featureDraftId` at mount
+- User calls `GENERATE_USER_STORIES_FROM_FEATURE` before calling `CREATE_FEATURE_DRAFT`
+- Backend handler tried: `getFeatureDrafts().find(f => f.id === featureId)` → returned `undefined` for unsaved feature
+- Early return cleared `AI_PROGRESS` in some paths but not all → inconsistent UI cleanup
+
+## Solutions Implemented
+
+### Linus (Backend Dev) — Fixed Data Model Mismatch
+
+**Changes to `src/shared/messages.ts`:**
+1. Expanded `GENERATE_USER_STORIES_FROM_FEATURE` request payload to include full inline feature data:
+   - `title`, `description`, `why?`, `userFlow?`, `businessRules?`, `repoIds: string[]`
+   - Avoids lookup failures when feature not yet saved
+2. Changed `USER_STORIES_GENERATED` response payload from `generatedPbis: PbiDraft[]` → `generatedDraftIds: string[]`
+   - Matches frontend expectation exactly
+3. Added new `FEATURE_GENERATION_ERROR` event type with error message payload
+
+**Changes to `src/panels/DashboardPanel.ts` handler:**
+1. Constructor now builds `FeatureDraft` from inline payload fields
+2. Falls back to global state lookup if feature already saved
+3. Upserts feature into global state after generation (ensures parentFeatureId persists)
+4. ALL error paths now emit `FEATURE_GENERATION_ERROR` + clear `AI_PROGRESS busy=false`
+   - No early returns without UI cleanup
+   - Prevents stuck loading states
+5. Success path sends `generatedDraftIds` matching frontend contract
+
+**Changes to `webview-ui/src/types.ts`:**
+- Added `FEATURE_GENERATION_ERROR` to `ExtensionEvent` union
+
+### Rusty (Frontend Dev) — Fixed Spinner Resolution + Empty Array Handling
+
+**Changes to `webview-ui/src/views/FeatureCreationWizard.tsx`:**
+
+1. **Added 30-second timeout** (prevents infinite spinner if generation never arrives):
+   - `useRef<ReturnType<typeof setTimeout> | null>` to hold timer ID (not useState to avoid re-renders)
+   - Set timeout when user clicks "Generate" → fires `setGenerationBusy(false)` + error message after 30s
+   - Cleared in: success path, empty response path, unmount cleanup effect
+   - Prevents double-firing (always clear in ALL resolution paths)
+
+2. **Fixed empty-array handling:**
+   - Old guard: `generatedPbiIds && generatedPbiIds.length > 0 && generationBusy`
+   - New guard: `generatedPbiIds !== undefined && generationBusy`
+   - Old logic: empty array `[]` would fail length check → spinner never cleared
+   - New logic: empty array is a valid response → surface error "No stories were generated — please try again"
+   - Non-empty array advances to Step 4 as before
+
+3. **Message type alignment:**
+   - `App.tsx` handler now correctly receives and sets `generatedPbiIds` from payload `generatedDraftIds`
+
+## Key Lessons
+
+1. **Type contracts must be verified end-to-end:**
+   - `src/shared/messages.ts` (backend) + `webview-ui/src/types.ts` (frontend) must stay in sync manually
+   - A single property name mismatch causes the entire workflow to fail silently
+   - Recommend: TypeScript incremental checks or shared type generation in future
+
+2. **Wizard-generated IDs arrive before persistence:**
+   - Wizard uses `featureDraftId` from `useState` init at mount
+   - Feature is only saved much later via `CREATE_FEATURE_DRAFT`
+   - Handlers that look up entities must accept inline data as well as global state fallback
+
+3. **Early-return paths must ALWAYS clean up UI state:**
+   - Any handler that sets `AI_PROGRESS busy=true` must also guarantee `busy=false` in all exit paths
+   - Use explicit error emissions on every error path to prevent stuck spinners
+
+4. **Distinguish "response never arrived" from "empty response":**
+   - Use `!== undefined` not `.length > 0` to detect if response was received
+   - Backend might legitimately return `[]`; this is a valid response, not a missing response
+   - Two different UX states: timeout (error) vs empty results (also error but different)
+
+## Verification
+
+- ✅ **Backend:**  Field name corrected (generatedDraftIds), payload expanded with inline feature data
+- ✅ **Frontend:** 30s timeout + guard fixed, spinner now resolves
+- ✅ **Error paths:** All emit FEATURE_GENERATION_ERROR with no stuck UI states
+- ✅ **Build:** Extension + webview both compile cleanly
+- ✅ **Message flow:** App.tsx correctly wired to new payload shape
+
+## Files Modified
+- `src/shared/messages.ts` — Payload structure, message type union
+- `src/panels/DashboardPanel.ts` — Handler rewrite, error cleanup
+- `webview-ui/src/types.ts` — FEATURE_GENERATION_ERROR type
+- `webview-ui/src/views/FeatureCreationWizard.tsx` — Timeout logic, guard condition
+- `webview-ui/src/App.tsx` — Handler alignment (no breaking changes)
+
+---
+
+
+### [2026-04-30]: Feature Branch Workflow — PR, Merge, and Cleanup
+
+**Decision:** When a feature branch is complete, the team follows this standard close-out sequence:
+
+1. **Commit all squad state** — stage and commit any remaining .squad/ changes (history.md, decisions inbox, skill files)
+2. **Create a PR** — use gh pr create with a descriptive title and body covering: summary, features, bug fixes, and any breaking changes
+3. **Merge via squash** — gh pr merge <N> --squash --delete-branch for a clean main history
+4. **Clean up local** — git checkout main && git pull && git branch -d <branch>
+5. **Document in decisions.md** — record what shipped in this PR
+
+**Why:** Keeps main clean (squash history), auto-removes remote branches, and ensures squad state (learnings, decisions, skill files) is captured before the branch is gone.
+
+**Applies to:** All agents. Danny enforces at PR review time.
+
+**Implemented:** Closed feature/saul-tailwind-dashboard-redesign (PR #61) using this workflow.

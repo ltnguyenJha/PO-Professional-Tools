@@ -23,6 +23,37 @@ export const WORK_ITEM_TYPES: AdoWorkItemType[] = [
 
 export type PbiStatus = 'draft' | 'ready' | 'pushed';
 
+export type HierarchyStatus = 'draft' | 'ready' | 'pushed' | 'partial';
+
+export interface FeatureDraft {
+  id: string;
+  title: string;
+  description: string;
+  why?: string;
+  userFlow?: string;
+  businessRules?: string;
+  repoIds: string[];
+  parentEpicId?: string;
+  childPbiIds: string[];
+  adoWorkItemId?: number;
+  adoWorkItemUrl?: string;
+  hierarchyStatus: HierarchyStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EpicDraft {
+  id: string;
+  title: string;
+  description: string;
+  featureIds: string[];
+  adoWorkItemId?: number;
+  adoWorkItemUrl?: string;
+  hierarchyStatus: HierarchyStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PbiAttachment {
   id: string;
   fileName: string;
@@ -58,6 +89,8 @@ export interface PbiDraft {
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
+  // Feature hierarchy back-reference (optional)
+  parentFeatureId?: string;
   // Feature definition fields (optional)
   featureWhy?: string;
   featureUserFlow?: string;
@@ -157,6 +190,8 @@ export interface AppStatePayload {
   linkTargets?: ImportedProject[];
   pbiDrafts: PbiDraft[];
   rdiDrafts: RdiDraft[];
+  featureDrafts: FeatureDraft[];
+  epicDrafts?: EpicDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -239,6 +274,14 @@ export type ExtensionEvent =
   | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
   | { type: 'PAT_VALIDATION_RESULT'; payload: { valid: boolean; error?: string } }
+  // Feature draft events
+  | { type: 'FEATURE_DRAFT_CREATED'; payload: { featureId: string } }
+  | { type: 'FEATURE_DRAFT_UPDATED'; payload: { featureDraft: FeatureDraft } }
+  | { type: 'FEATURE_DRAFT_DELETED'; payload: { featureId: string } }
+  | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
+  | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
+  | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; phase: 'feature' | 'children'; current: number; total: number; message: string } }
+  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId?: number; childCount: number; failedIds?: string[] } }
   // RDI events
   | { type: 'rdiDraftCreated'; draft: RdiDraft }
   | { type: 'rdiDraftLoaded'; draft: RdiDraft }
@@ -312,6 +355,12 @@ export type WebviewRequest =
   | { type: 'FETCH_ADO_AREA_PATHS'; payload: { team: string } }
   | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
   | { type: 'VALIDATE_PAT_SCOPES' }
+  // Feature draft requests
+  | { type: 'CREATE_FEATURE_DRAFT'; payload: { id: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[] } }
+  | { type: 'UPDATE_FEATURE_DRAFT'; payload: { draft: FeatureDraft } }
+  | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
+  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number } }
+  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; parentEpicId?: string; childPbiIds: string[]; includeChildren: boolean } }
   // RDI requests
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }

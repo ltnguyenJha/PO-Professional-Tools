@@ -23,6 +23,24 @@ export type AdoWorkItemType =
 
 export type PbiStatus = 'draft' | 'ready' | 'pushed';
 
+export type HierarchyStatus = 'draft' | 'ready' | 'pushed' | 'partial';
+
+export interface FeatureDraft {
+  id: string;
+  title: string;
+  description: string;
+  why?: string;
+  userFlow?: string;
+  businessRules?: string;
+  repoIds: string[];
+  parentEpicId?: string;
+  childPbiIds: string[];
+  adoWorkItemId?: number;
+  hierarchyStatus: HierarchyStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Files to upload as Azure DevOps work item attachments (diagrams, mermaid, etc.). */
 export interface PbiAttachment {
   id: string;
@@ -61,6 +79,8 @@ export interface PbiDraft {
   userStoryStatement?: string;
   // Business rules and assumptions (optional)
   businessRulesAndAssumptions?: string;
+  // Feature hierarchy back-reference (optional)
+  parentFeatureId?: string;
   // Feature definition fields (optional)
   featureWhy?: string;
   featureUserFlow?: string;
@@ -153,6 +173,7 @@ export interface AppStatePayload {
   linkTargets?: ImportedProject[];
   pbiDrafts: PbiDraft[];
   rdiDrafts: RdiDraft[];
+  featureDrafts: FeatureDraft[];
   adoSettings?: AdoSettings;
   uiSettings: UiSettings;
   hasAdoPat: boolean;
@@ -301,6 +322,12 @@ export type WebviewRequest =
   | { type: 'WIZARD_DRAFT_SAVE'; payload: { draftId: string; partialDraft: Partial<PbiDraft>; currentStep: number } }
   | { type: 'FETCH_ADO_AREA_PATHS'; payload: { team: string } }
   | { type: 'FETCH_ADO_ITERATIONS'; payload: { team: string } }
+  // Feature draft messages
+  | { type: 'CREATE_FEATURE_DRAFT'; payload: Omit<FeatureDraft, 'id' | 'createdAt' | 'updatedAt' | 'hierarchyStatus'> & { hierarchyStatus?: HierarchyStatus } }
+  | { type: 'UPDATE_FEATURE_DRAFT'; payload: FeatureDraft }
+  | { type: 'DELETE_FEATURE_DRAFT'; payload: { featureId: string } }
+  | { type: 'GENERATE_USER_STORIES_FROM_FEATURE'; payload: { featureId: string; title: string; description: string; why?: string; userFlow?: string; businessRules?: string; repoIds: string[]; storyCount?: number } }
+  | { type: 'PUSH_FEATURE_TO_ADO'; payload: { featureId: string; includeChildren: boolean } }
   // RDI messages
   | { type: 'createRdiDraft' }
   | { type: 'loadRdiDraft'; id: string }
@@ -338,6 +365,14 @@ export type ExtensionEvent =
   | { type: 'ADO_AREA_PATHS_RESULT'; payload: string[] | { error: string } }
   | { type: 'ADO_ITERATIONS_RESULT'; payload: string[] | { error: string } }
   | { type: 'FETCH_FAILED'; payload: { type: string; error: string } }
+  // Feature draft events
+  | { type: 'FEATURE_DRAFT_CREATED'; payload: FeatureDraft }
+  | { type: 'FEATURE_DRAFT_UPDATED'; payload: FeatureDraft }
+  | { type: 'FEATURE_DRAFT_DELETED'; payload: { featureId: string } }
+  | { type: 'USER_STORIES_GENERATED'; payload: { featureId: string; generatedDraftIds: string[] } }
+  | { type: 'FEATURE_GENERATION_ERROR'; payload: { featureId: string; message: string } }
+  | { type: 'FEATURE_PUSH_PROGRESS'; payload: { featureId: string; message: string; progress: number; total: number } }
+  | { type: 'FEATURE_PUSHED'; payload: { featureId: string; adoWorkItemId: number; childAdoIds: Record<string, number>; hierarchyStatus: HierarchyStatus } }
   // RDI events
   | { type: 'rdiDraftCreated'; draft: RdiDraft }
   | { type: 'rdiDraftLoaded'; draft: RdiDraft }

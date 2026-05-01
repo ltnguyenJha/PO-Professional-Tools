@@ -49,6 +49,22 @@ Completed comprehensive analysis and approval of project restructuring (docs/, d
 
 **Manual step required:** After build, open repo in VS Code and press **F5** to launch Extension Development Host.
 
+### Epic → Feature → Story Hierarchy Architecture (2026-04-30)
+
+**Status:** Proposed (awaiting team review)  
+**Proposal:** `docs/architecture/epic-feature-story-hierarchy.md`
+
+Defined complete architectural specification for Epic/Feature/UserStory hierarchy supporting PO workflow. Key outcomes:
+- **Separate Types:** `FeatureDraft` and `EpicDraft` as independent types (not PbiDraft extensions)
+- **ID-based Relationships:** Parent-child via ID references for single source of truth
+- **Feature Creation:** New dedicated view replacing `bulk` ViewId with 4-step wizard
+- **ADO Integration:** Uses standard Hierarchy-Forward links; supports re-push updates
+- **HierarchyStatus:** New `'partial'` status for partially-pushed parents
+- **Navigation:** Epics & Features positioned between Dashboard and Projects
+
+**Decision merged:** `.squad/decisions.md`  
+**Cross-agent dependencies:** Requires input from Linus (context assembly), Rusty (Tailwind patterns), Team (proposal review)
+
 **Audit warnings:** 3 vulnerabilities (1 moderate, 2 high) in both installs. Non-blocking for dev but should be addressed before production packaging (`npm audit fix`).
 
 ### Strategic Framing: Platform Play Over Point Solution (2026-04-25)
@@ -361,3 +377,45 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - `.squad/decisions/inbox/danny-feature-41-rdi-architecture.md`
 
 **Lasting Pattern:** Architecture for wizard-based ADO features follows a predictable template: (1) define data model as new interface, (2) add WebviewRequest + ExtensionEvent types, (3) create dedicated service, (4) add ADO push method with HTML description builder, (5) create wizard orchestrator + N step components. This pattern should be documented as a feature template for future issues.
+
+### Epic → Feature → User Story Hierarchy Architecture (2026-07-01)
+
+**Task:** Architecture proposal for introducing work item hierarchy (Epic → Feature → User Story) with AI-driven Feature decomposition, multi-repo context, ADO push with parent-child links, and dashboard redesign.
+
+**Key Decisions:**
+- Separate `FeatureDraft` and `EpicDraft` types (not extending PbiDraft — too overloaded already)
+- ID-based relationships (not inline objects) for parent-child; `parentFeatureId` back-reference on PbiDraft
+- `HierarchyStatus` adds `'partial'` state for when parent pushed but children pending
+- Feature Creation wizard replaces BulkBreakdownView at the `bulk` ViewId (no route change)
+- High-level edit only in Feature wizard; detailed editing redirects to PBI Studio
+- ADO push uses `System.LinkTypes.Hierarchy-Forward` for parent→child
+- "Epics & Features" nav item between Dashboard and Projects
+
+**Deliverables:**
+- `docs/architecture/epic-feature-story-hierarchy.md`
+- `.squad/decisions/inbox/danny-epic-feature-architecture.md`
+
+**Lasting Pattern:** When adding a new hierarchy level to the data model, prefer separate dedicated types over extending existing overloaded interfaces. Use ID-based references with back-references for tree rendering. This keeps CRUD operations independent and avoids cascading changes to existing consumers.
+
+### Feature Branch Close-Out Workflow Established (2026-04-30)
+
+**Task:** Close feature/saul-tailwind-dashboard-redesign branch with complete PR workflow documentation.
+
+**What Happened:**
+1. Verified branch state — already clean, no unstaged changes
+2. Created PR #61 with comprehensive body: summary, features, bug fixes, CSS/Tailwind changes, ESLint cleanup
+3. Merged via squash (gh pr merge --squash --delete-branch) → clean main history, auto-deleted remote + local branches
+4. Documented standard workflow in decisions.md and created decision drop file
+
+**Workflow Locked In:**
+- All feature branches follow this pattern: PR → squash merge → branch auto-delete → document in decisions.md
+- PR body covers: summary, features, bug fixes, breaking changes, CSS/theme, lint changes
+- Danny reviews and enforces at merge time
+- Squad state (history.md, decisions, skills) committed before branch close
+
+**Key Learning:** Squash merging keeps main history clean and narrative (each main commit = one shipped feature). Auto-delete via --delete-branch eliminates manual cleanup; git pull on main automatically syncs. Standard workflow documented in decisions.md prevents ad-hoc branch management.
+
+**Files Updated:**
+- .squad/decisions.md — added Feature Branch Workflow decision
+- .squad/decisions/inbox/danny-pr-workflow.md — decision drop file
+- .squad/agents/danny/history.md — this entry
