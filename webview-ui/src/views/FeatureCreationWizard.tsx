@@ -731,9 +731,10 @@ function Step4Review({
                         Effort
                       </label>
                       <select
-                        className="text-xs rounded border px-1.5 py-0.5 bg-transparent"
+                        className="text-xs rounded border px-1.5 py-0.5 bg-transparent focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none"
                         style={{ borderColor: 'var(--tw-vscode-border)', color: 'var(--tw-vscode-fg)' }}
                         value={effort}
+                        aria-label={`Effort for story ${idx + 1}`}
                         onChange={(e) =>
                           onUpdateEdit(pbi.id, { effortDays: Number(e.target.value) as LocalPbiEdit['effortDays'] })
                         }
@@ -745,9 +746,10 @@ function Step4Review({
                     </div>
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm text-xs"
+                      className="btn btn-ghost btn-sm text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                       onClick={() => onEditInStudio(pbi.id)}
                       title="Open this story in PBI Studio for full editing"
+                      aria-label={`Edit story ${idx + 1} in PBI Studio`}
                     >
                       ✏ Edit in PBI Studio
                     </button>
@@ -760,7 +762,7 @@ function Step4Review({
       </div>
 
       <div className="flex items-center justify-between pt-1">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onAddStory}>
+        <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onAddStory}>
           + Add story
         </button>
         <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -835,7 +837,7 @@ function Step5SavePush({
             </p>
           </div>
         ) : null}
-        <button type="button" className="btn btn-primary" onClick={onDone}>
+        <button type="button" className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onDone}>
           Done — back to Dashboard
         </button>
       </div>
@@ -881,7 +883,7 @@ function Step5SavePush({
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
-          className="btn btn-ghost"
+          className="btn btn-ghost min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
           disabled={isPushing}
           onClick={onSaveAsDraft}
         >
@@ -889,7 +891,7 @@ function Step5SavePush({
         </button>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
           disabled={isPushing}
           onClick={onPushToAdo}
         >
@@ -1010,6 +1012,12 @@ export function FeatureCreationWizard({
       setStep(5);
     }
   }, [pushResult]);
+
+  // Step focus management: move focus to step heading on step change
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    stepHeadingRef.current?.focus();
+  }, [step]);
 
   const step1Valid = title.trim().length >= 3 && description.trim().length >= 10;
 
@@ -1169,7 +1177,7 @@ export function FeatureCreationWizard({
         <StepIndicator current={step} />
 
         <div className="mb-4">
-          <h2 className="text-base font-semibold mb-0.5" style={{ color: 'var(--tw-vscode-fg)' }}>
+          <h2 ref={stepHeadingRef} tabIndex={-1} className="text-base font-semibold mb-0.5 focus-visible:outline-none" style={{ color: 'var(--tw-vscode-fg)' }}>
             {STEPS[step - 1].label}
           </h2>
           <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -1241,20 +1249,20 @@ export function FeatureCreationWizard({
 
         {/* Navigation row */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {step > 1 && step < 5 && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={handleBack}>
+              <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={handleBack}>
                 ← Back
               </button>
             )}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={handleCancel}>
+            <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={handleCancel}>
               Cancel
             </button>
           </div>
           {step < 5 && (
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
               disabled={!canGoNext()}
               onClick={handleNext}
             >
@@ -1269,12 +1277,15 @@ export function FeatureCreationWizard({
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ background: 'rgba(0,0,0,0.4)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-dialog-title"
         >
           <div
             className="rounded-lg border p-5 max-w-sm w-full shadow-lg"
             style={{ background: 'var(--tw-vscode-bg)', borderColor: 'var(--tw-vscode-border)' }}
           >
-            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--tw-vscode-fg)' }}>
+            <h3 id="cancel-dialog-title" className="text-sm font-semibold mb-2" style={{ color: 'var(--tw-vscode-fg)' }}>
               Discard feature?
             </h3>
             <p className="text-xs mb-4" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
@@ -1283,14 +1294,14 @@ export function FeatureCreationWizard({
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                 onClick={() => setShowCancelConfirm(false)}
               >
                 Keep editing
               </button>
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                 style={{ background: 'var(--tw-vscode-error)', color: '#fff' }}
                 onClick={() => onNavigate('dashboard')}
               >
