@@ -12,6 +12,65 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-30 — WCAG 2.1 AA Component Accessibility Pass
+
+**Scope:** FeatureCreationWizard.tsx, DashboardView.tsx, PbiStudio.tsx, StatusBadge.tsx, App.tsx
+
+**Key patterns established:**
+
+**ARIA semantics:**
+- `aria-expanded` on every accordion trigger button — required for screen readers to announce state
+- `aria-current="step"` on the active step indicator circle — correct ARIA pattern for multi-step wizards
+- `role="status" aria-live="polite"` for loading states (generation spinner), `role="alert" aria-live="assertive"` for error banners
+- `role="dialog" aria-modal="true" aria-labelledby` on cancel confirmation overlay — traps AT attention in the overlay
+- `StatusBadge` uses `role="status" aria-label="Status: {label}"` so screen readers announce badge without visual context
+
+**Form accessibility:**
+- Every `<input>`, `<textarea>`, `<select>` must have matching `id` + `htmlFor` pair OR `aria-label`
+- Required fields: both `required` and `aria-required="true"` (belt-and-suspenders)
+- Error states: `aria-invalid={!!error}` + `aria-describedby="error-id"` + `id="error-id"` on the error paragraph + `role="alert"` on the error paragraph
+- Inline error paragraphs need `role="alert"` so AT announces on input
+
+**Section headers — avoid div+onClick antipattern:**
+- In PbiStudio, `.section-header` divs had `onClick` but were not keyboard accessible
+- Fix: Change to `<button type="button" className="section-header w-full text-left">` — reuses existing CSS, adds all button semantics
+- "Edit item" header was complex (nested action buttons) — split into `<button>` for heading + `<div>` for action row with `stopPropagation`. Both are correct.
+- `<button>` CAN contain `<h3>` — valid HTML5 phrasing content
+
+**Accordion animation:**
+- CSS `max-height` transition with `overflow-hidden` is the correct approach
+- `aria-hidden={!isOpen}` on the content container hides from AT when collapsed
+- Keep content in DOM (don't use `{open && ...}`) so transitions can animate — but add `aria-hidden` to prevent AT reading hidden content
+- Pattern: `className={`overflow-hidden transition-all duration-200 ease-out border-t ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}`
+
+**Touch targets:**
+- WCAG 2.5.5: All interactive elements min 44×44px
+- Use `min-h-[44px]` (not `h-[44px]`) on buttons so they can grow with content
+- Checkbox rows: `min-h-[44px]` on the `<label>` wrapper, NOT the checkbox itself
+- The custom `min-h-touch` and `min-w-touch` Tailwind tokens (added by Saul in tailwind.config.js) can also be used
+
+**Focus rings:**
+- Use `focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:outline-none`
+- Always include `focus-visible:outline-none` to prevent browser-default ring from double-drawing
+- Use `focus-visible:ring-inset` on buttons inside bordered containers to prevent ring from being clipped
+- Saul added a global `:focus-visible` rule in styles.css — but still add per-element `focus-visible:outline-none` to prevent conflicts
+
+**Step focus management:**
+- When a multi-step wizard advances, move focus to the new step heading
+- Pattern: `const headingRef = useRef<HTMLHeadingElement>(null)` → `useEffect(() => { headingRef.current?.focus(); }, [step])` → `<h2 ref={headingRef} tabIndex={-1} className="focus-visible:outline-none">`
+- `tabIndex={-1}` makes the heading focusable programmatically without adding it to tab order
+
+**Keyboard events:**
+- `onKeyDown` for accordion/button divs: handle both `Enter` AND `Space` — `Space` is the keyboard activation key for buttons per ARIA spec
+- `e.preventDefault()` in Space handler prevents page scroll
+
+**Coordination with Saul:**
+- Saul's CSS/config work (Tailwind tokens, focus-visible global, accordion CSS) was pre-committed to the same branch — confirmed no conflicts
+- Saul handled global CSS rules; Rusty added per-element ARIA and semantic HTML — clean division
+- Check for existing WCAG commits on the branch before starting to avoid duplicate work
+
+
+
 ### 2026-05-XX — Repo Checkbox All-or-Nothing & Edit-in-Studio Navigation
 
 **Bug 1 — Repo checkboxes "all or nothing" (root cause finally found):**
