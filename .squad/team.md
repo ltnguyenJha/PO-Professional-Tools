@@ -12,6 +12,7 @@
 
 | Name | Role | Charter | Status |
 |------|------|---------|--------|
+| Basher | Solutions Architect | .squad/agents/basher/charter.md | 🟢 Active |
 | Danny | Lead | .squad/agents/danny/charter.md | 🟢 Active |
 | Rusty | Frontend Dev | .squad/agents/rusty/charter.md | 🟢 Active (Issue #20 integration complete) |
 | Linus | Backend Dev | .squad/agents/linus/charter.md | 🟢 Active (Issue #20 backend complete) |
