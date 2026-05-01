@@ -83,7 +83,27 @@
 
 ---
 
-### 2026-04-30 — Feature Creation Implementation (Phase 1 Data Layer)
+### 2026-05-XX — ADO Push URL Tracking: FEATURE_PUSHED Contract Fix
+
+**Problem:** After a successful Feature push to ADO, no browser URL was surfaced in the success event. The Epic push already included `adoWorkItemUrl` in `EPIC_PUSHED`, but the Feature push was missing it entirely.
+
+**Root Cause Trace:**
+- `adoService.pushFeatureHierarchy()` returned `{ featureWorkItemId, featureApiUrl, childResults, errors }` — `featureApiUrl` is the REST API URL (not a browser URL), and no browser URL was computed.
+- `DashboardPanel.ts` Feature handler persisted `adoWorkItemId` but NOT `adoWorkItemUrl` on the FeatureDraft.
+- `FEATURE_PUSHED` event payload in both `src/shared/messages.ts` and `webview-ui/src/types.ts` had no `adoWorkItemUrl` field.
+
+**Fix:**
+- `adoService.ts`: `pushFeatureHierarchy()` now captures `featureWorkItemUrl = item._links?.html?.href ?? buildBrowserUrl(settings, id)` for CREATE, and `buildBrowserUrl(settings, id)` for UPDATE. Return type updated to include `featureWorkItemUrl: string`.
+- `DashboardPanel.ts`: `updatedFeature` now sets `adoWorkItemUrl: result.featureWorkItemUrl`. `FEATURE_PUSHED` payload includes `adoWorkItemUrl`.
+- `src/shared/messages.ts`: `FEATURE_PUSHED` payload adds `adoWorkItemUrl?: string`.
+- `webview-ui/src/types.ts`: Mirrored same change.
+
+**Message Contract (ADO Push Responses):**
+- `EPIC_PUSHED` payload: `{ epicId, adoWorkItemId: number, adoWorkItemUrl: string, linkedFeatureAdoIds, hierarchyStatus }` — URL is **required** (non-optional)
+- `FEATURE_PUSHED` payload: `{ featureId, adoWorkItemId?: number, adoWorkItemUrl?: string, childAdoIds, hierarchyStatus }` — URL is optional (existing features updated may compute from buildBrowserUrl)
+- Rusty reads: `payload.adoWorkItemUrl` from both events
+
+
 
 **Scope:** Completed full backend for Feature→PBI hierarchy intake flow
 

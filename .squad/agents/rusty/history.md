@@ -12,6 +12,25 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-05-XX — ADO Tracking URL Display + Epic ADO Details Dropdown
+
+**Scope:** `EpicCreationWizard.tsx`, `FeatureCreationWizard.tsx`
+
+**Tracking URL pattern:**
+- After a successful ADO push, display a "Tracking" card in-place rather than immediately navigating away. User sees: work item ID badge, "View in Azure DevOps ↗" anchor (`target="_blank" rel="noreferrer"`), and a "⎘ Copy URL" button.
+- Copy URL: `navigator.clipboard.writeText(url)` → brief "✓ Copied" state via local `useState<boolean>` + `setTimeout(2000)` reset.
+- For Epics: `EPIC_PUSHED` handler stores `{ adoWorkItemId, adoWorkItemUrl, hierarchyStatus }` in `epicPushResult` state instead of calling `onNavigate` immediately. `Step5Confirm` renders the success+tracking view when `epicPushResult` is set. "Done" button calls `onDone` → navigate.
+- For Features: `FeaturePushedResult` interface gained `adoWorkItemUrl?: string` field (payload already had it from Linus). `Step5SavePush` conditionally renders the tracking card when `isSuccess` and wraps it in a `<>` fragment alongside the success banner.
+- `adoWorkItemUrl` was already present in `FEATURE_PUSHED` and `EPIC_PUSHED` event payloads in both `types.ts` and `src/shared/messages.ts` — no changes needed there.
+
+**ADO Details accordion pattern (Epic Step 1):**
+- Replace flat always-visible section with a controlled `<button>` + animated body pattern.
+- Collapsed by default (`useState(false)`). Summary line shows configured area path: `area || epicDefaults.defaultArea`.
+- Body uses `max-h` CSS transition: `max-h-[1400px] opacity-100` (open) / `max-h-0 opacity-0` (closed) — must set max-h high enough to fit all content.
+- Settings sub-accordion is nested inside the ADO Details accordion body. Both use the same chevron `▶` rotate-90 pattern.
+- `aria-expanded` on the trigger button, `aria-hidden` on the body panel, `aria-controls` pointing to the panel `id`.
+- When wrapping an existing section: remove the old outer `<div className="pt-3 border-t">` wrapper and replace with the accordion `<div className="rounded-md border overflow-hidden">` at the same DOM level.
+
 ### 2026-04-30 — WCAG 2.1 AA Component Accessibility Pass
 
 **Scope:** FeatureCreationWizard.tsx, DashboardView.tsx, PbiStudio.tsx, StatusBadge.tsx, App.tsx
