@@ -6,6 +6,7 @@ import {
   AdoSettings,
   BugReportInput,
   BulkBreakdownRequest,
+  EpicDraft,
   ExtensionEvent,
   FeatureDraft,
   HierarchyStatus,
@@ -255,6 +256,28 @@ export class DashboardPanel {
         return;
       case 'PUSH_FEATURE_TO_ADO':
         await this.handlePushFeatureToAdo(message.payload.featureId, message.payload.includeChildren, message.payload.targetDate);
+        return;
+      // Epic draft handlers
+      case 'CREATE_EPIC_DRAFT':
+        await this.handleCreateEpicDraft(message.payload);
+        return;
+      case 'UPDATE_EPIC_DRAFT':
+        await this.handleUpdateEpicDraft(message.payload);
+        return;
+      case 'DELETE_EPIC_DRAFT':
+        await this.handleDeleteEpicDraft(message.payload.epicId);
+        return;
+      case 'LINK_FEATURE_TO_EPIC':
+        await this.handleLinkFeatureToEpic(message.payload.epicId, message.payload.featureId);
+        return;
+      case 'UNLINK_FEATURE_FROM_EPIC':
+        await this.handleUnlinkFeatureFromEpic(message.payload.epicId, message.payload.featureId);
+        return;
+      case 'PUSH_EPIC_TO_ADO':
+        await this.handlePushEpicToAdo(message.payload.epicId, message.payload.pushChildren);
+        return;
+      case 'GENERATE_FEATURES_FROM_EPIC':
+        await this.handleGenerateFeaturesFromEpic(message.payload);
         return;
       default:
         return;
@@ -1670,6 +1693,256 @@ export class DashboardPanel {
     await this.context.globalState.update('featureDrafts', features);
   }
 
+  // ─── Epic Draft Persistence ───────────────────────────────────────────────
+
+  private getEpicDrafts(): EpicDraft[] {
+    return this.context.globalState.get<EpicDraft[]>('epicDrafts', []);
+  }
+
+  private async saveEpicDrafts(epics: EpicDraft[]): Promise<void> {
+    await this.context.globalState.update('epicDrafts', epics);
+  }
+
+  // ─── Epic Draft Handlers ──────────────────────────────────────────────────
+
+  private async handleCreateEpicDraft(
+    payload: {
+      title: string;
+      description: string;
+      objectives: string[];
+      scope: string;
+      linkedFeatureIds: string[];
+      selectedRepoIds: string[];
+      estimatedVelocity?: number;
+      targetDate?: string;
+      aiGeneratedFeatures?: boolean;
+    }
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const epic: EpicDraft = {
+      ...payload,
+      id: Date.now().toString(),
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now
+    };
+    const epics = this.getEpicDrafts();
+    await this.saveEpicDrafts([...epics, epic]);
+    this.post({ type: 'EPIC_DRAFT_CREATED', payload: epic });
+    await this.postState();
+  }
+
+  private async handleUpdateEpicDraft(epic: EpicDraft): Promise<void> {
+    const updated: EpicDraft = { ...epic, updatedAt: new Date().toISOString() };
+    const epics = this.getEpicDrafts();
+    const idx = epics.findIndex((e) => e.id === updated.id);
+    if (idx === -1) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+    epics[idx] = updated;
+    await this.saveEpicDrafts(epics);
+    this.post({ type: 'EPIC_DRAFT_UPDATED', payload: updated });
+    await this.postState();
+  }
+
+  private async handleDeleteEpicDraft(epicId: string): Promise<void> {
+    const epics = this.getEpicDrafts().filter((e) => e.id !== epicId);
+    await this.saveEpicDrafts(epics);
+
+    // Clear parentEpicId on any linked features
+    const features = this.getFeatureDrafts().map((f) =>
+      f.parentEpicId === epicId ? { ...f, parentEpicId: undefined } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'EPIC_DRAFT_DELETED', payload: { epicId } });
+    await this.postState();
+  }
+
+  private async handleLinkFeatureToEpic(epicId: string, featureId: string): Promise<void> {
+    const epics = this.getEpicDrafts();
+    const epicIdx = epics.findIndex((e) => e.id === epicId);
+    if (epicIdx === -1) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+    const epic = epics[epicIdx];
+    if (!epic.linkedFeatureIds.includes(featureId)) {
+      epics[epicIdx] = {
+        ...epic,
+        linkedFeatureIds: [...epic.linkedFeatureIds, featureId],
+        updatedAt: new Date().toISOString()
+      };
+      await this.saveEpicDrafts(epics);
+    }
+
+    const features = this.getFeatureDrafts().map((f) =>
+      f.id === featureId ? { ...f, parentEpicId: epicId, updatedAt: new Date().toISOString() } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'FEATURE_LINKED_TO_EPIC', payload: { epicId, featureId } });
+    await this.postState();
+  }
+
+  private async handleUnlinkFeatureFromEpic(epicId: string, featureId: string): Promise<void> {
+    const epics = this.getEpicDrafts();
+    const epicIdx = epics.findIndex((e) => e.id === epicId);
+    if (epicIdx !== -1) {
+      const epic = epics[epicIdx];
+      epics[epicIdx] = {
+        ...epic,
+        linkedFeatureIds: epic.linkedFeatureIds.filter((id) => id !== featureId),
+        updatedAt: new Date().toISOString()
+      };
+      await this.saveEpicDrafts(epics);
+    }
+
+    const features = this.getFeatureDrafts().map((f) =>
+      f.id === featureId ? { ...f, parentEpicId: undefined, updatedAt: new Date().toISOString() } : f
+    );
+    await this.saveFeatureDrafts(features);
+
+    this.post({ type: 'FEATURE_UNLINKED_FROM_EPIC', payload: { epicId, featureId } });
+    await this.postState();
+  }
+
+  private async handleGenerateFeaturesFromEpic(
+    payload: {
+      epicId: string;
+      title: string;
+      description: string;
+      objectives: string[];
+      scope: string;
+      selectedRepoIds: string[];
+      featureCount?: number;
+    }
+  ): Promise<void> {
+    const { epicId, title, description, objectives, scope, featureCount } = payload;
+
+    this.post({ type: 'AI_PROGRESS', payload: { message: 'Generating features from epic…', busy: true } });
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      const rawSuggestions = await this.copilotService.generateFeaturesFromEpic(
+        { title, description, objectives, scope },
+        cts.token,
+        { featureCount }
+      );
+
+      const suggestions = rawSuggestions.map((item, idx) => ({
+        clientId: `${Date.now()}_${idx}`,
+        title: item.title,
+        description: item.description
+      }));
+
+      this.post({ type: 'EPIC_GENERATION_COMPLETE', payload: { epicId, suggestions } });
+      this.postToast('success', `Generated ${suggestions.length} feature suggestions.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error generating features';
+      this.post({ type: 'EPIC_GENERATION_ERROR', payload: { epicId, message } });
+      this.postToast('error', message);
+    } finally {
+      cts.dispose();
+      this.post({ type: 'AI_PROGRESS', payload: { message: '', busy: false } });
+    }
+  }
+
+  private async handlePushEpicToAdo(epicId: string, pushChildren: boolean): Promise<void> {
+    const epic = this.getEpicDrafts().find((e) => e.id === epicId);
+    if (!epic) {
+      this.postToast('error', 'Epic draft not found.');
+      return;
+    }
+
+    const ctx = await this.requireAdoContext();
+    if (!ctx) {
+      return;
+    }
+
+    const { settings, pat } = ctx;
+    const orgUrl = settings.orgUrl.endsWith('/') ? settings.orgUrl.slice(0, -1) : settings.orgUrl;
+
+    try {
+      this.post({
+        type: 'EPIC_PUSH_PROGRESS',
+        payload: { epicId, phase: 'epic', current: 0, total: 1, message: 'Creating Epic in Azure DevOps…' }
+      });
+      this.postAdoProgress({ busy: true, message: 'Pushing Epic to Azure DevOps…', scope: 'single' });
+
+      const epicFeatures = pushChildren
+        ? this.getFeatureDrafts().filter((f) => epic.linkedFeatureIds.includes(f.id) || f.parentEpicId === epic.id)
+        : [];
+
+      const result = await this.adoService.pushEpicHierarchy(
+        settings,
+        pat,
+        epic,
+        epicFeatures,
+        pushChildren
+      );
+
+      const now = new Date().toISOString();
+      const allFeaturesLinked = epicFeatures.length === 0 || result.featureResults.length >= epicFeatures.length;
+      const hierarchyStatus: HierarchyStatus =
+        epicFeatures.length === 0
+          ? 'pushed'
+          : result.featureErrors.length === 0 && allFeaturesLinked
+          ? 'pushed'
+          : 'partial';
+
+      const updatedEpic: EpicDraft = {
+        ...epic,
+        adoId: result.epicWorkItemId,
+        adoUrl: result.epicWorkItemUrl,
+        status: hierarchyStatus,
+        updatedAt: now
+      };
+
+      const epics = this.getEpicDrafts().map((e) => e.id === epicId ? updatedEpic : e);
+      await this.saveEpicDrafts(epics);
+
+      // Update feature ADO IDs from results
+      if (result.featureResults.length > 0) {
+        const features = this.getFeatureDrafts().map((f) => {
+          const fr = result.featureResults.find((r) => r.featureId === f.id);
+          if (!fr) { return f; }
+          return { ...f, adoWorkItemId: fr.adoWorkItemId, adoWorkItemUrl: fr.adoWorkItemUrl, hierarchyStatus: 'pushed' as HierarchyStatus, updatedAt: now };
+        });
+        await this.saveFeatureDrafts(features);
+      }
+
+      const linkedFeatureAdoIds: Record<string, number> = {};
+      for (const fr of result.featureResults) {
+        linkedFeatureAdoIds[fr.featureId] = fr.adoWorkItemId;
+      }
+
+      this.post({
+        type: 'EPIC_PUSHED',
+        payload: {
+          epicId,
+          adoWorkItemId: result.epicWorkItemId,
+          adoWorkItemUrl: result.epicWorkItemUrl,
+          linkedFeatureAdoIds,
+          hierarchyStatus
+        }
+      });
+
+      if (result.featureErrors.length > 0) {
+        this.postToast('error', `Epic pushed as #${result.epicWorkItemId}. ${result.featureErrors.length} feature(s) failed.`);
+      } else {
+        this.postToast('success', `Epic pushed as #${result.epicWorkItemId} with ${result.featureResults.length} feature(s).`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.post({ type: 'EPIC_PUSH_ERROR', payload: { epicId, message } });
+      this.postToast('error', `Epic push failed: ${message}`);
+    } finally {
+      this.postAdoProgress({ busy: false, message: '', scope: 'single' });
+    }
+    await this.postState();
+  }
+
   // ─── Feature Draft Handlers ───────────────────────────────────────────────
 
   private async handleCreateFeatureDraft(
@@ -1685,6 +1958,20 @@ export class DashboardPanel {
     };
     const features = this.getFeatureDrafts();
     await this.saveFeatureDrafts([...features, feature]);
+
+    if (payload.parentEpicId) {
+      const epics = this.getEpicDrafts();
+      const epicIdx = epics.findIndex((e) => e.id === payload.parentEpicId);
+      if (epicIdx !== -1 && !epics[epicIdx].linkedFeatureIds.includes(feature.id)) {
+        epics[epicIdx] = {
+          ...epics[epicIdx],
+          linkedFeatureIds: [...epics[epicIdx].linkedFeatureIds, feature.id],
+          updatedAt: now
+        };
+        await this.saveEpicDrafts(epics);
+      }
+    }
+
     this.post({ type: 'FEATURE_DRAFT_CREATED', payload: feature });
     await this.postState();
   }
@@ -1843,7 +2130,7 @@ export class DashboardPanel {
       for (const pbi of childPbis) {
         this.post({
           type: 'FEATURE_PUSH_PROGRESS',
-          payload: { featureId, message: `Pushing "${pbi.title}"…`, progress, total }
+          payload: { featureId, phase: 'children', current: progress, total, message: `Pushing "${pbi.title}"…` }
         });
         progress++;
       }
@@ -1868,6 +2155,7 @@ export class DashboardPanel {
       const updatedFeature: FeatureDraft = {
         ...feature,
         adoWorkItemId: result.featureWorkItemId,
+        adoWorkItemUrl: result.featureWorkItemUrl,
         hierarchyStatus,
         updatedAt: now
       };
@@ -1904,6 +2192,7 @@ export class DashboardPanel {
         payload: {
           featureId,
           adoWorkItemId: result.featureWorkItemId,
+          adoWorkItemUrl: result.featureWorkItemUrl,
           childAdoIds,
           hierarchyStatus
         }
@@ -1941,6 +2230,7 @@ export class DashboardPanel {
         pbiDrafts: this.draftService.getAll(this.context.globalState),
         rdiDrafts: this.rdiDraftService.listDrafts(this.context.globalState),
         featureDrafts: this.getFeatureDrafts(),
+        epicDrafts: this.getEpicDrafts(),
         adoSettings: this.settingsService.getAdoSettings(),
         uiSettings: this.settingsService.getUiSettings(),
         hasAdoPat: Boolean(pat && pat.length > 0)

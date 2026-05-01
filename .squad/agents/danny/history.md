@@ -433,3 +433,53 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - .squad/decisions.md — added Feature Branch Workflow decision
 - .squad/decisions/inbox/danny-pr-workflow.md — decision drop file
 - .squad/agents/danny/history.md — this entry
+
+### Epic Creation Architecture Scoping Brief (2026-04-29)
+
+**Task:** Create comprehensive scoping brief for Epic Creation architecture to serve as input for Solutions Architect (Basher) designing the full architecture spec.
+
+**Deliverable:** `docs/architecture/epic-creation-brief.md` — production-ready scoping document
+
+**Brief Covers (11 sections):**
+1. **Hierarchy Model** — Epic (highest) → Feature (medium) → PBI (lowest); ADO WIT mapping; linking strategy using `System.LinkTypes.Hierarchy-Reverse`
+2. **EpicDraft Type** — Sketched full interface with 13 fields (id, title, description, objectives, scope, linkedFeatureIds, selectedRepoIds, status, lifecycle, velocity)
+3. **Message Types** — 12 message types across CREATE/UPDATE/DELETE/PUSH/GENERATE/LINK patterns; full WebviewRequest and ExtensionEvent sketches
+4. **Settings Gaps** — Audit of current SettingsView (✅ ADO Connection, ✅ Default Work Items, ✅ UI Prefs); identified gaps (❌ Epic-specific settings, ❌ AI model config, ❌ bulk generation prefs); Phase 1 recommendation (use existing settings MVP, Phase 2 adds optional Epic Config section)
+5. **Dashboard Integration** — 3-level accordion structure (Epics → Features → PBIs); new EpicCard component design; empty states; feature reuse patterns
+6. **Navigation & Routing** — New route (`epic-creation`); new state (`focusEpicId`); 4 navigation flows mapped (New/Edit/Save/Child Edit); Sidebar integration notes
+7. **Epic Creation Wizard** — Proposed 5-step flow (Essentials → Scope → Feature Generation → Linked Features Review → Save & Push); optional steps flagged for validation
+8. **Open Questions** — 10 strategic questions for Basher to resolve:
+   - Wizard structure (5 steps vs alternative?)
+   - Mixed feature sources (generated + manual)
+   - Cascading push behavior (atomic vs choice vs per-feature)
+   - Settings scope (global vs per-Epic)
+   - Feature lifecycle within Epic
+   - ADO edge cases (import existing Epic?)
+   - Dashboard UX defaults (open/closed, feature count guidance)
+   - Status rollup logic (minimum vs majority vs custom)
+   - Velocity estimation (auto vs manual)
+   - (10) Not included — reserved for future
+9. **Acceptance Criteria** — 8 checkboxes for scoping sign-off (hierarchy explanation, data model finalization, message flow clarity, UI wireframes, wizard structure, settings decisions, open questions resolved, dependency identification)
+10. **Success Metrics** — 5 post-implementation measures (functional speed <3 mins/Epic, reliable linking, discoverable UI, integrated generation chain, documented decisions)
+11. **Next Steps** — Workflow from Basher's full architecture spec through team design and implementation
+
+**Key Architectural Decisions Embedded:**
+- Epic as top-level entity (not nested under Feature)
+- HierarchyStatus adds `'partial'` state for parent-pushed-but-children-pending
+- EpicDraft interface designed for independence (not extending PbiDraft)
+- Message types follow established patterns (CRUD + GENERATE + PUSH + RELATIONSHIP ops)
+- Dashboard uses accordion reuse pattern (same EstimatedChevron + AccordionHeader components)
+- Navigation mirrors existing focusDraftId pattern for consistency
+- Settings decisions deferred to Phase 2 to unblock MVP
+
+**Strategic Value:**
+- Brief is **input document** for architect-led design (not final spec)
+- 10 open questions are **deliberate ambiguities** requiring architect resolution (not gaps)
+- Sections 1-6 are stable architecture; sections 7-8 are malleable pending review
+- Emphasis on **patterns & reuse** (don't invent new infrastructure; use existing wizard, messaging, dashboard patterns)
+
+**Committed to main with full commit message and Copilot co-author trailer.**
+
+**Deliverable committed:** `.squad/decisions/inbox/danny-epic-creation-scoping.md`
+
+**Key Learning:** Scoping briefs for architects should balance specificity (concrete data models, message patterns, UI integration) with flexibility (open questions on strategy, UX decisions, edge cases). Too much detail locks in decisions prematurely; too little ambiguity leaves architect blocked. Sweet spot: 70% defined (what we know is hard), 30% open (what's architect's domain). Include explicit "For Basher to resolve" callouts for decision points. Embed 10 strategic questions at each decision node so architect can iterate on alternatives without re-discovering the problem space.
