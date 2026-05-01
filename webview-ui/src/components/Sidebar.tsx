@@ -1,6 +1,6 @@
 import type { ThemePreference } from '../types';
 
-export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'rdis' | 'settings';
+export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'rdis' | 'settings' | 'epic-creation';
 
 interface NavEntry {
   id: ViewId;
@@ -9,12 +9,13 @@ interface NavEntry {
 }
 
 const NAV: NavEntry[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▣' },
-  { id: 'projects', label: 'Projects', icon: '❏' },
-  { id: 'studio', label: 'PBI Studio', icon: '✎' },
-  { id: 'bulk', label: 'Feature Creation', icon: '≡' },
-  { id: 'rdis', label: 'RDIs', icon: '⬆' },
-  { id: 'settings', label: 'Settings', icon: '⚙' }
+  { id: 'dashboard',     label: 'Dashboard',        icon: '▣' },
+  { id: 'epic-creation', label: 'Epics',             icon: '◈' },
+  { id: 'projects',      label: 'Projects',          icon: '❏' },
+  { id: 'studio',        label: 'PBI Studio',        icon: '✎' },
+  { id: 'bulk',          label: 'Feature Creation',  icon: '≡' },
+  { id: 'rdis',          label: 'RDIs',              icon: '⬆' },
+  { id: 'settings',      label: 'Settings',          icon: '⚙' },
 ];
 
 interface Props {
@@ -28,10 +29,9 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
   return (
     <aside className="sidebar" role="navigation" aria-label="Main navigation">
       <div className="brand">
-        <div className="brand-mark" aria-hidden="true">PO</div>
         <div className="brand-text">
-          <h1>PO Pro Tools</h1>
-          <span>Jack Henry Edition</span>
+          <span className="brand-company">Jack Henry</span>
+          <h1>PO Pro</h1>
         </div>
       </div>
 
@@ -40,6 +40,7 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
           <button
             key={entry.id}
             className="nav-item"
+            data-navid={entry.id}
             aria-current={active === entry.id ? 'page' : undefined}
             aria-label={`Navigate to ${entry.label}`}
             onClick={() => onNavigate(entry.id)}

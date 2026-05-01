@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import {
   AdoSettings,
   AdoWorkItemType,
+  EpicDraft,
   FeatureDraft,
   PbiAttachment,
   PbiDraft,
@@ -617,6 +618,7 @@ export class AdoService {
     targetDate?: string
   ): Promise<{
     featureWorkItemId: number;
+    featureWorkItemUrl: string;
     featureApiUrl: string;
     childResults: PushItemResult[];
     errors: Array<{ draftId: string; message: string }>;
@@ -659,6 +661,7 @@ export class AdoService {
     }
 
     let featureWorkItemId: number;
+    let featureWorkItemUrl: string;
     let featureApiUrl: string;
 
     if (feature.adoWorkItemId != null) {
@@ -668,6 +671,7 @@ export class AdoService {
       );
       await witApi.updateWorkItem(undefined, updatePatch, feature.adoWorkItemId, settings.projectName);
       featureWorkItemId = feature.adoWorkItemId;
+      featureWorkItemUrl = this.buildBrowserUrl(settings, featureWorkItemId);
       featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
     } else {
       // CREATE new Feature work item
@@ -681,6 +685,7 @@ export class AdoService {
         throw new Error('ADO did not return an ID for the Feature work item.');
       }
       featureWorkItemId = item.id;
+      featureWorkItemUrl = item._links?.html?.href ?? this.buildBrowserUrl(settings, item.id);
       featureApiUrl = `${orgUrl}/_apis/wit/workItems/${featureWorkItemId}`;
     }
 
@@ -730,7 +735,7 @@ export class AdoService {
       }
     }
 
-    return { featureWorkItemId, featureApiUrl, childResults, errors };
+    return { featureWorkItemId, featureWorkItemUrl, featureApiUrl, childResults, errors };
   }
 
   private createConnection(settings: AdoSettings, pat: string): azdev.WebApi {
@@ -866,6 +871,110 @@ export class AdoService {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  /**
+   * Pushes an Epic work item to ADO and optionally links Feature work items as children.
+   * Follows the same pattern as pushFeatureHierarchy().
+   */
+  public async pushEpicHierarchy(
+    settings: AdoSettings,
+    pat: string,
+    epic: EpicDraft,
+    linkedFeatures: FeatureDraft[],
+    pushChildren: boolean
+  ): Promise<{
+    epicWorkItemId: number;
+    epicWorkItemUrl: string;
+    featureResults: Array<{ featureId: string; adoWorkItemId: number; adoWorkItemUrl: string; linked: boolean }>;
+    featureErrors: Array<{ featureId: string; message: string }>;
+  }> {
+    const connection = this.createConnection(settings, pat);
+    const witApi = await connection.getWorkItemTrackingApi();
+    const orgUrl = this.trimSlash(settings.orgUrl);
+
+    const epicDescription = [
+      epic.description ? `<p>${this.escapeHtml(epic.description)}</p>` : '',
+      epic.objectives.length > 0
+        ? `<h3>Objectives</h3><ul>${epic.objectives.map((o) => `<li>${this.escapeHtml(o)}</li>`).join('')}</ul>`
+        : '',
+      epic.scope ? `<h3>Scope</h3><p>${this.escapeHtml(epic.scope)}</p>` : '',
+      '<h3>PO Tools Metadata</h3><p>Managed by PO Professional Tools — Epic Creation</p>'
+    ].filter(Boolean).join('');
+
+    const epicEntries: PatchEntry[] = [
+      { op: 'add', path: '/fields/System.Title', value: epic.title },
+      { op: 'add', path: '/fields/System.Description', value: epicDescription },
+      { op: 'add', path: '/fields/Microsoft.VSTS.Common.ValueArea', value: 'Business' },
+      { op: 'add', path: '/fields/System.Tags', value: 'AI Generated;PO-Tools' }
+    ];
+
+    if (settings.areaPath) {
+      epicEntries.push({ op: 'add', path: '/fields/System.AreaPath', value: settings.areaPath });
+    }
+    if (settings.iterationPath) {
+      epicEntries.push({ op: 'add', path: '/fields/System.IterationPath', value: settings.iterationPath });
+    }
+    if (epic.targetDate) {
+      epicEntries.push({ op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.TargetDate', value: epic.targetDate });
+    }
+
+    const epicItem = await witApi.createWorkItem(
+      undefined,
+      asPatch(epicEntries),
+      settings.projectName,
+      'Epic'
+    );
+    if (!epicItem.id) {
+      throw new Error('ADO did not return an ID for the Epic work item.');
+    }
+    const epicWorkItemId = epicItem.id;
+    const epicWorkItemUrl = epicItem._links?.html?.href ?? `${orgUrl}/${encodeURIComponent(settings.projectName)}/_workitems/edit/${epicWorkItemId}`;
+    const epicApiUrl = `${orgUrl}/_apis/wit/workItems/${epicWorkItemId}`;
+
+    const featureResults: Array<{ featureId: string; adoWorkItemId: number; adoWorkItemUrl: string; linked: boolean }> = [];
+    const featureErrors: Array<{ featureId: string; message: string }> = [];
+
+    if (!pushChildren) {
+      return { epicWorkItemId, epicWorkItemUrl, featureResults, featureErrors };
+    }
+
+    for (const feature of linkedFeatures) {
+      try {
+        let featureAdoId: number;
+
+        let featureAdoUrl: string;
+
+        if (feature.adoWorkItemId != null) {
+          featureAdoId = feature.adoWorkItemId;
+          featureAdoUrl = feature.adoWorkItemUrl
+            ?? `${orgUrl}/${encodeURIComponent(settings.projectName)}/_workitems/edit/${featureAdoId}`;
+        } else {
+          const featureResult = await this.pushFeatureHierarchy(settings, pat, feature, [], undefined);
+          featureAdoId = featureResult.featureWorkItemId;
+          featureAdoUrl = featureResult.featureWorkItemUrl;
+        }
+
+        // Add Hierarchy-Reverse link from Feature → Epic
+        await witApi.updateWorkItem(
+          undefined,
+          asPatch([{
+            op: 'add',
+            path: '/relations/-',
+            value: { rel: 'System.LinkTypes.Hierarchy-Reverse', url: epicApiUrl }
+          }]),
+          featureAdoId,
+          settings.projectName
+        );
+
+        featureResults.push({ featureId: feature.id, adoWorkItemId: featureAdoId, adoWorkItemUrl: featureAdoUrl, linked: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        featureErrors.push({ featureId: feature.id, message });
+      }
+    }
+
+    return { epicWorkItemId, epicWorkItemUrl, featureResults, featureErrors };
   }
 }
 

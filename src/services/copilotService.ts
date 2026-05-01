@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
 import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, FeatureDraft, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
+import { GeneratedTestCase } from './testPlanService';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -143,6 +144,33 @@ const FEATURE_DEFINITION_JSON_BRIDGE = [
   '- Output valid JSON only (no markdown fences).',
   '- Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
   '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided.',
+  '- Do not create files or emit markdown reports.',
+  '---'
+].join('\n');
+
+const INTEGRATION_TEST_CASE_SYSTEM_PROMPT = [
+  'You are a senior QA engineer specializing in integration testing for fintech and banking applications.',
+  'Generate integration test cases for a Product Backlog Item.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }',
+  '',
+  'RULES:',
+  '- Generate 5 to 8 integration test cases.',
+  '- Each test case must have 3 to 7 steps.',
+  '- Cover: happy path, authentication/authorization, edge cases, error/failure scenarios, boundary conditions.',
+  '- Each step action describes what the tester or system does (specific, unambiguous).',
+  '- Each expected result describes the verifiable, observable outcome.',
+  '- Focus on integration points: API responses, authentication flows, data persistence, external service interactions.',
+  '- Be specific to the PBI content; avoid generic placeholder steps.',
+  '- Apply fintech/banking domain context (security, compliance, data accuracy) when relevant.',
+  '- Never output invalid JSON.'
+].join('\n');
+
+const INTEGRATION_TEST_CASE_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }',
   '- Do not create files or emit markdown reports.',
   '---'
 ].join('\n');
@@ -567,6 +595,84 @@ export class CopilotService {
     }
   }
 
+  /**
+   * Generates integration test cases for a PBI using the VS Code Language Model API.
+   * Returns structured test cases with steps (action + expected result).
+   * Used after a successful push/update to populate ADO Test Plans.
+   */
+  public async generateIntegrationTestCases(
+    draft: PbiDraft,
+    options?: { linkedProjectContext?: string }
+  ): Promise<GeneratedTestCase[]> {
+    const token = new vscode.CancellationTokenSource().token;
+    const model = await this.pickModel();
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (ground test steps in actual codebase):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const acBlock =
+      draft.acceptanceCriteria.length > 0
+        ? draft.acceptanceCriteria.map((ac, i) => `${i + 1}. ${ac}`).join('\n')
+        : '(none provided)';
+
+    const userPrompt =
+      linkedPart +
+      [
+        `PBI Title: ${draft.title}`,
+        '',
+        'PBI Description:',
+        draft.description?.trim() || '(none)',
+        '',
+        'Acceptance Criteria:',
+        acBlock,
+        '',
+        'Generate 5 to 8 integration test cases that together validate the above PBI.',
+        'Return JSON only with schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }'
+      ].join('\n');
+
+    const systemBlock = [INTEGRATION_TEST_CASE_SYSTEM_PROMPT, '', INTEGRATION_TEST_CASE_JSON_BRIDGE].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+
+    const rawCases = Array.isArray(parsed.testCases) ? parsed.testCases : [];
+    return rawCases
+      .map((tc: unknown): GeneratedTestCase | null => {
+        if (!tc || typeof tc !== 'object') {
+          return null;
+        }
+        const record = tc as Record<string, unknown>;
+        const title = typeof record.title === 'string' ? record.title.trim() : '';
+        if (!title) {
+          return null;
+        }
+        const rawSteps = Array.isArray(record.steps) ? record.steps : [];
+        const steps = rawSteps
+          .map((s: unknown) => {
+            if (!s || typeof s !== 'object') {
+              return null;
+            }
+            const stepRecord = s as Record<string, unknown>;
+            const action = typeof stepRecord.action === 'string' ? stepRecord.action.trim() : '';
+            const expectedResult = typeof stepRecord.expectedResult === 'string' ? stepRecord.expectedResult.trim() : '';
+            if (!action) {
+              return null;
+            }
+            return { action, expectedResult };
+          })
+          .filter((s): s is { action: string; expectedResult: string } => s !== null);
+        return { title, steps };
+      })
+      .filter((tc): tc is GeneratedTestCase => tc !== null);
+  }
+
   public async suggestBreakdown(
     prefix: string,
     description: string,
@@ -854,8 +960,11 @@ export class CopilotService {
   }
 
   private async pickModel(): Promise<vscode.LanguageModelChat> {
-    // Try copilot gpt-4o first, then any copilot model, then any available model
-    let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+    // Priority: gpt-5.4 → gpt-4o → any copilot model → any available model
+    let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-5.4' });
+    if (models.length === 0) {
+      models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+    }
     if (models.length === 0) {
       models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
     }
@@ -863,6 +972,7 @@ export class CopilotService {
       models = await vscode.lm.selectChatModels({});
     }
     const preferred =
+      models.find((m) => m.family.toLowerCase().includes('gpt-5.4')) ??
       models.find((m) => m.family.toLowerCase().includes('gpt-4o')) ??
       models.find((m) => m.family.toLowerCase().includes('gpt-4')) ??
       models[0];
@@ -1323,5 +1433,77 @@ export class CopilotService {
         };
       })
       .filter((s): s is { title: string; description: string; effort: number } => s !== null);
+  }
+
+  public async generateFeaturesFromEpic(
+    epic: { title: string; description: string; objectives: string[]; scope: string },
+    token: vscode.CancellationToken,
+    options?: { featureCount?: number }
+  ): Promise<Array<{ title: string; description: string }>> {
+    const model = await this.pickModel();
+    const count = options?.featureCount ?? 5;
+
+    const prompt = [
+      'You are a senior product owner breaking down a large Epic into Features.',
+      '',
+      `Epic Title: ${epic.title}`,
+      `Epic Description: ${epic.description}`,
+      'Objectives:',
+      ...epic.objectives.map((o) => `- ${o}`),
+      `Scope: ${epic.scope}`,
+      '',
+      `Generate ${count} to ${Math.min(count + 2, 10)} Features that together deliver this Epic. Each Feature should be:`,
+      '- Independently deliverable',
+      '- User-facing or system-facing capability',
+      '- Sized for 1-3 sprints of work',
+      '- Clearly scoped',
+      '',
+      'Return a JSON array:',
+      '[',
+      '  { "title": "Feature title", "description": "Feature description in 2-3 sentences" },',
+      '  ...',
+      ']',
+      '',
+      'Return ONLY the JSON array, no markdown.'
+    ].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(prompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+
+    // The AI returns a JSON array; try to parse it directly
+    const cleaned = this.stripFences(text).trim();
+    let rawArray: unknown;
+    try {
+      rawArray = JSON.parse(cleaned);
+    } catch {
+      try {
+        rawArray = JSON.parse(jsonrepair(cleaned));
+      } catch {
+        // Try extracting array from response
+        const match = cleaned.match(/\[[\s\S]*\]/);
+        if (match) {
+          rawArray = JSON.parse(jsonrepair(match[0]));
+        } else {
+          throw new Error('AI did not return a valid JSON array.');
+        }
+      }
+    }
+
+    if (!Array.isArray(rawArray)) {
+      throw new Error('AI did not return a JSON array.');
+    }
+
+    return (rawArray as unknown[])
+      .filter((item): item is { title: string; description?: string } => {
+        return !!item && typeof item === 'object' && typeof (item as Record<string, unknown>).title === 'string';
+      })
+      .map((item) => ({
+        title: item.title.trim(),
+        description: typeof item.description === 'string' ? item.description.trim() : ''
+      }));
   }
 }

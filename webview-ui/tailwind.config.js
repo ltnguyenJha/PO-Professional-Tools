@@ -41,6 +41,13 @@ export default {
         'tw-selected-fg': 'var(--tw-vscode-selected-fg)',
         'tw-badge-bg':    'var(--tw-vscode-badge-bg)',
         'tw-badge-fg':    'var(--tw-vscode-badge-fg)',
+
+        // ─── Epic tier (violet) ──────────────────────────────────────
+        'tw-epic':        'var(--tw-epic)',
+        'tw-epic-bg':     'var(--tw-epic-bg)',
+        'tw-epic-fg':     'var(--tw-epic-fg)',
+        'tw-epic-muted':  'var(--tw-epic-muted)',
+        'tw-epic-border': 'var(--tw-epic-border)',
       },
 
       // ─── Typography ─────────────────────────────────────────────────────
