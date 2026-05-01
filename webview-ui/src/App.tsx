@@ -63,6 +63,7 @@ export function App(): JSX.Element {
   >();
   const [focusDraftId, setFocusDraftId] = useState<string | undefined>(undefined);
   const [focusEpicId, setFocusEpicId] = useState<string | undefined>(undefined);
+  const [focusFeatureId, setFocusFeatureId] = useState<string | undefined>(undefined);
   const [adoProgress, setAdoProgress] = useState<AdoProgressPayload>(EMPTY_ADO_PROGRESS);
   const [featureGeneratedPbiIds, setFeatureGeneratedPbiIds] = useState<string[] | undefined>();
   const [featurePushProgress, setFeaturePushProgress] = useState<{
@@ -172,6 +173,11 @@ export function App(): JSX.Element {
     setView('epic-creation');
   }, []);
 
+  const navigateToFeatureCreation = useCallback((featureId?: string) => {
+    setFocusFeatureId(featureId);
+    setView('bulk');
+  }, []);
+
   const header = useMemo(() => {
     switch (view) {
       case 'dashboard':
@@ -242,6 +248,7 @@ export function App(): JSX.Element {
             onNavigate={(target) => setView(target)}
             onNavigateToStudio={navigateToStudio}
             onNavigateToEpicCreation={navigateToEpicCreation}
+            onNavigateToFeatureCreation={navigateToFeatureCreation}
           />
         )}
         {view === 'projects' && (
@@ -263,13 +270,14 @@ export function App(): JSX.Element {
           <FeatureCreationWizard
             appState={state}
             send={sendMessage}
-            onNavigate={setView}
+            onNavigate={(v) => { setFocusFeatureId(undefined); setView(v); }}
             onEditInStudio={navigateToStudio}
             generatedPbiIds={featureGeneratedPbiIds}
             onClearGeneratedPbiIds={() => setFeatureGeneratedPbiIds(undefined)}
             pushProgress={featurePushProgress}
             pushResult={featurePushResult}
             onClearPushResult={() => setFeaturePushResult(null)}
+            focusFeatureId={focusFeatureId}
           />
         )}
         {view === 'rdis' && <RdiTab />}
