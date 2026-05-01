@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { jsonrepair } from 'jsonrepair';
 import * as vscode from 'vscode';
 import { AiSuggestion, BugReportInput, BulkChildInput, FeatureDefinition, FeatureDraft, InvestWizardInput, PbiAttachment, PbiDraft, TechnicalConsiderations } from '../shared/messages';
+import { GeneratedTestCase } from './testPlanService';
 
 /** Overrides parts of the bundled rulebook that assume file writes or non-JSON output. */
 const REFINE_JSON_BRIDGE = [
@@ -143,6 +144,33 @@ const FEATURE_DEFINITION_JSON_BRIDGE = [
   '- Output valid JSON only (no markdown fences).',
   '- Schema: { "why": string, "userFlow": string, "businessRules": string, "userStoryStatement": string }',
   '- Apply PRODUCT_MANAGER_RULEBOOK and LINKED PROJECT CONTEXT when provided.',
+  '- Do not create files or emit markdown reports.',
+  '---'
+].join('\n');
+
+const INTEGRATION_TEST_CASE_SYSTEM_PROMPT = [
+  'You are a senior QA engineer specializing in integration testing for fintech and banking applications.',
+  'Generate integration test cases for a Product Backlog Item.',
+  'Output must be valid JSON only (no markdown fences, no commentary before or after).',
+  '',
+  'Schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }',
+  '',
+  'RULES:',
+  '- Generate 5 to 8 integration test cases.',
+  '- Each test case must have 3 to 7 steps.',
+  '- Cover: happy path, authentication/authorization, edge cases, error/failure scenarios, boundary conditions.',
+  '- Each step action describes what the tester or system does (specific, unambiguous).',
+  '- Each expected result describes the verifiable, observable outcome.',
+  '- Focus on integration points: API responses, authentication flows, data persistence, external service interactions.',
+  '- Be specific to the PBI content; avoid generic placeholder steps.',
+  '- Apply fintech/banking domain context (security, compliance, data accuracy) when relevant.',
+  '- Never output invalid JSON.'
+].join('\n');
+
+const INTEGRATION_TEST_CASE_JSON_BRIDGE = [
+  '--- PO Professional Tools ---',
+  '- Output valid JSON only (no markdown fences).',
+  '- Schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }',
   '- Do not create files or emit markdown reports.',
   '---'
 ].join('\n');
@@ -565,6 +593,84 @@ export class CopilotService {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Generates integration test cases for a PBI using the VS Code Language Model API.
+   * Returns structured test cases with steps (action + expected result).
+   * Used after a successful push/update to populate ADO Test Plans.
+   */
+  public async generateIntegrationTestCases(
+    draft: PbiDraft,
+    options?: { linkedProjectContext?: string }
+  ): Promise<GeneratedTestCase[]> {
+    const token = new vscode.CancellationTokenSource().token;
+    const model = await this.pickModel();
+
+    const linkedPart = options?.linkedProjectContext
+      ? `LINKED PROJECT CONTEXT (ground test steps in actual codebase):\n${options.linkedProjectContext}\n---\n\n`
+      : '';
+
+    const acBlock =
+      draft.acceptanceCriteria.length > 0
+        ? draft.acceptanceCriteria.map((ac, i) => `${i + 1}. ${ac}`).join('\n')
+        : '(none provided)';
+
+    const userPrompt =
+      linkedPart +
+      [
+        `PBI Title: ${draft.title}`,
+        '',
+        'PBI Description:',
+        draft.description?.trim() || '(none)',
+        '',
+        'Acceptance Criteria:',
+        acBlock,
+        '',
+        'Generate 5 to 8 integration test cases that together validate the above PBI.',
+        'Return JSON only with schema: { "testCases": [ { "title": string, "steps": [ { "action": string, "expectedResult": string } ] } ] }'
+      ].join('\n');
+
+    const systemBlock = [INTEGRATION_TEST_CASE_SYSTEM_PROMPT, '', INTEGRATION_TEST_CASE_JSON_BRIDGE].join('\n');
+
+    const messages = [
+      vscode.LanguageModelChatMessage.User(systemBlock),
+      vscode.LanguageModelChatMessage.User(userPrompt)
+    ];
+
+    const response = await model.sendRequest(messages, {}, token);
+    const text = await this.collect(response);
+    const parsed = this.parseJsonWithRepair(text);
+
+    const rawCases = Array.isArray(parsed.testCases) ? parsed.testCases : [];
+    return rawCases
+      .map((tc: unknown): GeneratedTestCase | null => {
+        if (!tc || typeof tc !== 'object') {
+          return null;
+        }
+        const record = tc as Record<string, unknown>;
+        const title = typeof record.title === 'string' ? record.title.trim() : '';
+        if (!title) {
+          return null;
+        }
+        const rawSteps = Array.isArray(record.steps) ? record.steps : [];
+        const steps = rawSteps
+          .map((s: unknown) => {
+            if (!s || typeof s !== 'object') {
+              return null;
+            }
+            const stepRecord = s as Record<string, unknown>;
+            const action = typeof stepRecord.action === 'string' ? stepRecord.action.trim() : '';
+            const expectedResult = typeof stepRecord.expectedResult === 'string' ? stepRecord.expectedResult.trim() : '';
+            if (!action) {
+              return null;
+            }
+            return { action, expectedResult };
+          })
+          .filter((s): s is { action: string; expectedResult: string } => s !== null);
+        return { title, steps };
+      })
+      .filter((tc): tc is GeneratedTestCase => tc !== null);
   }
 
   public async suggestBreakdown(
