@@ -221,9 +221,9 @@ button {
 }
 
 .sidebar-logo {
-  max-width: 110px;
+  max-width: 72px;
   height: auto;
-  max-height: 26px;
+  max-height: 20px;
   object-fit: contain;
   display: block;
 }
@@ -346,12 +346,15 @@ button {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+  max-height: 66px;
 }
 
 .topbar-banner-img {
   width: 100%;
   height: auto;
   display: block;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .topbar-banner-fade {
