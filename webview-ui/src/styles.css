@@ -59,45 +59,47 @@
 }
 
 [data-theme="light"] {
-  /* ── Backgrounds: cool slate tones instead of flat white ── */
-  --bg: #e8edf5;          /* was #f4f7fb — deeper, reduces "paper white" feel */
-  --bg-elev: #f3f7fc;     /* was #ffffff — off-white, less glare */
-  --panel: #ffffff;        /* cards stay white — clear depth vs bg */
-  --panel-muted: #edf2f9; /* was #f8fafc — more distinct */
+  /* ── Backgrounds: barely tinted cool white — light but not flat ── */
+  --bg: #f1f5fb;          /* subtle cool tint, clearly light */
+  --bg-elev: #f8fbfe;     /* very slightly off-white */
+  --panel: #ffffff;        /* cards pure white — clear hierarchy */
+  --panel-muted: #f0f5fb; /* distinguishable from panel */
 
   /* ── Typography ── */
   --ink: #0f172a;
   --ink-muted: #475569;
-  --ink-soft: #64748b;
+  --ink-soft: #5c6e87;    /* was #64748b — slightly darker for contrast on light bg */
 
   /* ── Borders ── */
-  --line: #c3d0e3;        /* was #d7e0ea — slightly more visible */
-  --line-strong: #adbcd2; /* was #c3cedb */
+  --line: #c3d0e3;
+  --line-strong: #adbcd2;
 
   /* ── Accent: cyan family (matches sidebar-active & dark mode teal) ── */
-  --accent: #0891b2;        /* was #0f766e — matches dark mode's cyan family */
-  --accent-strong: #0e7490; /* was #115e59 */
-  --accent-soft: rgba(8, 145, 178, 0.12); /* was #ccfbf1 — KEY FIX: eliminates bright mint gradient */
-  --accent-ink: #155e75;    /* was #065f46 */
+  --accent: #0891b2;
+  --accent-strong: #0e7490;
+  --accent-soft: rgba(8, 145, 178, 0.12); /* subtle — eliminates the bright mint blob */
+  --accent-ink: #155e75;
 
-  /* ── Semantic colors: rgba like dark mode — no more solid pastels ── */
+  /* ── Semantic colors: rgba like dark mode — no solid pastels ── */
   --danger: #be123c;
-  --danger-soft: rgba(190, 18, 60, 0.10);    /* was #ffe4e6 */
+  --danger-soft: rgba(190, 18, 60, 0.08);
   --warning: #b45309;
-  --warning-soft: rgba(180, 83, 9, 0.10);    /* was #fef3c7 */
+  --warning-soft: rgba(180, 83, 9, 0.08);
   --success: #047857;
-  --success-soft: rgba(4, 120, 87, 0.12);    /* was #d1fae5 */
+  --success-soft: rgba(4, 120, 87, 0.10);
   --info: #1d4ed8;
-  --info-soft: rgba(29, 78, 216, 0.10);      /* was #dbeafe */
+  --info-soft: rgba(29, 78, 216, 0.08);
 
-  /* ── Sidebar (same dark nav in both themes) ── */
+  /* ── Sidebar (always dark in both themes) ── */
   --sidebar-bg: #0f172a;
   --sidebar-ink: #e2e8f0;
   --sidebar-muted: #94a3b8;
   --sidebar-hover: rgba(148, 163, 184, 0.12);
   --sidebar-active: rgba(45, 212, 191, 0.18);
+  /* Sidebar accent text: must be LIGHT since sidebar is always dark */
+  --sidebar-accent: #5eead4;
 
-  --chip: #dce5f2;          /* was #eef2f7 — slightly deeper */
+  --chip: #dce5f2;
   --overlay: rgba(15, 23, 42, 0.36);
 
   /* Token bridges for wizard/component compatibility */
@@ -105,7 +107,7 @@
   --color-primary-hover: var(--accent-strong);
   --color-primary-soft: var(--accent-soft);
   --color-primary-ink: var(--accent-ink);
-  --color-primary-disabled: rgba(8, 145, 178, 0.4); /* was rgba(15,118,110,0.4) */
+  --color-primary-disabled: rgba(8, 145, 178, 0.4);
   --color-error: var(--danger);
   --color-error-soft: var(--danger-soft);
   --color-success: var(--success);
@@ -122,7 +124,7 @@
   --color-neutral-500: var(--ink);
 
   /* AI-feature accent (violet) */
-  --ai: #7c3aed;                       /* bumped to match dark mode vibrance */
+  --ai: #7c3aed;
   --ai-strong: #8b5cf6;
   --ai-soft: rgba(124, 58, 237, 0.10);
   --ai-glow: rgba(124, 58, 237, 0.18);
@@ -186,6 +188,8 @@
   --ai-soft: rgba(124, 58, 237, 0.12);
   --ai-glow: rgba(124, 58, 237, 0.25);
   --ai-ink: #c4b5fd;
+  /* Sidebar accent text (same as light — sidebar is always dark) */
+  --sidebar-accent: #5eead4;
 }
 
 *{
@@ -289,7 +293,7 @@ button {
 
 .nav-item[aria-current="page"] {
   background: var(--sidebar-active);
-  color: var(--accent-strong);
+  color: var(--sidebar-accent);
   font-weight: 600;
 }
 
@@ -1890,9 +1894,9 @@ button {
    Delight v2 — Navigation, studio items, AI actions, view entrance
    ================================================================ */
 
-/* Brand mark: use accent color so "PO Pro" pops in the sidebar */
+/* Brand mark: bright teal in sidebar — always readable since sidebar is always dark */
 .brand-text h1 {
-  color: var(--accent);
+  color: var(--sidebar-accent);
   font-size: 1rem;
 }
 
