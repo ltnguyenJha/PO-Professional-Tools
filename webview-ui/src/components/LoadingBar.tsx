@@ -14,7 +14,7 @@ export function LoadingBar({ label, ariaLabel }: Props): JSX.Element {
         aria-label={ariaLabel ?? label}
         title={label}
       >
-        <div className="loading-bar-indeterminate" />
+        <div className="loading-bar-indeterminate progress-fill" />
       </div>
     </div>
   );

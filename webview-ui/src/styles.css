@@ -108,6 +108,13 @@
   --color-neutral-400: var(--ink-muted);
   --color-neutral-450: var(--ink-soft);
   --color-neutral-500: var(--ink);
+  
+  /* AI-feature accent (violet) */
+  --ai: #6d28d9;
+  --ai-strong: #7c3aed;
+  --ai-soft: rgba(109, 40, 217, 0.10);
+  --ai-glow: rgba(109, 40, 217, 0.15);
+  --ai-ink: #6d28d9;
 }
 
 [data-theme="dark"] {
@@ -160,9 +167,16 @@
   --color-neutral-400: var(--ink-muted);
   --color-neutral-450: var(--ink-soft);
   --color-neutral-500: var(--ink);
+  
+  /* AI-feature accent (violet) */
+  --ai: #7c3aed;
+  --ai-strong: #8b5cf6;
+  --ai-soft: rgba(124, 58, 237, 0.12);
+  --ai-glow: rgba(124, 58, 237, 0.25);
+  --ai-ink: #c4b5fd;
 }
 
-* {
+*{
   box-sizing: border-box;
 }
 
@@ -502,7 +516,169 @@ button {
   min-height: 32px;
 }
 
-.field {
+/* ================================================================
+   Micro-interactions & Delight
+   ================================================================ */
+
+/* Button lift — all buttons get a subtle hover lift */
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Cards: subtle hover elevation */
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition);
+}
+
+/* KPI accent bar */
+.kpi {
+  border-top: 3px solid var(--line);
+  transition: border-color var(--transition);
+}
+.kpi.has-value {
+  border-top-color: var(--accent);
+}
+
+/* ================================================================
+   AI State Visual Patterns
+   ================================================================ */
+
+/* AI shimmer — loading/generating state */
+@keyframes ai-shimmer-move {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.ai-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--panel) 25%,
+    var(--ai-soft) 50%,
+    var(--panel) 75%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer-move 1.5s linear infinite;
+  border-radius: var(--radius);
+}
+
+/* AI thinking — pulsing glow for active AI sections */
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--ai-glow); }
+  50% { box-shadow: 0 0 16px 2px var(--ai-glow); }
+}
+.ai-thinking {
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+
+/* AI success flash */
+@keyframes ai-success {
+  0% { border-color: var(--success); background: var(--success-soft); }
+  80% { border-color: var(--success); background: var(--success-soft); }
+  100% { border-color: transparent; background: transparent; }
+}
+.ai-success-flash {
+  animation: ai-success 600ms ease-out forwards;
+}
+
+/* AI badge — tags AI-generated content */
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ai-soft);
+  color: var(--ai-ink);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid color-mix(in srgb, var(--ai) 25%, transparent);
+}
+
+/* AI section treatment — sections with AI features */
+.ai-section {
+  border-left: 3px solid var(--ai);
+  background: linear-gradient(135deg, var(--ai-soft) 0%, transparent 60%);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding-left: var(--space-md);
+}
+
+/* Hover lift — reusable utility */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ================================================================
+   Empty States
+   ================================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: var(--space-md);
+  color: var(--ink-muted);
+}
+.empty-state .empty-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: var(--space-sm);
+  filter: saturate(1.2);
+}
+.empty-state h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.empty-state p {
+  margin: 0;
+  font-size: 0.85rem;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* ================================================================
+   Progress Bar Enhancement
+   ================================================================ */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+/* Override LoadingBar fill if it uses a class */
+.loading-fill, .progress-fill {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 25%,
+    var(--accent-strong) 50%,
+    var(--accent) 75%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.5s linear infinite;
+}
+
+/* ================================================================
+   Sidebar brand enhancement
+   ================================================================ */
+.brand-text h1 {
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.field{
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);

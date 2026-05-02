@@ -637,11 +637,23 @@ export function PbiStudio({
               </button>
             );
           })}
-          {filtered.length === 0 && <div className="hint">No matching drafts.</div>}
+          {filtered.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">🔍</div>
+              <h3>No matching drafts</h3>
+              <p>Try adjusting your search or filter.</p>
+            </div>
+          )}
         </aside>
 
         <section className="studio-editor">
-          {!active && <div className="empty">Select a draft to edit.</div>}
+          {!active && (
+            <div className="empty-state">
+              <div className="empty-icon">👈</div>
+              <h3>Select a draft to edit</h3>
+              <p>Choose a story from the list or create a new one.</p>
+            </div>
+          )}
           {active && (
             <>
               {active.status === 'pushed' && active.adoWorkItemUrl && (
@@ -770,7 +782,7 @@ export function PbiStudio({
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
-              <article className="card">
+              <article className="card ai-section">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -819,7 +831,7 @@ export function PbiStudio({
               </article>
               )}{/* end hidden: Generate full story in-panel */}
 
-              <article className="card">
+              <article className="card ai-section">
                 <button
                   type="button"
                   className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
@@ -1126,7 +1138,7 @@ export function PbiStudio({
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
-              <article className="card">
+              <article className="card ai-section">
                 <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
