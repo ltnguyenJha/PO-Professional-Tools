@@ -214,3 +214,213 @@ Always include `@media (prefers-reduced-motion: reduce)` — already in global b
 - Use `:focus-visible` not `:focus` for ring styles
 - Every interactive element needs a visible focus indicator
 - Focus should be trapped in modals/dialogs
+
+---
+
+## AI Color Tokens
+
+AI-powered features use a dedicated violet accent to distinguish "AI magic" from regular user actions (which use teal `--accent`).
+
+| Token | Dark Theme | Light Theme | Usage |
+|---|---|---|---|
+| `--ai` | `#7c3aed` | `#6d28d9` | Primary AI accent (buttons, borders, text) |
+| `--ai-strong` | `#8b5cf6` | `#7c3aed` | Hover state, emphasis |
+| `--ai-soft` | `rgba(124, 58, 237, 0.12)` | `rgba(109, 40, 217, 0.10)` | Soft backgrounds, subtle fills |
+| `--ai-glow` | `rgba(124, 58, 237, 0.25)` | `rgba(109, 40, 217, 0.15)` | Glow effects, box shadows |
+| `--ai-ink` | `#c4b5fd` | `#6d28d9` | Text on dark AI backgrounds |
+
+**Usage rule:** ONLY for AI-powered features (generation, refinement, suggestions). Regular actions always use teal (`--accent`).
+
+**Rationale:** The violet/teal distinction codes "AI magic" vs. "user action" — preserve this split to maintain clear visual semantics.
+
+---
+
+## AI State Visual Patterns
+
+AI-powered features require their own visual vocabulary to communicate system state and build user trust. These patterns balance delight with clarity — no overuse of gradients or animation.
+
+### 1. AI Loading State (`.ai-shimmer`)
+
+Animated shimmer gradient for when AI is actively generating content. Use on result containers or sections awaiting AI output.
+
+**CSS:**
+```css
+@keyframes ai-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ai-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--ai-soft) 0%,
+    var(--ai-glow) 50%,
+    var(--ai-soft) 100%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.5s ease-in-out infinite;
+}
+```
+
+**When to use:** Active AI generation (not initial page load). Never use blocking spinners for AI features — prefer this non-intrusive shimmer.
+
+### 2. AI Thinking State (`.ai-thinking`)
+
+Pulsing glow for sections actively running AI operations. Draws attention without blocking interaction.
+
+**CSS:**
+```css
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(124, 58, 237, 0); }
+  50% { box-shadow: 0 0 16px var(--ai-glow); }
+}
+
+.ai-thinking {
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+```
+
+**When to use:** Apply to collapsible AI sections (e.g., "Refine with AI", "Generate Full Story") while the request is in flight.
+
+### 3. AI Success State (`.ai-success-flash`)
+
+Brief celebratory flash when AI completes successfully. Acknowledges completion, then fades.
+
+**CSS:**
+```css
+@keyframes ai-success-flash {
+  0% { 
+    border-color: transparent;
+    background: transparent;
+  }
+  20% { 
+    border-color: var(--success);
+    background: var(--success-soft);
+  }
+  100% { 
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+.ai-success-flash {
+  animation: ai-success-flash 600ms ease-out;
+}
+```
+
+**When to use:** Trigger once on AI result container when generation completes. Not persistent — just a momentary celebration. Pair with a toast for explicit confirmation.
+
+### 4. AI Tag Badge (`.ai-badge`)
+
+Small pill to mark AI-generated content. Subtle, not prominent — users should know origin without distraction.
+
+**CSS:**
+```css
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--ai-soft);
+  color: var(--ai);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ai-badge::before {
+  content: '✦';
+  font-size: 10px;
+}
+```
+
+**HTML:**
+```html
+<span class="ai-badge">AI</span>
+```
+
+**When to use:** Next to AI-generated acceptance criteria, descriptions, or titles. One badge per section — don't over-label.
+
+### 5. Hover Lift (`.hover-lift`)
+
+Standard micro-interaction for interactive cards and buttons. Every clickable surface needs feedback.
+
+**CSS:**
+```css
+.hover-lift {
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-lift:active {
+  transform: translateY(0);
+}
+```
+
+**When to use:** All cards, secondary buttons, list items. Primary buttons get this automatically (see VISUAL_SPEC.md button enhancements).
+
+### 6. Empty State Pattern (`.empty-state`)
+
+Standard structure for empty views. Never show blank space — always provide context and next action.
+
+**CSS:**
+```css
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 12px;
+  min-height: 320px;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.empty-state-subtitle {
+  font-size: 14px;
+  color: var(--ink-muted);
+  margin: 0;
+  max-width: 360px;
+}
+```
+
+**HTML structure:**
+```html
+<div class="empty-state">
+  <div class="empty-state-icon">📝</div>
+  <h3 class="empty-state-title">No stories yet — let's build something</h3>
+  <p class="empty-state-subtitle">Create your first PBI to get started with AI-powered backlog refinement.</p>
+  <button class="btn-primary">Create Story</button>
+</div>
+```
+
+**Copy guidelines:**
+- Icon: Single emoji, relevant to context (48px)
+- Title: Friendly, action-oriented (not "No data")
+- Subtitle: Brief explanation + benefit
+- CTA: One primary action button
+
+**Standard empty states:**
+- **PBI Studio (no PBIs):** "📝 No stories yet — let's build something" + "Create your first story" button
+- **Dashboard (no epics/features):** "🚀 Ready to plan? Start with an epic" + "New Epic" button  
+- **Projects (no projects):** "📁 No projects — import one or start standalone" + action buttons
+- **Bulk breakdown (nothing running):** "⚡ Drop your epics here to break them down with AI" (no CTA — drag-drop is the action)
