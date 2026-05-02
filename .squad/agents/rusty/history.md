@@ -1773,3 +1773,63 @@ The component itself follows a proven formula: state + blur-save debounce + auto
 - object-fit: cover + object-position: center 30% provides responsive banner cropping
 - Gradient overlay (.topbar-banner-fade) integrates banner visually with content below
 
+
+## 2025-01-XX: Delight Refresh (Branch: feature/ui-ux-delight-refresh)
+
+**Problem:** App felt "sad" and "unhappy" — cold colors, no micro-interactions, barebones empty states, mechanical AI operations.
+
+**Changes Made:**
+
+### 1. AI Color Token System
+- Added `--ai` (violet) token family exclusively for AI-powered features
+- Dark theme: `#7c3aed` (base), `#8b5cf6` (strong), `rgba(124, 58, 237, 0.12)` (soft)
+- Light theme: `#6d28d9` (base), `#7c3aed` (strong), `rgba(109, 40, 217, 0.10)` (soft)
+- Purpose: Visually distinguish AI sections from regular UI without overwhelming the teal accent
+
+### 2. Micro-interactions
+- **Button lift:** All `.btn:hover` get `translateY(-1px)` + `box-shadow: var(--shadow-md)`
+- **Card elevation:** `.card:hover` subtle shadow lift
+- **KPI accent bar:** `.kpi.has-value` top border turns teal when value > 0 (not implemented — no KPI cards in current UI)
+
+### 3. AI State Visual Patterns
+- `.ai-shimmer`: Animated gradient for loading/generating states
+- `.ai-thinking`: Pulsing glow (2s ease-in-out) for active AI sections
+- `.ai-success-flash`: 600ms green flash animation for successful operations
+- `.ai-badge`: Pill badge with violet background for AI-generated content tags
+- `.ai-section`: Violet left border + gradient background for AI-powered sections
+
+### 4. Empty States
+- New `.empty-state` class: centered icon (2.5rem), heading, subtitle
+- Applied in PbiStudio.tsx:
+  - "No matching drafts" → 🔍 + explanation
+  - "Select a draft to edit" → 👈 + instruction
+
+### 5. Progress Bar Enhancement
+- Added `.progress-fill` class to LoadingBar indeterminate bar
+- Animated shimmer gradient (accent → accent-strong → accent, 200% background, 1.5s slide)
+
+### 6. Brand Text Treatment
+- `.brand-text h1`: Gradient (accent-strong → accent) with `-webkit-background-clip: text`
+
+### 7. Component Changes
+- **LoadingBar.tsx:** Added `progress-fill` class to `.loading-bar-indeterminate`
+- **PbiStudio.tsx:** 
+  - Added `.ai-section` to VS Code Copilot Chat card (line 822)
+  - Added `.ai-section` to hidden full-story and refine sections (currently behind `false` flags)
+  - Replaced `.hint` and `.empty` with full `.empty-state` pattern
+
+### CSS Organization
+All new patterns added to `webview-ui/src/styles.css` in dedicated sections:
+- Micro-interactions & Delight (lines ~505–550)
+- AI State Visual Patterns (lines ~550–620)
+- Empty States (lines ~620–650)
+- Progress Bar Enhancement (lines ~650–670)
+- Sidebar brand enhancement (lines ~670–680)
+
+**Build Status:** ✅ Passed (196 insertions, 8 deletions)
+
+**Next Steps:** 
+- Awaiting ltnguyen review
+- Consider adding `.ai-badge` to AI-generated content (e.g., refinement suggestions)
+- KPI accent bar can be applied if dashboard gets numeric KPI cards in future
+

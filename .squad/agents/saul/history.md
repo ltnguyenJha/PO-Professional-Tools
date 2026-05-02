@@ -144,3 +144,63 @@ All patterns documented in Rusty's decision entry for team reference.
 - CSS variable pattern for tier accents: add `--tw-epic` / `--tw-epic-bg` / `--tw-epic-fg` / `--tw-epic-muted` / `--tw-epic-border` to tailwind.css + matching color tokens in tailwind.config.js; then use as inline styles for theme-adaptive violet
 - Button inline style override: use `style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}` alongside `btn btn-primary` to restyle without class duplication
 - Sidebar epic nav: add `data-navid={entry.id}` to nav buttons, then style `[data-navid="epic-creation"][aria-current="page"]` in styles.css with violet — no TypeScript logic changes needed
+
+### 2026-05-01 — AI Visual Design & Warmth Enhancements
+
+**Problem:** Extension UI "looks too sad and unhappy" — lacks warmth, delight, and clear visual distinction for AI-powered features.
+
+**Solution:** Introduced a comprehensive AI visual design system with violet accent + delight micro-interactions.
+
+**AI Color Token (`--ai` violet):**
+- Dark: `#7c3aed`, Light: `#6d28d9`
+- **Usage rule:** ONLY for AI-powered features (generation, refinement, suggestions). Regular user actions stay teal (`--accent`).
+- **Rationale:** The violet/teal split creates clear visual semantics — "AI magic" vs. "user action". Prevents user confusion about what's automated vs. manual.
+- **Warmth factor:** Violet is warmer than pure blue/teal. Adds personality without breaking the established teal brand.
+
+**AI State Visual Patterns (6 new CSS classes):**
+1. `.ai-shimmer` — Animated gradient for active AI generation. Replaces blocking spinners. 1.5s infinite shimmer from `--ai-soft` → `--ai-glow` → `--ai-soft`.
+2. `.ai-thinking` — Pulsing box-shadow glow for AI sections. Draws attention without blocking interaction. 2s ease-in-out pulse.
+3. `.ai-success-flash` — Brief 600ms celebration on AI completion. Green border + background flash, then fade. Non-persistent.
+4. `.ai-badge` — `<span class="ai-badge">✦ AI</span>` — Small pill to mark AI-generated content. Subtle, not prominent.
+5. `.hover-lift` — Standard micro-interaction for all interactive surfaces. `translateY(-1px)` + shadow on hover.
+6. `.empty-state` — Standardized empty view structure: emoji icon + title + subtitle + CTA. Never show blank space.
+
+**Micro-Interaction Enhancements:**
+- **Button hover lift:** All buttons now lift 1px on hover + cast `--shadow-md`. Active state resets to `translateY(0)` for press feedback.
+- **Progress bar personality:** Replaced flat color fills with animated gradient shimmer (`--accent` → `--accent-strong` → `--accent`).
+- **KPI card accent:** 3px top border (`--accent`) when `data-value > 0`. Zero-value KPIs stay neutral.
+
+**Empty State Copy Guidelines:**
+- Icon: Single emoji, 48px, relevant to context
+- Title: Friendly, action-oriented (not "No data found")
+- Subtitle: Brief explanation + benefit, max 360px wide
+- CTA: One primary action button (except bulk breakdown = drag-drop)
+
+**AI Section Visual Treatment:**
+- Gradient background: `linear-gradient(135deg, var(--ai-soft) 0%, transparent 60%)`
+- Left border: `3px solid var(--ai)`
+- Header icon: ✦ sparkle before text
+- Active state: `.ai-thinking` pulsing class
+- Success state: `.ai-success-flash` one-time trigger
+
+**WCAG Compliance:**
+- All `--ai` tokens tested at WCAG AA (≥4.5:1 on both `--panel` and `--bg`)
+- All animations respect `prefers-reduced-motion: reduce` — fallback to static states
+- Focus rings maintained on all interactive surfaces
+
+**Documentation:**
+- Updated `.squad/skills/design-system/SKILL.md` with AI Color Tokens + AI State Visual Patterns sections
+- Updated `.squad/agents/saul/charter.md` with AI Visual Design section
+- Created `docs/VISUAL_SPEC.md` — comprehensive implementation spec for Rusty (12 sections, ~17KB)
+
+**Design Philosophy Established:**
+- "Balance delight with restraint" — don't overuse animation or gradients
+- "Every animation serves a purpose" — no decoration-only motion
+- "Micro-interactions are mandatory" — every clickable surface needs feedback
+- "Empty states need character" — never blank space
+
+**Token choice rationale:**
+- Violet over orange/yellow: Warmer than blue/teal, but still professional
+- Violet over pink: More gender-neutral, better WCAG contrast
+- Violet over purple: `#7c3aed` has better contrast than lighter purples
+- Separate from teal: Critical to maintain visual semantics distinction
