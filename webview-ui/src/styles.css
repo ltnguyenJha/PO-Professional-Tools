@@ -1875,6 +1875,88 @@ button {
 }
 
 /* ================================================================
+   Delight v2 — Navigation, studio items, AI actions, view entrance
+   ================================================================ */
+
+/* Brand mark: use accent color so "PO Pro" pops in the sidebar */
+.brand-text h1 {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+/* Active nav item: VS Code-style inset left accent bar */
+.nav-item[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Content area: soft entrance animation on every view switch */
+.content {
+  animation: fadeIn 0.22s ease-out;
+}
+
+/* Studio list item: extend transition to cover lift + shadow */
+.studio-item {
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+/* Studio list item: lift on hover for tactile feedback */
+.studio-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+}
+
+/* Active studio item: inset left accent bar (VS Code-native feel) */
+.studio-item.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Studio hero (first-run welcome): gradient background teal → violet */
+.studio-hero {
+  background: linear-gradient(
+    135deg,
+    var(--accent-soft) 0%,
+    var(--ai-soft) 100%
+  );
+  border-color: transparent;
+}
+
+/* AI action button — violet for AI-powered primary CTAs */
+.btn-ai {
+  background: var(--ai);
+  border-color: var(--ai);
+  color: #f5f3ff;
+}
+
+.btn-ai:hover:not(:disabled) {
+  background: var(--ai-strong);
+  border-color: var(--ai-strong);
+  box-shadow: 0 4px 14px var(--ai-glow);
+}
+
+.btn-ai:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-ai:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Studio toolbar stats row */
+.studio-toolbar-stats {
+  margin-top: var(--space-sm);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+/* ================================================================
    Accessibility — reduced motion
    ================================================================ */
 @media (prefers-reduced-motion: reduce) {
