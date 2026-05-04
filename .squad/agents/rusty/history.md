@@ -56,6 +56,25 @@
 - `aria-expanded` on the trigger button, `aria-hidden` on the body panel, `aria-controls` pointing to the panel `id`.
 - When wrapping an existing section: remove the old outer `<div className="pt-3 border-t">` wrapper and replace with the accordion `<div className="rounded-md border overflow-hidden">` at the same DOM level.
 
+### 2026-05-04 — SettingsView Save Button Fix for New Users (Implemented)
+
+**Scope:** `SettingsView.tsx`
+
+**Problem:**
+- New users (with `adoSettings === undefined`) could not save settings because the Save button was hidden.
+- The `useEffect` that computes `hasUnsavedChanges` returned early with `false` when `adoSettings` was undefined.
+
+**Solution:**
+- When `adoSettings` is undefined, check if the form has meaningful input (orgUrl, projectName, or pat).
+- If any field has content, set `hasUnsavedChanges = true` to show the Save button.
+- Type safety: Fixed `form.pat &&` guard to `form.pat != null &&` to avoid boolean type coercion errors.
+
+**Impact:**
+- ✅ New users can now see and use the Save button after entering at least one critical field
+- ✅ No changes to existing users' saved state or behavior
+- ✅ Build passes; ready for deployment
+
+
 ### 2026-04-30 — WCAG 2.1 AA Component Accessibility Pass
 
 **Scope:** FeatureCreationWizard.tsx, DashboardView.tsx, PbiStudio.tsx, StatusBadge.tsx, App.tsx
@@ -1832,4 +1851,20 @@ All new patterns added to `webview-ui/src/styles.css` in dedicated sections:
 - Awaiting ltnguyen review
 - Consider adding `.ai-badge` to AI-generated content (e.g., refinement suggestions)
 - KPI accent bar can be applied if dashboard gets numeric KPI cards in future
+
+---
+
+### 2026-05-04 — New-User Save Button Bug in SettingsView
+
+**Bug:** For brand-new users with no saved ADO settings (`adoSettings === undefined`), the `hasUnsavedChanges` `useEffect` returned early and hard-coded `false`. This meant the Save button never appeared, leaving new users unable to save any settings at all.
+
+**Pattern learned:** When comparing "form vs. saved state", always handle the `null`/`undefined` saved-state case explicitly. The correct pattern is:
+- **No saved state (new user):** show Save if the user has entered *any* meaningful input.
+- **Has saved state:** show Save if the form differs from the saved state.
+
+Collapsing both into a single "diff vs. saved" check silently breaks the new-user path.
+
+**Type-safety note:** `form.pat && form.pat.trim().length > 0` returns `string | boolean | undefined`, not `boolean`. Always use `form.pat != null && form.pat.trim().length > 0` (or `!!`) when a guard needs to produce a clean `boolean` for `setState`.
+
+**Build Status:** ✅ Passed
 
