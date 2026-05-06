@@ -4516,3 +4516,177 @@ After researching modern AI-UX design patterns, I've identified 5 key patterns t
 3. Coordinate with Rusty on Phase 1 implementation
 4. User testing after Phase 1-2 shipped
 
+---
+
+## Recent Decisions — May 6, 2026
+
+### Issue #26 Resolution Summary (2026-05-02)
+
+**Author:** Danny (Lead)  
+**Date:** 2026-05-02  
+**Status:** ✅ RESOLVED  
+
+Issue #26 (Technical Considerations button missing after UI redesign) was **fully resolved in May 2026**. Feature was restored by Rusty (May 1), verified by Linus, and validated by Livingston. All 16 P0 tests passing. Component fully aligned with redesign patterns. Ready for production.
+
+**Key Points:**
+- Feature implementation complete (Issue #20) and integrated
+- Regression fixed: component rendered in PbiStudio.tsx with proper handlers
+- Build passing, TypeScript zero errors, design patterns aligned
+- No blockers identified
+
+**Reference:** `.squad/agents/rusty/history.md` (button restoration), `.squad/log/issue-26-p0-test-execution.md`
+
+---
+
+### Issue #30: Business Rules Feature (2026-04-29)
+
+**Author:** Danny (Lead)  
+**Date:** 2026-04-29  
+**Status:** ✅ READY FOR IMPLEMENTATION  
+
+Add optional "Business Rules and Assumptions" wizard step (Step 4) to UserStoryWizard. Captures specific criteria, conditions, and preconditions for completion. Injected into ADO description after user story statement. If empty, shows "NA (to be refined with dev team)" placeholder.
+
+**Scope:**
+- New step in wizard (moves User Story from Step 4 → Step 5)
+- Optional field, no validation required
+- ADO HTML section injection after User Story Statement
+- No INVEST score impact
+
+**Decomposition:**
+- **Rusty (Frontend):** STEPS array update, state management, type updates (3-4 hours)
+- **Linus (Backend):** Type sync, ADO mapping logic (1-2 hours)
+- **Livingston (Test):** 18 manual scenarios + build validation (2-3 hours)
+
+**Total Effort:** 6-9 hours, parallel execution recommended
+
+**Reference:** `.squad/decisions/inbox/danny-issue-30-scope.md`
+
+---
+
+### Phase 4 State Integration Complete (2026-04-28)
+
+**Author:** Linus (Backend Dev)  
+**Date:** 2026-04-28  
+**Status:** ✅ Implemented & Verified  
+
+Completed Phase 4 state persistence for wizard. Created `useAutoSave()` hook with 500ms blur debounce + immediate step advance. Schema versioning supports legacy draft auto-upgrade on first edit. Collision handling: step advance cancels pending blur saves (last-write-wins).
+
+**Key Implementation:**
+- `useAutoSave()` hook for frontend debouncing + collision handling
+- Extension handlers verify mode via step mismatch detection
+- Legacy drafts auto-upgrade to v2 on first interaction
+- Single timer per panel prevents race conditions
+
+**Status:** All Phase 4 deliverables complete, ready for Phase 3 wizard integration.
+
+**Reference:** `.squad/decisions/inbox/linus-phase-4-state-design.md`
+
+---
+
+### Issue #26 Button Restoration (2026-05-01)
+
+**Author:** Rusty (Frontend Dev)  
+**Date:** 2026-05-01  
+**Status:** ✅ Complete  
+
+Technical Considerations button regression fixed. Component restored in PbiStudio with full type alignment, proper event handlers, and design consistency. All CSS reused from existing patterns; no new styles. Build clean, TypeScript zero errors.
+
+**Implementation:**
+- Type definitions synchronized (webview + backend)
+- Component integrated with state/handlers in PbiStudio
+- Placement: after Bug Refinement, before advanced features
+- Design patterns aligned (collapsible card, action buttons, loading state)
+
+**Verification:**
+- ✅ Build: 2.7MB extension, 223.43KB JS, 20.81KB CSS
+- ✅ TypeScript: Zero errors
+- ✅ Regression tests: All buttons/sections functional
+- ✅ Approved for production
+
+**Reference:** `.squad/decisions/inbox/rusty-issue-26-button-restoration.md`
+
+---
+
+### Ambient AI UX Approach (2026-04-30)
+
+**Author:** Tess (UX Designer)  
+**Approved by:** Baldwin (User)  
+**Date:** 2026-04-30  
+**Status:** ✅ Approved — Ready for Implementation  
+
+Hide in-panel AI action buttons from wizard. Move AI features out-of-panel via Ambient AI architecture:
+1. **Command Palette:** `Ctrl+Shift+P → PBI: Generate Full Story with AI`
+2. **Right-Click Menu:** "Refine with Copilot Chat" on wizard steps
+3. **AI-Ready Indicator:** Subtle visual signal when AI mode toggled ON
+4. **First-Time Toast:** Educate user on keyboard shortcuts
+
+**Rationale:** Reduces UI clutter while leveraging VS Code native patterns (discoverable, keyboard-first, accessible).
+
+**Implementation:**
+- **Rusty:** Remove buttons, add indicator + tooltip, first-time toast
+- **Linus:** Register command + context menu (handlers already exist)
+- **Livingston:** Validate buttons hidden, indicator visible, shortcuts work
+
+**Reference:** `.squad/decisions/inbox/tess-ambient-ai-ux.md`
+
+---
+
+### Phase 5 Test Findings (2026-04-30+)
+
+**Author:** Livingston (Tester)  
+**Date:** 2026-04-30+  
+**Status:** ✅ MVP Approved  
+
+Phase 5 full test matrix: 124/124 scenarios executed, 96.8% pass rate (120/124). 4 acceptable blockers identified (all post-MVP):
+- **EC7:** Network retry logic (known from Phase 4)
+- **3 Polish items:** Dark mode edge case, mobile responsive edge cases
+
+No critical issues. MVP ready for release.
+
+**Blocker Details:**
+| Item | Category | Status | Resolution |
+|------|----------|--------|-----------|
+| Network Retry | Edge Case | Expected to Fail | Post-MVP: implement retry queue |
+| Dark Mode Edge | Polish | Fail | Post-MVP: CSS refinement |
+| Mobile Responsive | Polish | Fail | Post-MVP: responsive design pass |
+
+**Recommendation:** Ship MVP now. Address polish items in Phase 6.
+
+**Reference:** `.squad/decisions/inbox/livingston-phase-5-findings.md`
+
+---
+
+### Documentation Audit Complete (2026-05-06)
+
+**Author:** Reuben (Documentation Writer)  
+**Date:** 2026-05-06  
+**Status:** ✅ CLOSED  
+
+Comprehensive documentation audit post-merge from main. Three gaps identified and resolved:
+
+1. **Gap 1: Technical Considerations Feature Not in User Docs**
+   - Feature implemented (Issue #20) but undocumented
+   - Created release notes (2026-05-06.md) with feature explanation, benefits, usage steps
+   - Expanded pbi-studio.md with "Generating Technical Considerations" section
+
+2. **Gap 2: UI/UX Refresh Not Documented**
+   - PRs #71–#72 brought major visual overhaul; users saw changes but lacked context
+   - Added comprehensive "UI/UX Improvements" narrative in release notes (warmer palette, micro-interactions, empty states, light mode redesign)
+
+3. **Gap 3: Issue #26 Bug Fix Not in CHANGELOG**
+   - Button regression fix completed but undocumented
+   - Added to CHANGELOG.md (v0.3.0) and release notes "Bug Fixes"
+
+**Deliverables:**
+- ✅ `release-notes/2026-05-06.md` (7,900 words)
+- ✅ `CHANGELOG.md` (v0.3.0 entry)
+- ✅ `docs/user-guide/pbi-studio.md` (expanded)
+- ✅ `README.md` (documentation TOC updated)
+
+**Recommendations:**
+1. Audit documentation immediately when merging from main
+2. Pre-release checklist: release notes exist, CHANGELOG updated, user guide complete, README TOC current
+3. Documentation ownership: Reuben → user guides & release notes; in-repo docs/ → technical/architecture
+
+**Reference:** `.squad/decisions/inbox/reuben-docs-audit-2026-05-06.md`
+
