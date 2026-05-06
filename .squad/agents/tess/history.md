@@ -145,6 +145,55 @@
 
 **Spec location:** `docs/design/theme-settings-spec.md`
 
+### AI-UX Design Patterns Applied (2026-05-01)
+
+**What I learned:**
+- 5 AI-UX design patterns are highly applicable to PO-Professional-Tools: Predictive UX, Generative Assistance, Adaptive Personalization, Conversational Interfaces, and Background Automation
+- These patterns help balance AI power with user control — AI should enhance, not replace, user agency
+- Key insight: **AI creation + co-creation + manual edit** is the optimal flow for PBI generation (fast draft → iterative refinement → full control)
+- Visual identity for AI features: Use warm violet accent (`#7c3aed`) exclusively for AI-powered actions to create clear distinction from regular (teal) actions
+
+**What I designed:**
+- **Charter update:** Added comprehensive "AI-UX Design Patterns" section to `charter.md` covering all 5 patterns with extension-specific applications, balancing guidelines, trust-building principles, and creation vs. co-creation decision framework
+- **AI-UX Patterns Skill:** Created `.squad/skills/ai-ux-patterns/SKILL.md` documenting all patterns with detailed implementation hints, antipatterns, and design principles (confidence: medium)
+- **DESIGN.md:** Comprehensive living design document for UI/UX refresh addressing "sad and unhappy" UI with specific improvements:
+  - **Visual warmth:** Violet accent for AI features, gradient animations, micro-interactions, celebratory success states
+  - **Empty states:** Encouraging, actionable content instead of blank areas
+  - **AI magic moments:** Shimmer loading states, success animations with confetti, conversational refinement interface
+  - **Hero create area:** Inviting gradient background with warm copy and prominent "Generate with AI" CTA
+  - **Pattern applications:** Mapped all 5 AI-UX patterns to specific extension features with design specs
+
+**Key UX decisions:**
+- **Color coding AI features:** Violet (`#7c3aed`) = AI actions, Teal (`#14b8a6`) = manual actions — users learn this visual language quickly
+- **Micro-interactions everywhere:** Button hover lift, card elevation on hover, animated transitions (UI feels alive)
+- **Celebration on completion:** Green flash + confetti + positive copy after successful AI generation (builds emotional connection)
+- **Conversational refinement:** "Refine with AI" redesigned as chat-like interface with quick refinement pill buttons (reduces friction)
+- **Background automation:** Long-running tasks show non-blocking progress in status bar; celebrate completion with toast
+- **Predictive UX:** Smart title suggestions, work item type prediction, pre-filled templates (reduce manual input)
+- **Adaptive personalization:** Remember last-used project, preferred work item type, recently modified PBIs surfaced first
+
+**Trust-building principles established:**
+- Transparency: Always label AI-generated content ("✨ AI-generated")
+- Control: Every AI action is undoable; manual edit escape hatch always available
+- Fairness: No hidden learning; code stays local; clear data usage explanation
+- Privacy: Only prompts sent to API; no external storage
+
+**Design philosophy reinforced:**
+- Balance AI UX vs. non-AI UX — AI enhances, never replaces control
+- Best flow: Creation (fast) → Co-creation (iterative) → Manual (precise)
+- Empty states are positive and actionable, not sad
+- Accessibility remains WCAG 2.1 AA baseline (no compromise)
+
+**Implementation guidance:**
+- 4-phase rollout: Foundational improvements → AI visual identity → Conversational features → Adaptive personalization
+- Success metrics: Qualitative (user feedback) + Quantitative (AI feature usage, refinement loops, task completion funnel)
+- What NOT to change: VS Code CSS variables, accessibility requirements, core layout, message contracts, teal brand color
+
+**Files created:**
+- `.squad\agents\tess\charter.md` — Updated with AI-UX patterns section
+- `.squad\skills\ai-ux-patterns\SKILL.md` — Comprehensive pattern documentation
+- `docs\DESIGN.md` — Living design document for UI/UX refresh
+
 ## Session Log
 
 - **2026-04-30 09:07:** Tess joined the team. Charter established, ready for first assignment.

@@ -453,13 +453,11 @@ export function PbiStudio({
     return (
       <div className="content">
         <section className="card studio-hero">
-          <h2 style={{ margin: '0 0 8px' }}>PBI Studio — start here</h2>
+          <h2 style={{ margin: '0 0 8px' }}>✨ Let's build your backlog</h2>
           <p className="card-subtitle" style={{ marginBottom: 16 }}>
-            Link each backlog item to a <strong>repo or workspace folder</strong> so AI refinement,
-            full-story generation, and Copilot Chat use your codebase (Product Manager prompt + linked
-            context). Use <strong>VS Code Copilot Chat</strong> to co-author if you like — with{' '}
-            <strong>Auto-apply</strong> on (default), JSON from chat can merge into your draft
-            automatically.
+            Link each backlog item to a <strong>repo or workspace folder</strong> so AI refinement
+            and Copilot Chat use your codebase as context. Turn on <strong>Auto-apply</strong>{' '}
+            and JSON from Chat merges into your draft automatically — no copy-paste.
           </p>
           {linkTargets.length === 0 ? (
             <p className="hint" style={{ marginBottom: 16 }}>
@@ -505,11 +503,11 @@ export function PbiStudio({
           <div className="action-row" style={{ marginTop: 8 }}>
             <button
               type="button"
-              className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              className="btn btn-ai focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
               disabled={!canCreateLinked}
               onClick={() => createPayload(true)}
             >
-              Create &amp; open Copilot Chat
+              ✨ Create &amp; open Copilot Chat
             </button>
             <button type="button" className="btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" disabled={!canCreateLinked} onClick={() => createPayload(false)}>
               Create blank PBI only
@@ -567,8 +565,16 @@ export function PbiStudio({
               });
             }}
           >
-            + New &amp; Copilot Chat
+            ✨ New &amp; Copilot Chat
           </button>
+        </div>
+        <div className="studio-toolbar-stats">
+          <span>{pbiDrafts.length} draft{pbiDrafts.length !== 1 ? 's' : ''}</span>
+          {pbiDrafts.filter(d => d.status === 'pushed').length > 0 && (
+            <span className="chip success" style={{ fontSize: '0.7rem', padding: '1px 7px' }}>
+              {pbiDrafts.filter(d => d.status === 'pushed').length} pushed ✓
+            </span>
+          )}
         </div>
       </div>
 
@@ -637,11 +643,23 @@ export function PbiStudio({
               </button>
             );
           })}
-          {filtered.length === 0 && <div className="hint">No matching drafts.</div>}
+          {filtered.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">🔍</div>
+              <h3>No matching drafts</h3>
+              <p>Try adjusting your search or filter.</p>
+            </div>
+          )}
         </aside>
 
         <section className="studio-editor">
-          {!active && <div className="empty">Select a draft to edit.</div>}
+          {!active && (
+            <div className="empty-state">
+              <div className="empty-icon">👈</div>
+              <h3>Select a draft to edit</h3>
+              <p>Choose a story from the list or create a new one.</p>
+            </div>
+          )}
           {active && (
             <>
               {active.status === 'pushed' && active.adoWorkItemUrl && (
@@ -770,7 +788,7 @@ export function PbiStudio({
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
-              <article className="card">
+              <article className="card ai-section">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -819,14 +837,14 @@ export function PbiStudio({
               </article>
               )}{/* end hidden: Generate full story in-panel */}
 
-              <article className="card">
+              <article className="card ai-section">
                 <button
                   type="button"
                   className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
                   onClick={() => setOpenCopilotChat((o) => !o)}
                   aria-expanded={openCopilotChat}
                 >
-                  <h3 style={{ margin: 0 }}>VS Code Copilot Chat</h3>
+                  <h3 style={{ margin: 0 }}>✨ Copilot Chat <span className="ai-badge">AI</span></h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {aiBusy && <span className="chip info" aria-live="polite">Copilot is thinking...</span>}
                     <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
@@ -1126,7 +1144,7 @@ export function PbiStudio({
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
-              <article className="card">
+              <article className="card ai-section">
                 <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

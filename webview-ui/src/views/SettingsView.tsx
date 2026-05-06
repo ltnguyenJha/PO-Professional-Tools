@@ -85,7 +85,12 @@ export function SettingsView({
   // Detect changes to form
   useEffect(() => {
     if (!adoSettings) {
-      setHasUnsavedChanges(false);
+      // New user: show Save if they've entered any data
+      const hasInput =
+        form.orgUrl.trim().length > 0 ||
+        form.projectName.trim().length > 0 ||
+        (form.pat != null && form.pat.trim().length > 0);
+      setHasUnsavedChanges(hasInput);
       return;
     }
     
@@ -95,7 +100,7 @@ export function SettingsView({
       form.team !== (adoSettings.team ?? '') ||
       form.iterationPath !== (adoSettings.iterationPath ?? '') ||
       form.defaultWorkItemType !== (adoSettings.defaultWorkItemType ?? 'Product Backlog Item') ||
-      (form.pat && form.pat.trim().length > 0);
+      (form.pat != null && form.pat.trim().length > 0);
     
     setHasUnsavedChanges(hasChanges);
   }, [form, adoSettings]);

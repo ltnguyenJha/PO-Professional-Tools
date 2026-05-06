@@ -4203,3 +4203,316 @@ Unified two independent CSS systems (legacy `styles.css` + Tailwind bridge `tail
 **Decision:** Documented in repo-level `.squad/git-workflow.md`; this decision log entry archives the finalized workflow applied to close feature/saul-tailwind-dashboard-redesign (PR #61). Standard close-out sequence: (1) commit squad state, (2) create PR with descriptive title/body, (3) merge via squash, (4) clean up local branches, (5) document in decisions.md.
 
 **Rationale:** Keeps main clean via squash history, auto-removes remote branches, ensures squad state (learnings, decisions, skill files) captured before branch deletion, maintains complete traceability from issue → branch → PR → merge.
+## Epic Creation Architecture (2026-04-30)
+
+**Author:** Basher (Solutions Architect)
+**Date:** 2026-04-30
+**Status:** Proposed — Awaiting team review
+**Spec:** \docs/architecture/epic-creation-spec.md\
+**Brief:** \docs/architecture/epic-creation-brief.md\
+
+### Context
+
+Danny wrote a scoping brief for Epic Creation (the third tier of the PO-Professional-Tools work item hierarchy). This record documents the key architectural choices made during the design session and their rationale. All choices are grounded in a full read of the codebase.
+
+### Key Decisions
+
+**1. EpicDraft is a first-class type (not a PbiDraft extension)**
+- **Decision:** \EpicDraft\ is its own interface in \src/shared/messages.ts\, separate from \FeatureDraft\ and \PbiDraft\.
+- **Rationale:** Matches the existing pattern (FeatureDraft is already separate from PbiDraft). EpicDraft has unique fields — \objectives[]\, \scope\, \linkedFeatureIds\, \selectedRepoIds\, \iGeneratedFeatures\ — that have no analogue in PbiDraft. PbiDraft is already overloaded with bug/feature/story fields (per existing decision record \danny-epic-feature-architecture.md\). Keeping types separate enables clean validation and independent lifecycles.
+
+**2. \linkedFeatureIds\ over \eatureIds\ (field rename)**
+- **Decision:** Rename the stub \eatureIds: string[]\ field in \webview-ui/src/types.ts\ to \linkedFeatureIds: string[]\ in the final type.
+- **Rationale:** "Linked" is semantically accurate — features are _linked_ to Epics, not _owned_ by them. Features can be orphaned (unlinked) or re-linked without deletion. The rename also prevents confusion with the \eatureId\ field used in message payloads.
+- **Impact on Linus:** One field rename in \webview-ui/src/types.ts\. No data migration needed (feature was a stub with no production data).
+
+**3. Feature suggestions in wizard state — not persisted until Step 5**
+- **Decision:** AI-generated feature suggestions live in \localSuggestions\ React state inside \EpicCreationWizard\. No FeatureDrafts are created in globalState until the user clicks "Save as Draft" or "Push to ADO" on Step 5.
+- **Rationale:** Prevents orphaned drafts from users who abandon the wizard mid-session. Mirrors the pattern in existing FeatureCreationWizard where generated PBIs are reviewed before commit. Keeps globalState clean.
+- **Impact on Rusty:** Step 3 fires \GENERATE_FEATURES_FROM_EPIC\ → backend returns \EPIC_GENERATION_COMPLETE\ with \suggestions[]\ payload → wizard stores locally → Step 5 sends \CREATE_FEATURE_DRAFT\ × N then \CREATE_EPIC_DRAFT\.
+
+**4. Push strategy: Option B (pushChildren flag, not atomic)**
+- **Decision:** \PUSH_EPIC_TO_ADO\ payload includes \pushChildren: boolean\. If false, only the Epic is created in ADO. If true, linked Features (and their children) are pushed sequentially.
+- **Rationale:** Option A (atomic all-or-nothing) is fragile — a single PBI failure rolls back everything. Option C (prompt per Feature) is too click-heavy. Option B gives the user control without overwhelming them. Partial failures result in \status: 'partial'\ — surfaced via amber badge in dashboard. This is the least-surprise choice for enterprise POs.
+
+**5. Status rollup: strict minimum rule**
+- **Decision:** Epic status is calculated as the strict minimum of its children's states:
+  - \'pushed'\ only when Epic is pushed AND ALL linked features are pushed
+  - \'partial'\ when Epic is pushed but any feature is not
+  - \'ready'\ when all features are \'ready'\ or \'pushed'\ (and Epic not yet pushed)
+  - \'draft'\ otherwise
+- **Rationale:** "Majority vote" or "80% rule" creates false confidence. A PO needs to know when the hierarchy is truly complete in ADO. Strict minimum is auditable and unambiguous. Matches how \HierarchyStatus\ is already used for Feature→PBI (a Feature is only 'pushed' when ALL its PBIs are pushed).
+
+**6. Phase 1 reuses existing AdoSettings — no new settings UI**
+- **Decision:** Epic push uses \doSettings.areaPath\, \doSettings.iterationPath\, \doSettings.orgUrl\, \doSettings.projectName\, and the existing PAT. No new Epic-specific settings fields in Phase 1.
+- **Rationale:** Danny's brief explicitly recommends this for Phase 1 MVP. Adding new settings UI adds a full sprint of scope to the critical path. The majority of teams will have the same area/iteration for all work item types within a project. Post-MVP, \picAreaPath\ and \preferredFeatureCount\ can be added to SettingsView.
+
+**7. ID generation: \Date.now().toString()\ (not nanoid)**
+- **Decision:** EpicDraft and Feature suggestions use \Date.now().toString()\ for client-side ID generation.
+- **Rationale:** Matches the existing pattern in DashboardPanel.ts \handleCreateFeatureDraft()\ (line 1458: \id: Date.now().toString()\). Introducing nanoid would require a new dependency and is inconsistent with existing patterns. IDs are local-only (not shared across sessions or networks), so uniqueness within a session is sufficient.
+
+**8. ADO link direction: Hierarchy-Reverse on child**
+- **Decision:** Hierarchy links are added as \System.LinkTypes.Hierarchy-Reverse\ on the **Feature** work item pointing **up** to the **Epic** work item URL.
+- **Rationale:** This is the existing pattern already proven for Feature→PBI in \doService.pushWithParent()\ (adoService.ts lines 320-330). No new link type needed. ADO renders this as a native parent-child hierarchy in the backlog view.
+
+**9. Dashboard Epics section at top, expanded by default**
+- **Decision:** Epics accordion section appears **above** the existing Features and PBIs sections in DashboardView. First Epic auto-expands on load.
+- **Rationale:** Hierarchy flows top-down. Epics are the strategic planning artifact; they should be the first thing a PO sees. Collapsed-by-default hides the primary value of the feature. Mirrors common project management tools (Jira, Azure Boards) where Epics appear at the top.
+
+**10. Step 3 (AI Generation) is optional — Skip button provided**
+- **Decision:** Step 3 of the Epic Creation wizard has a "Skip →" secondary button that lets the user proceed to Step 4 with an empty suggestion list.
+- **Rationale:** Not every team uses AI generation. Some POs have pre-defined Features in mind and just need to input them manually. Forcing AI generation would block users without GitHub Copilot configured. The Skip path ends in the same Step 4/5 as the generation path, making it a zero-cost addition.
+
+### Deferred Decisions (Phase 2)
+
+| Topic | Deferred To | Notes |
+|---|---|---|
+| \picAreaPath\ / \picIterationPath\ settings | Phase 2 | Use global AdoSettings in Phase 1 |
+| Auto-calc velocity from child features | Phase 2 | Manual entry only in Phase 1 |
+| Import existing ADO Epic as draft | Phase 2 | Greenfield creates are Phase 1 |
+| AI model / temperature configuration | Phase 2 | Existing CopilotService.pickModel() handles fallback |
+| Drag-to-reorder Features in Step 4 | Phase 2 | Array order sufficient for MVP |
+| "Generated" vs "Manual" source badge on Features | Phase 2 | \iGeneratedFeatures\ flag stored; display deferred |
+
+### Dependencies
+
+- **Blocks:** Feature Creation Wizard Phase 2 polish (no code conflicts; additive changes only)
+- **Unblocked by:** No blocking dependencies. All changes are additive to existing types.
+- **Requires:** Linus to resolve existing FEATURE_* event discrepancies between \messages.ts\ and \	ypes.ts\ during Phase 1 (Section 3.3 of spec) before Rusty reads from those event types in the new wizard.
+
+---
+
+## UI/UX Delight Refresh (2026-05-01)
+
+**Date:** 2026-05-01
+**Author:** Rusty (Frontend Dev)
+**Status:** Awaiting Review
+**Branch:** \eature/ui-ux-delight-refresh\
+
+### Context
+ltnguyen requested the app feel less "sad and unhappy" with specific visual issues:
+- Dark/cold palette with no warmth
+- No micro-interactions (buttons don't lift on hover)
+- Empty states are barebones
+- AI operations feel mechanical
+- No celebratory moments on success
+- Progress bars are flat
+- AI sections look like regular sections
+
+### Decision
+Implemented a comprehensive delight refresh across 3 files (196 insertions) while maintaining the existing teal accent and VS Code design system compatibility.
+
+### What Was Changed
+
+**1. New AI Color Token (Violet)**
+- **Why violet?** Distinct from teal (primary accent), warm yet technical, industry-standard for "AI"
+- **Scope:** Only AI-powered sections (Copilot Chat, Refine, Full Story)
+- **Variables:** \--ai\, \--ai-strong\, \--ai-soft\, \--ai-glow\, \--ai-ink\
+
+**2. Micro-interactions**
+- All buttons: lift 1px on hover + shadow
+- Cards: shadow elevation on hover
+- Transitions: 120–180ms cubic-bezier easing
+
+**3. AI Visual Language**
+- \.ai-section\: Left violet border + gradient background → instantly recognizable
+- \.ai-shimmer\: Animated loading gradient → replaces static "Working..." text
+- \.ai-thinking\: Pulsing glow → shows active AI processing
+- \.ai-success-flash\: Green flash → celebratory moment
+
+**4. Empty States**
+- Replaced barebones \<div className="empty">\ with full \.empty-state\ pattern
+- Icon (emoji) + heading + explanation → guides users, feels friendly
+
+**5. Progress Bars**
+- Added shimmer gradient animation → dynamic, not flat
+
+### Trade-offs
+- **+180 lines of CSS:** Worth it for cohesive delight system
+- **No KPI changes:** Dashboard structure different than expected (no numeric KPI cards exist)
+- **Hidden sections:** Applied \.ai-section\ to sections behind \alse\ flags (future-proof)
+
+### Visual Impact
+- **Before:** Cold, mechanical, barebones
+- **After:** Warm (violet AI accent), reactive (hover lifts), helpful (emoji + guidance in empty states), celebratory (success flash)
+
+### Technical Quality
+- ✅ Build passes
+- ✅ No breaking changes
+- ✅ Uses existing VS Code CSS variables
+- ✅ Respects \prefers-reduced-motion\ (existing pattern)
+- ✅ TypeScript errors are pre-existing (test files, hidden sections)
+
+### Files Changed
+- \webview-ui/src/styles.css\ (180+ lines)
+- \webview-ui/src/components/LoadingBar.tsx\ (1 line)
+- \webview-ui/src/views/PbiStudio.tsx\ (15 lines)
+
+### Risk Assessment
+- **Low risk:** Purely additive CSS and class changes
+- **No data changes:** No state management or message contract changes
+- **Reversible:** Feature branch can be abandoned if rejected
+
+---
+
+## AI Visual Tokens (Violet Accent) (2026-05-01)
+
+**Author:** Saul (UI Designer)
+**Date:** 2026-05-01
+**Status:** Proposed
+**Reviewers:** Tess (UX), Rusty (Frontend), Danny (Lead)
+
+### Decision
+
+Introduce a **violet AI accent token (\--ai\)** as a secondary accent exclusively for AI-powered features, plus a comprehensive AI visual design system.
+
+### Color Token Specification
+
+| Token | Dark Theme | Light Theme | Purpose |
+|-------|------------|-------------|---------|
+| \--ai\ | \#7c3aed\ | \#6d28d9\ | Primary AI accent (buttons, borders, text) |
+| \--ai-strong\ | \#8b5cf6\ | \#7c3aed\ | Hover state, emphasis |
+| \--ai-soft\ | \gba(124, 58, 237, 0.12)\ | \gba(109, 40, 217, 0.10)\ | Soft backgrounds, subtle fills |
+| \--ai-glow\ | \gba(124, 58, 237, 0.25)\ | \gba(109, 40, 217, 0.15)\ | Glow effects, box shadows |
+| \--ai-ink\ | \#c4b5fd\ | \#6d28d9\ | Text on dark AI backgrounds |
+
+### AI State Visual Patterns
+
+Six new CSS utility classes:
+
+1. **\.ai-shimmer\** — Animated gradient for active AI generation
+2. **\.ai-thinking\** — Pulsing glow for AI sections in progress
+3. **\.ai-success-flash\** — Brief celebration on AI completion
+4. **\.ai-badge\** — \<span>✦ AI</span>\ pill to mark AI-generated content
+5. **\.hover-lift\** — Standard micro-interaction for all interactive surfaces
+6. **\.empty-state\** — Standardized empty view pattern (icon + title + subtitle + CTA)
+
+### Rationale
+
+**Why Violet?**
+- ✅ **Warmth:** Warmer than blue/teal, adds personality without breaking teal brand
+- ✅ **Contrast:** WCAG AA compliant (≥4.5:1) on both \--panel\ and \--bg\ in both themes
+- ✅ **Semantic clarity:** Visually distinct from teal — clear "AI magic" vs. "user action" coding
+- ✅ **Gender-neutral:** No gendered color associations
+- ✅ **Professional:** More serious than pink/orange, warmer than pure blue
+
+### Benefits
+
+✅ **Clear semantic distinction:** Users instantly recognize AI features
+✅ **Warmth & personality:** Violet adds visual interest without feeling unprofessional
+✅ **Scalable pattern:** Works for future AI features
+✅ **Accessibility:** All states respect \prefers-reduced-motion\, WCAG AA compliant
+✅ **Delight without distraction:** Micro-interactions feel polished, not gimmicky
+
+### Success Metrics
+
+**Qualitative**
+- [ ] **Visual distinction:** Team members can identify AI features at a glance without reading labels
+- [ ] **Warmth:** Subjective "sad/unhappy" feedback resolved
+- [ ] **Consistency:** No accidental violet usage on non-AI features
+
+**Quantitative**
+- [ ] **WCAG compliance:** 100% of AI token usage passes WebAIM contrast checker
+- [ ] **Accessibility:** Zero \prefers-reduced-motion\ violations
+- [ ] **Visual regression:** Zero unintended color changes in non-AI surfaces
+
+---
+
+## AI-UX Design Direction (2026-05-01)
+
+**Date:** 2026-05-01
+**Author:** Tess (UX Designer)
+**Status:** Proposed
+**Related Files:** \docs/DESIGN.md\, \.squad/skills/ai-ux-patterns/SKILL.md\, \.squad/agents/tess/charter.md\
+
+### Context
+
+The PO-Professional-Tools extension currently feels "sad and unhappy" — functionally correct but cold, clinical, and lacking delight. Users describe the interface as uninviting, with no warmth or energy. AI-powered features (the core value proposition) don't feel magical or special.
+
+After researching modern AI-UX design patterns, I've identified 5 key patterns that apply directly to our extension context: Predictive UX, Generative Assistance, Adaptive Personalization, Conversational Interfaces, and Background Automation.
+
+### Decision
+
+**We will adopt a comprehensive UI/UX refresh guided by AI-UX design patterns to make the extension feel warm, delightful, and energizing while maintaining accessibility and user control.**
+
+### Key Design Directions
+
+**1. Visual Identity for AI Features**
+- **Add warm violet accent (\#7c3aed\ / \#6d28d9\) exclusively for AI-powered features**
+  - Violet = AI actions (Generate, Refine, Predict)
+  - Teal (\#14b8a6\) = Manual actions (Create, Edit, Save)
+  - Users quickly learn this visual coding: violet = "AI magic" ✨
+
+**2. Micro-Interactions Everywhere**
+- Button hover: Subtle lift (\	ranslateY(-1px)\) + shadow increase
+- Card hover: Gentle elevation increase + \scale(1.01)\
+- Smooth transitions (150-200ms ease-out) on all state changes
+- **Goal:** UI feels alive and responsive, not static
+
+**3. AI Operation States Redesigned**
+- **Loading:** Animated gradient shimmer (not plain spinner) + encouraging text: "✨ AI is thinking…"
+- **Success:** Brief green flash + checkmark animation with slight bounce + "✨ AI-generated" badge
+- **Error:** Clear but not harsh red feedback with actionable recovery ("Retry" or "Edit Manually")
+- **Goal:** AI operations feel magical and human, not mechanical
+
+**4. Empty States Become Invitations**
+- Replace blank areas with warm, encouraging content
+- Icon/illustration + positive copy + prominent CTA
+- Example: PBI Studio empty → "Ready to build something great? Generate with AI ✨"
+- **Goal:** Empty states motivate action, not confusion
+
+**5. Hero "Create" Area**
+- Large, inviting section with gradient background (violet-to-teal, 10% opacity)
+- Warm copy: "What will you build today?"
+- Prominent "Generate with AI" button with shimmer animation on hover
+- **Goal:** Creating PBIs feels like unlocking superpowers, not clicking a button
+
+### Rationale
+
+**Why Now?**
+- Extension is functionally complete but lacks polish and delight
+- AI features are the core value prop but don't feel special in current UI
+- User feedback indicates the need for warmth and visual refinement
+- Industry best practices (5 AI-UX patterns) provide proven framework
+
+### Implementation Plan
+
+**Phase 1: Foundational Improvements (Week 1)**
+- Add violet accent color to CSS variables
+- Implement micro-interactions (button hover, card hover)
+- Redesign empty states for all views
+
+**Phase 2: AI Visual Identity (Week 2)**
+- Apply violet accent to all AI-powered buttons and sections
+- Redesign AI loading states (gradient shimmer)
+- Add success animations (green flash, checkmark)
+
+**Phase 3: Conversational & Background Features (Week 3)**
+- Redesign "Refine with AI" as chat-like interface
+- Add quick refinement pill buttons
+- Implement non-blocking progress indicators
+
+### Success Metrics
+
+**Qualitative**
+- User feedback: "Extension feels more polished and delightful"
+- Reduced confusion: Fewer questions about what AI features do
+- Increased engagement: Users try AI features more often
+
+### Risks & Mitigations
+
+**Risk 1:** Overusing AI patterns reduces user control
+- **Mitigation:** Always offer manual edit escape hatch; AI is secondary option, not forced
+
+**Risk 2:** Visual changes break accessibility
+- **Mitigation:** Test all new components against WCAG 2.1 AA
+
+**Risk 3:** Animations and gradients hurt performance
+- **Mitigation:** Use CSS transforms (GPU-accelerated); respect \prefers-reduced-motion\
+
+**Next Steps**
+1. Team review of design decisions
+2. Create design comps for key flows
+3. Coordinate with Rusty on Phase 1 implementation
+4. User testing after Phase 1-2 shipped
+

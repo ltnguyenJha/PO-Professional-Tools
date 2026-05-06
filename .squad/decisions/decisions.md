@@ -38,3 +38,45 @@ This file records key product and architecture decisions made during development
 - No ADO tags/areas lookup.
 - Simple free-text input (comma-separated or tag-style chips).
 - *Source: `copilot-directive-20260430-1400.md`*
+
+---
+
+## SettingsView Save Button for New Users (2026-05-04)
+
+### Problem
+
+In `SettingsView.tsx`, the `useEffect` responsible for tracking `hasUnsavedChanges` had an early-return guard:
+
+```tsx
+if (!adoSettings) {
+  setHasUnsavedChanges(false);
+  return;
+}
+```
+
+For a brand-new user who has never saved ADO settings, `adoSettings` is `undefined`. This caused the Save button (gated on `hasUnsavedChanges || saveSuccess`) to **never appear**, making it impossible for new users to save any configuration.
+
+### Decision
+
+When `adoSettings` is `undefined`, treat the form as "unsaved" if the user has entered any meaningful input — specifically `orgUrl`, `projectName`, or `pat`. This is the minimal signal that the user intends to configure the extension.
+
+### Implementation
+
+```tsx
+if (!adoSettings) {
+  const hasInput =
+    form.orgUrl.trim().length > 0 ||
+    form.projectName.trim().length > 0 ||
+    (form.pat != null && form.pat.trim().length > 0);
+  setHasUnsavedChanges(hasInput);
+  return;
+}
+```
+
+Also fixed the `form.pat &&` guard in the existing-user branch (`form.pat != null &&`) to avoid a `boolean | "" | undefined` type error on `setHasUnsavedChanges`.
+
+### Rationale
+
+- Minimal input check (orgUrl, projectName, pat) is sufficient to signal intent without being noisy.
+- Consistent with existing behaviour: the Save button only appears when there's something worth saving.
+- Backward-compatible: no changes to existing users' saved state.

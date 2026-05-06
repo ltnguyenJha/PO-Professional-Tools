@@ -59,41 +59,55 @@
 }
 
 [data-theme="light"] {
-  --bg: #f4f7fb;
-  --bg-elev: #ffffff;
-  --panel: #ffffff;
-  --panel-muted: #f8fafc;
+  /* ── Backgrounds: barely tinted cool white — light but not flat ── */
+  --bg: #f1f5fb;          /* subtle cool tint, clearly light */
+  --bg-elev: #f8fbfe;     /* very slightly off-white */
+  --panel: #ffffff;        /* cards pure white — clear hierarchy */
+  --panel-muted: #f0f5fb; /* distinguishable from panel */
+
+  /* ── Typography ── */
   --ink: #0f172a;
   --ink-muted: #475569;
-  --ink-soft: #64748b;
-  --line: #d7e0ea;
-  --line-strong: #c3cedb;
-  --accent: #0f766e;
-  --accent-strong: #115e59;
-  --accent-soft: #ccfbf1;
-  --accent-ink: #065f46;
+  --ink-soft: #5c6e87;    /* was #64748b — slightly darker for contrast on light bg */
+
+  /* ── Borders ── */
+  --line: #c3d0e3;
+  --line-strong: #adbcd2;
+
+  /* ── Accent: cyan family (matches sidebar-active & dark mode teal) ── */
+  --accent: #0891b2;
+  --accent-strong: #0e7490;
+  --accent-soft: rgba(8, 145, 178, 0.12); /* subtle — eliminates the bright mint blob */
+  --accent-ink: #155e75;
+
+  /* ── Semantic colors: rgba like dark mode — no solid pastels ── */
   --danger: #be123c;
-  --danger-soft: #ffe4e6;
+  --danger-soft: rgba(190, 18, 60, 0.08);
   --warning: #b45309;
-  --warning-soft: #fef3c7;
+  --warning-soft: rgba(180, 83, 9, 0.08);
   --success: #047857;
-  --success-soft: #d1fae5;
+  --success-soft: rgba(4, 120, 87, 0.10);
   --info: #1d4ed8;
-  --info-soft: #dbeafe;
+  --info-soft: rgba(29, 78, 216, 0.08);
+
+  /* ── Sidebar (always dark in both themes) ── */
   --sidebar-bg: #0f172a;
   --sidebar-ink: #e2e8f0;
   --sidebar-muted: #94a3b8;
   --sidebar-hover: rgba(148, 163, 184, 0.12);
   --sidebar-active: rgba(45, 212, 191, 0.18);
-  --chip: #eef2f7;
+  /* Sidebar accent text: must be LIGHT since sidebar is always dark */
+  --sidebar-accent: #5eead4;
+
+  --chip: #dce5f2;
   --overlay: rgba(15, 23, 42, 0.36);
-  
+
   /* Token bridges for wizard/component compatibility */
   --color-primary-default: var(--accent);
   --color-primary-hover: var(--accent-strong);
   --color-primary-soft: var(--accent-soft);
   --color-primary-ink: var(--accent-ink);
-  --color-primary-disabled: rgba(15, 118, 110, 0.4);
+  --color-primary-disabled: rgba(8, 145, 178, 0.4);
   --color-error: var(--danger);
   --color-error-soft: var(--danger-soft);
   --color-success: var(--success);
@@ -108,6 +122,13 @@
   --color-neutral-400: var(--ink-muted);
   --color-neutral-450: var(--ink-soft);
   --color-neutral-500: var(--ink);
+
+  /* AI-feature accent (violet) */
+  --ai: #7c3aed;
+  --ai-strong: #8b5cf6;
+  --ai-soft: rgba(124, 58, 237, 0.10);
+  --ai-glow: rgba(124, 58, 237, 0.18);
+  --ai-ink: #7c3aed;
 }
 
 [data-theme="dark"] {
@@ -160,9 +181,18 @@
   --color-neutral-400: var(--ink-muted);
   --color-neutral-450: var(--ink-soft);
   --color-neutral-500: var(--ink);
+  
+  /* AI-feature accent (violet) */
+  --ai: #7c3aed;
+  --ai-strong: #8b5cf6;
+  --ai-soft: rgba(124, 58, 237, 0.12);
+  --ai-glow: rgba(124, 58, 237, 0.25);
+  --ai-ink: #c4b5fd;
+  /* Sidebar accent text (same as light — sidebar is always dark) */
+  --sidebar-accent: #5eead4;
 }
 
-* {
+*{
   box-sizing: border-box;
 }
 
@@ -263,7 +293,7 @@ button {
 
 .nav-item[aria-current="page"] {
   background: var(--sidebar-active);
-  color: var(--accent-strong);
+  color: var(--sidebar-accent);
   font-weight: 600;
 }
 
@@ -502,7 +532,169 @@ button {
   min-height: 32px;
 }
 
-.field {
+/* ================================================================
+   Micro-interactions & Delight
+   ================================================================ */
+
+/* Button lift — all buttons get a subtle hover lift */
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Cards: subtle hover elevation */
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition);
+}
+
+/* KPI accent bar */
+.kpi {
+  border-top: 3px solid var(--line);
+  transition: border-color var(--transition);
+}
+.kpi.has-value {
+  border-top-color: var(--accent);
+}
+
+/* ================================================================
+   AI State Visual Patterns
+   ================================================================ */
+
+/* AI shimmer — loading/generating state */
+@keyframes ai-shimmer-move {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.ai-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--panel) 25%,
+    var(--ai-soft) 50%,
+    var(--panel) 75%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer-move 1.5s linear infinite;
+  border-radius: var(--radius);
+}
+
+/* AI thinking — pulsing glow for active AI sections */
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--ai-glow); }
+  50% { box-shadow: 0 0 16px 2px var(--ai-glow); }
+}
+.ai-thinking {
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+
+/* AI success flash */
+@keyframes ai-success {
+  0% { border-color: var(--success); background: var(--success-soft); }
+  80% { border-color: var(--success); background: var(--success-soft); }
+  100% { border-color: transparent; background: transparent; }
+}
+.ai-success-flash {
+  animation: ai-success 600ms ease-out forwards;
+}
+
+/* AI badge — tags AI-generated content */
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ai-soft);
+  color: var(--ai-ink);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid color-mix(in srgb, var(--ai) 25%, transparent);
+}
+
+/* AI section treatment — sections with AI features */
+.ai-section {
+  border-left: 3px solid var(--ai);
+  background: linear-gradient(135deg, var(--ai-soft) 0%, transparent 60%);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding-left: var(--space-md);
+}
+
+/* Hover lift — reusable utility */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ================================================================
+   Empty States
+   ================================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: var(--space-md);
+  color: var(--ink-muted);
+}
+.empty-state .empty-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: var(--space-sm);
+  filter: saturate(1.2);
+}
+.empty-state h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.empty-state p {
+  margin: 0;
+  font-size: 0.85rem;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* ================================================================
+   Progress Bar Enhancement
+   ================================================================ */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+/* Override LoadingBar fill if it uses a class */
+.loading-fill, .progress-fill {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 25%,
+    var(--accent-strong) 50%,
+    var(--accent) 75%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.5s linear infinite;
+}
+
+/* ================================================================
+   Sidebar brand enhancement
+   ================================================================ */
+.brand-text h1 {
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.field{
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -1696,6 +1888,88 @@ button {
 /* Dropdown Fade In */
 .field select {
   animation: fadeIn 0.2s ease-out;
+}
+
+/* ================================================================
+   Delight v2 — Navigation, studio items, AI actions, view entrance
+   ================================================================ */
+
+/* Brand mark: bright teal in sidebar — always readable since sidebar is always dark */
+.brand-text h1 {
+  color: var(--sidebar-accent);
+  font-size: 1rem;
+}
+
+/* Active nav item: VS Code-style inset left accent bar */
+.nav-item[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Content area: soft entrance animation on every view switch */
+.content {
+  animation: fadeIn 0.22s ease-out;
+}
+
+/* Studio list item: extend transition to cover lift + shadow */
+.studio-item {
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+/* Studio list item: lift on hover for tactile feedback */
+.studio-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+}
+
+/* Active studio item: inset left accent bar (VS Code-native feel) */
+.studio-item.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Studio hero (first-run welcome): gradient background teal → violet */
+.studio-hero {
+  background: linear-gradient(
+    135deg,
+    var(--accent-soft) 0%,
+    var(--ai-soft) 100%
+  );
+  border-color: transparent;
+}
+
+/* AI action button — violet for AI-powered primary CTAs */
+.btn-ai {
+  background: var(--ai);
+  border-color: var(--ai);
+  color: #f5f3ff;
+}
+
+.btn-ai:hover:not(:disabled) {
+  background: var(--ai-strong);
+  border-color: var(--ai-strong);
+  box-shadow: 0 4px 14px var(--ai-glow);
+}
+
+.btn-ai:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-ai:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Studio toolbar stats row */
+.studio-toolbar-stats {
+  margin-top: var(--space-sm);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
 }
 
 /* ================================================================
