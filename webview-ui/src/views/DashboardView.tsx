@@ -314,7 +314,7 @@ function StandaloneStories({
   featureDrafts: FeatureDraft[];
   onLinkStory?: (storyId: string, featureId: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [linkingStoryId, setLinkingStoryId] = useState<string | null>(null);
 
   return (
@@ -378,12 +378,18 @@ function StandaloneStories({
   );
 }
 
+type ActivityItem =
+  | { kind: 'pbi'; item: PbiDraft }
+  | { kind: 'feature'; item: FeatureDraft };
+
 function RecentActivity({
   items,
-  onNavigate,
+  onNavigateToStudio,
+  onNavigateToFeatureCreation,
 }: {
-  items: PbiDraft[];
-  onNavigate: Props['onNavigate'];
+  items: ActivityItem[];
+  onNavigateToStudio?: (draftId?: string) => void;
+  onNavigateToFeatureCreation?: (featureId: string) => void;
 }) {
   return (
     <div
@@ -405,36 +411,66 @@ function RecentActivity({
         </h3>
       </div>
       <div>
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="px-3 py-2 min-h-[44px] border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-            style={{ borderColor: 'var(--tw-vscode-border)' }}
-            onClick={() => onNavigate('studio')}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onNavigate('studio')}
-            aria-label={`Open "${item.title}" in PBI Studio`}
-          >
-            <div className="flex items-start gap-1.5">
-              <span
-                className="text-xs truncate flex-1 leading-4"
-                style={{ color: 'var(--tw-vscode-fg)' }}
-              >
-                {item.title}
-              </span>
-              <StatusBadge status={item.status ?? 'draft'} size="xs" />
-            </div>
-            {item.updatedAt && (
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-                {new Date(item.updatedAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                })}
+        {items.map((entry) => {
+          const id = entry.item.id;
+          const title = entry.item.title;
+          const updatedAt = entry.item.updatedAt;
+          const isFeature = entry.kind === 'feature';
+          const handleClick = () => {
+            if (isFeature) {
+              onNavigateToFeatureCreation?.(id);
+            } else {
+              onNavigateToStudio?.(id);
+            }
+          };
+          const ariaLabel = isFeature
+            ? `Open "${title}" in Feature Creation`
+            : `Open "${title}" in PBI Studio`;
+          return (
+            <div
+              key={id}
+              className="px-3 py-2 min-h-[44px] border-b last:border-b-0 hover:opacity-80 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
+              style={{ borderColor: 'var(--tw-vscode-border)' }}
+              onClick={handleClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClick()}
+              aria-label={ariaLabel}
+            >
+              <div className="flex items-start gap-1.5">
+                <span
+                  className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium shrink-0"
+                  style={
+                    isFeature
+                      ? { background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }
+                      : { background: 'var(--tw-vscode-badge-bg)', color: 'var(--tw-vscode-fg-muted)' }
+                  }
+                >
+                  {isFeature ? 'Feature' : 'PBI'}
+                </span>
+                <span
+                  className="text-xs truncate flex-1 leading-4"
+                  style={{ color: 'var(--tw-vscode-fg)' }}
+                >
+                  {title}
+                </span>
+                {isFeature ? (
+                  <HierarchyStatusBadge status={(entry.item as FeatureDraft).hierarchyStatus ?? 'draft'} />
+                ) : (
+                  <StatusBadge status={(entry.item as PbiDraft).status ?? 'draft'} size="xs" />
+                )}
               </div>
-            )}
-          </div>
-        ))}
+              {updatedAt && (
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                  {new Date(updatedAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -679,6 +715,7 @@ function EpicsSection({
   onNavigateToFeatureCreation?: (featureId: string) => void;
   onLinkStory?: (storyId: string, featureId: string | null) => void;
 }){
+  const hasOtherContent = featureDrafts.length > 0 || pbiDrafts.length > 0;
   return (
     <div className="space-y-2">
       {/* Section header */}
@@ -701,26 +738,40 @@ function EpicsSection({
       </div>
 
       {epicDrafts.length === 0 ? (
-        <div
-          className="rounded-lg border px-4 py-5 flex flex-col items-center text-center"
-          style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-epic-bg)' }}
-        >
-          <div className="text-3xl mb-2 select-none" aria-hidden="true" style={{ color: 'var(--tw-epic)', opacity: 0.4 }}>⬟</div>
-          <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            No Epics yet
-          </p>
-          <p className="text-xs mb-3" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-            Create an Epic to group related Features into strategic initiatives.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
-            onClick={onCreateEpic}
+        hasOtherContent ? (
+          /* Compact row when other content (features / stories) exists */
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-md border min-h-[44px]"
+            style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-epic-bg)' }}
           >
-            Create Epic
-          </button>
-        </div>
+            <span className="text-sm select-none" aria-hidden="true" style={{ color: 'var(--tw-epic)', opacity: 0.5 }}>⬟</span>
+            <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              No Epics yet — use the button above to group Features into strategic initiatives.
+            </span>
+          </div>
+        ) : (
+          /* Full centered empty state when dashboard is otherwise empty */
+          <div
+            className="rounded-lg border px-4 py-5 flex flex-col items-center text-center"
+            style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-epic-bg)' }}
+          >
+            <div className="text-3xl mb-2 select-none" aria-hidden="true" style={{ color: 'var(--tw-epic)', opacity: 0.4 }}>⬟</div>
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
+              No Epics yet
+            </p>
+            <p className="text-xs mb-3" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              Create an Epic to group related Features into strategic initiatives.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
+              onClick={onCreateEpic}
+            >
+              Create Epic
+            </button>
+          </div>
+        )
       ) : (
         epicDrafts.map((epic) => {
           const linked = featureDrafts.filter(
@@ -961,8 +1012,12 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
 
   const adoReady = Boolean(adoSettings?.orgUrl && adoSettings?.projectName && hasAdoPat);
 
-  const recent = [...pbiDrafts]
-    .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+  const recentItems: ActivityItem[] = [
+    ...pbiDrafts.map((d): ActivityItem => ({ kind: 'pbi', item: d })),
+    ...featureDrafts.map((f): ActivityItem => ({ kind: 'feature', item: f })),
+  ];
+  const recent = recentItems
+    .sort((a, b) => (b.item.updatedAt ?? '').localeCompare(a.item.updatedAt ?? ''))
     .slice(0, 5);
 
   const hasContent = epics.length > 0 || features.length > 0 || stories.length > 0 || featureDrafts.length > 0 || epicDrafts.length > 0;
@@ -1072,12 +1127,19 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
               {/* FeatureDrafts — orphaned (no parent epic) or all when no epics */}
               {orphanedFeatureDrafts.length > 0 && (
                 <div className="space-y-2">
-                  {epicDrafts.length > 0 && (
+                  {epicDrafts.length > 0 ? (
                     <h3
                       className="text-xs font-semibold uppercase tracking-wider px-1"
                       style={{ color: 'var(--tw-vscode-fg-muted)' }}
                     >
                       Standalone Features
+                    </h3>
+                  ) : (
+                    <h3
+                      className="text-xs font-semibold uppercase tracking-wider px-1"
+                      style={{ color: 'var(--tw-vscode-fg-muted)' }}
+                    >
+                      Features
                     </h3>
                   )}
                   {orphanedFeatureDrafts.map((feature) => {
@@ -1114,7 +1176,11 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
         {/* Recent Activity — fixed width sidebar */}
         {recent.length > 0 && (
           <aside className="panel-wide:w-52 shrink-0">
-            <RecentActivity items={recent} onNavigate={onNavigate} />
+            <RecentActivity
+              items={recent}
+              onNavigateToStudio={onNavigateToStudio}
+              onNavigateToFeatureCreation={onNavigateToFeatureCreation}
+            />
           </aside>
         )}
       </div>
