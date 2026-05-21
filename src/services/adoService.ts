@@ -796,6 +796,15 @@ export class AdoService {
       );
     }
     
+    // Add User Flow section if present
+    const featureUserFlow = draft.featureUserFlow?.trim() ?? '';
+    if (featureUserFlow.length > 0) {
+      descriptionParts.push(
+        '<h3>User Flow</h3>',
+        `<p>${this.escapeHtml(featureUserFlow)}</p>`
+      );
+    }
+
     // Add Business Rules and Assumptions section (immediately after user story)
     const businessRules = draft.businessRulesAndAssumptions?.trim() || '';
     const businessRulesValue = businessRules.length > 0 ? businessRules : 'NA';
