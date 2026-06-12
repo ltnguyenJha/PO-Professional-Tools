@@ -714,20 +714,54 @@ export const htmlStructureTests = [
   {
     id: 'HTML-002',
     priority: 'P0',
-    title: 'Section ordering is consistent: Desc → USS → BR → TS → TC → Metadata',
+    title: 'Section ordering is consistent: Desc → USS → Why → User Flow → BR → TS → TC → Metadata',
     category: 'HTML Validation',
     given: 'PbiDraft with multiple sections',
     when: 'buildFieldPatches generates HTML',
     then: [
       'Main description appears first',
       'User Story Statement appears second (if present)',
-      'Business Rules and Assumptions appears third',
-      'Test Scenarios appears fourth (if present)',
-      'Technical Considerations appears fifth (if present)',
+      'Why does this matter appears third (if present)',
+      'User Flow appears fourth (if present)',
+      'Business Rules and Assumptions appears fifth',
+      'Test Scenarios appears sixth (if present)',
+      'Technical Considerations appears seventh (if present)',
+      'Architecture Notes appears eighth (if present)',
       'PO Tools Metadata appears last',
       'No sections out of order'
     ],
     expectedBehavior: 'Consistent, predictable section ordering'
+  },
+
+  {
+    id: 'HTML-004',
+    priority: 'P0',
+    title: 'featureUserFlow populated → ADO description includes User Flow section',
+    category: 'HTML Validation - User Flow',
+    given: 'PbiDraft with featureUserFlow = "In the Administration section under Users, when assigning a permission group, the admin should see Fraud Manager options"',
+    when: 'buildFieldPatches generates HTML',
+    then: [
+      'Description includes <h3>User Flow</h3> header',
+      'User flow text appears inside a <p> tag',
+      'User Flow section appears after Why does this matter and before Business Rules',
+      'Content is HTML-escaped'
+    ],
+    expectedBehavior: 'User Flow written to ADO description'
+  },
+
+  {
+    id: 'HTML-005',
+    priority: 'P0',
+    title: 'featureUserFlow absent or empty → User Flow section omitted from ADO description',
+    category: 'HTML Validation - User Flow',
+    given: 'PbiDraft with featureUserFlow = undefined (or empty string)',
+    when: 'buildFieldPatches generates HTML',
+    then: [
+      'No <h3>User Flow</h3> header in description',
+      'No empty paragraph in that position',
+      'Other sections unaffected'
+    ],
+    expectedBehavior: 'User Flow section only rendered when data present'
   },
 
   {
