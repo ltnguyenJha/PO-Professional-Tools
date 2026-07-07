@@ -363,11 +363,12 @@ export class CopilotService {
   /**
    * Generates technical considerations (architecture, file scope, implementation notes) for a PBI.
    * Grounds analysis in linked project context when available.
+   * If a reference document (PDF or MD) was attached, its content is injected as additional context.
    */
   public async generateTechnicalConsiderations(
     draft: PbiDraft,
     token: vscode.CancellationToken,
-    options?: { linkedProjectContext?: string; modelFamily?: string }
+    options?: { linkedProjectContext?: string; modelFamily?: string; documentContent?: string; documentFileName?: string }
   ): Promise<TechnicalConsiderations> {
     const model = await this.pickModel(options?.modelFamily);
 
@@ -381,8 +382,18 @@ export class CopilotService {
       ? `LINKED PROJECT CONTEXT (use to ground technical recommendations):\n${options.linkedProjectContext}\n---\n\n`
       : '';
 
+    const documentPart = options?.documentContent
+      ? [
+          `ATTACHED REFERENCE DOCUMENT (${options.documentFileName ?? 'document'}):`,
+          options.documentContent.substring(0, 12_000), // cap at 12 k chars to stay within token budget
+          '--- END OF DOCUMENT ---',
+          '',
+        ].join('\n')
+      : '';
+
     const userPrompt =
       linkedPart +
+      documentPart +
       [
         'Analyze this backlog item for technical considerations:',
         '',

@@ -112,6 +112,15 @@ export interface PbiDraft {
   updatedAt?: string;
   /** Pending uploads on next Push / Update in ADO; cleared after successful sync. */
   attachments?: PbiAttachment[];
+  /** Document (PDF or MD) attached on the Technical Details step.
+   *  Persists across pushes so the AI can re-use it when regenerating.
+   *  Also queued in `attachments` so it gets uploaded to the ADO ticket. */
+  technicalDetailsDocument?: {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    dataBase64: string;
+  };
   // Bug-specific fields (optional, used when workItemType is 'Bug')
   bugRootCause?: string;
   bugExpectedBehavior?: string;

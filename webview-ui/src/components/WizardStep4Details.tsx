@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { PbiDraft, PbiAttachment } from '../types';
 
 interface AiModelOption {
@@ -25,9 +25,11 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
     draft.technicalConsiderations?.scopedFiles || []
   );
   const [newFile, setNewFile] = useState('');
-  const [attachments] = useState<PbiAttachment[]>(draft.attachments || []);
+  const [attachments, setAttachments] = useState<PbiAttachment[]>(draft.attachments || []);
   const [saveTimer, setSaveTimer] = useState<number | null>(null);
   const [selectedModelFamily, setSelectedModelFamily] = useState('');
+  const [technicalDocument, setTechnicalDocument] = useState(draft.technicalDetailsDocument);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync when AI updates draft.technicalConsiderations from parent
   useEffect(() => {
@@ -36,13 +38,18 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
     }
   }, [draft.technicalConsiderations?.technicalDetails]);
 
-  const savePayload = () => ({
+  const savePayload = (
+    overrides?: Partial<{ technicalDocument: typeof technicalDocument; attachments: PbiAttachment[] }>
+  ) => ({
     technicalConsiderations: {
       technicalDetails,
       scopedFiles,
       architectureNotes: draft.technicalConsiderations?.architectureNotes ?? '',
     },
-    attachments,
+    attachments: overrides?.attachments ?? attachments,
+    technicalDetailsDocument: overrides?.technicalDocument !== undefined
+      ? overrides.technicalDocument
+      : technicalDocument,
   });
 
   const handleFieldBlur = () => {
@@ -66,6 +73,44 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
 
   const handleRemoveFile = (index: number) => {
     setScopedFiles(scopedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleDocumentPick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target?.result as string;
+      const base64 = dataUrl.split(',')[1] ?? '';
+      const newDoc = {
+        id: `techDoc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        fileName: file.name,
+        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/pdf'),
+        dataBase64: base64,
+      };
+      // Also queue in attachments so it gets uploaded when the ADO ticket is pushed
+      const nextAttachments: PbiAttachment[] = [
+        ...attachments.filter((a) => a.id !== technicalDocument?.id),
+        { id: newDoc.id, fileName: newDoc.fileName, mimeType: newDoc.mimeType, dataBase64: newDoc.dataBase64 },
+      ];
+      setTechnicalDocument(newDoc);
+      setAttachments(nextAttachments);
+      onSave(savePayload({ technicalDocument: newDoc, attachments: nextAttachments }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDocumentRemove = () => {
+    const nextAttachments = attachments.filter((a) => a.id !== technicalDocument?.id);
+    setAttachments(nextAttachments);
+    setTechnicalDocument(undefined);
+    onSave(savePayload({ technicalDocument: undefined, attachments: nextAttachments }));
   };
 
   return (
@@ -141,6 +186,60 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
             )}
           </div>
         )}
+      </div>
+
+      {/* Reference Document */}
+      <div className="wizard-field">
+        <label className="wizard-field-label">
+          Reference Document <span style={{ fontWeight: 'normal', color: 'var(--ink-muted)' }}>(optional)</span>
+        </label>
+        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--ink-muted)', margin: '0 0 var(--space-2)' }}>
+          Attach a <strong>.md</strong> or <strong>.pdf</strong> file (e.g. design spec, architecture doc).
+          The AI will use it when generating technical details, and it will be attached to the ADO ticket.
+        </p>
+
+        {technicalDocument ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-3)',
+            background: 'var(--color-neutral-250)',
+            borderRadius: 'var(--radius-2)',
+            border: '1px solid var(--color-neutral-300)',
+          }}>
+            <span style={{ fontSize: '1rem' }}>
+              {technicalDocument.mimeType === 'application/pdf' ? '📄' : '📝'}
+            </span>
+            <span style={{ flex: 1, fontSize: 'var(--font-size-sm)', wordBreak: 'break-all' }}>
+              {technicalDocument.fileName}
+            </span>
+            <button
+              className="wizard-btn wizard-btn-secondary"
+              onClick={handleDocumentRemove}
+              style={{ padding: 'var(--space-1) var(--space-2)', fontSize: '12px', flexShrink: 0 }}
+              title="Remove document"
+            >
+              ✕ Remove
+            </button>
+          </div>
+        ) : (
+          <button
+            className="wizard-btn wizard-btn-secondary"
+            onClick={handleDocumentPick}
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+          >
+            📎 Attach document
+          </button>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.md"
+          style={{ display: 'none' }}
+          onChange={handleDocumentChange}
+        />
       </div>
 
       {/* Affected Files */}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { PbiDraft, TechnicalConsiderations } from '../types';
+import { useState, useRef } from 'react';
+import type { PbiDraft, PbiAttachment, TechnicalConsiderations } from '../types';
 
 interface TechnicalConsiderationsSectionProps {
   draft: PbiDraft;
@@ -16,6 +16,7 @@ export function TechnicalConsiderationsSection({
 }: TechnicalConsiderationsSectionProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const techData: TechnicalConsiderations = {
     technicalDetails: draft.technicalConsiderations?.technicalDetails ?? '',
@@ -40,6 +41,42 @@ export function TechnicalConsiderationsSection({
 
   const handleGenerate = (): void => {
     onGenerate?.();
+  };
+
+  const handleDocumentPick = (): void => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target?.result as string;
+      const base64 = dataUrl.split(',')[1] ?? '';
+      const newDoc = {
+        id: `techDoc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        fileName: file.name,
+        mimeType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/pdf'),
+        dataBase64: base64,
+      };
+      // Also queue in attachments so it gets uploaded when the ADO ticket is pushed
+      const nextAttachments: PbiAttachment[] = [
+        ...(draft.attachments ?? []).filter((a) => a.id !== draft.technicalDetailsDocument?.id),
+        { id: newDoc.id, fileName: newDoc.fileName, mimeType: newDoc.mimeType, dataBase64: newDoc.dataBase64 },
+      ];
+      onUpdate?.({ ...draft, technicalDetailsDocument: newDoc, attachments: nextAttachments });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDocumentRemove = (): void => {
+    const nextAttachments = (draft.attachments ?? []).filter(
+      (a) => a.id !== draft.technicalDetailsDocument?.id
+    );
+    onUpdate?.({ ...draft, technicalDetailsDocument: undefined, attachments: nextAttachments });
   };
 
   return (
@@ -75,6 +112,52 @@ export function TechnicalConsiderationsSection({
       </div>
 
       <div className={`section-body ${isOpen ? '' : 'collapsed'}`}>
+        {/* Reference document attachment */}
+        <div style={{ marginBottom: 'var(--space-md)' }}>
+          <strong style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>Reference Document</strong>
+          <span style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', marginLeft: 8 }}>(optional — PDF or MD)</span>
+          <div style={{ marginTop: 'var(--space-sm)' }}>
+            {draft.technicalDetailsDocument ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 10px',
+                background: 'var(--color-neutral-100)',
+                borderRadius: 'var(--radius-2)',
+                border: '1px solid var(--color-neutral-300)',
+                fontSize: '0.85rem',
+              }}>
+                <span>{draft.technicalDetailsDocument.mimeType === 'application/pdf' ? '📄' : '📝'}</span>
+                <span style={{ flex: 1, wordBreak: 'break-all' }}>{draft.technicalDetailsDocument.fileName}</span>
+                <button
+                  className="btn btn-sm"
+                  onClick={(e) => { e.stopPropagation(); handleDocumentRemove(); }}
+                  title="Remove document"
+                  style={{ flexShrink: 0 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn btn-sm"
+                onClick={(e) => { e.stopPropagation(); handleDocumentPick(); }}
+                title="Attach a PDF or Markdown file for AI context"
+              >
+                📎 Attach document
+              </button>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.md"
+            style={{ display: 'none' }}
+            onChange={handleDocumentChange}
+          />
+        </div>
+
         {isLoading && !isEditing ? (
           <div className="tech-loading-state">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

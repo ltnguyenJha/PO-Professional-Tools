@@ -799,10 +799,22 @@ export class DashboardPanel {
     const token = new vscode.CancellationTokenSource().token;
     try {
       const linkedProjectContext = await this.buildLinkedContextForProjectId(draft.projectId);
+
+      // Extract text content from any attached reference document
+      let documentContent: string | undefined;
+      let documentFileName: string | undefined;
+      if (draft.technicalDetailsDocument) {
+        documentFileName = draft.technicalDetailsDocument.fileName;
+        documentContent = extractDocumentText(
+          draft.technicalDetailsDocument.fileName,
+          draft.technicalDetailsDocument.dataBase64
+        );
+      }
+
       const considerations = await this.copilotService.generateTechnicalConsiderations(
         draft,
         token,
-        { linkedProjectContext, modelFamily }
+        { linkedProjectContext, modelFamily, documentContent, documentFileName }
       );
       const updated: PbiDraft = {
         ...draft,
@@ -2486,4 +2498,46 @@ type BulkSaveInput = {
   defaultWorkItemType?: AdoSettings['defaultWorkItemType'];
   pat?: string;
 };
+
+/**
+ * Extracts readable text from an attached reference document.
+ * - Markdown / plain-text files: decoded directly as UTF-8.
+ * - PDF files: best-effort extraction of printable ASCII text sequences.
+ *   Full-fidelity extraction requires a dedicated PDF library; this covers
+ *   most non-compressed, text-based PDFs without adding dependencies.
+ */
+function extractDocumentText(fileName: string, dataBase64: string): string {
+  const buffer = Buffer.from(dataBase64, 'base64');
+  const lower = fileName.toLowerCase();
+
+  // Markdown / plain-text: straightforward UTF-8 decode
+  if (lower.endsWith('.md') || lower.endsWith('.txt')) {
+    return buffer.toString('utf-8');
+  }
+
+  // PDF: extract printable text sequences (best-effort, no extra deps)
+  if (lower.endsWith('.pdf')) {
+    // Decode as latin1 to preserve raw byte values
+    const raw = buffer.toString('latin1');
+
+    // Find sequences of printable ASCII characters (length ≥ 4)
+    const printableSegments = raw.match(/[\x20-\x7e]{4,}/g) ?? [];
+
+    // Filter out likely PDF syntax tokens (numbers, operators, hex strings, etc.)
+    const textSegments = printableSegments.filter((seg) => {
+      // Reject if almost entirely non-alpha characters (PDF operator lines)
+      const alphaRatio = (seg.match(/[a-zA-Z]/g)?.length ?? 0) / seg.length;
+      return alphaRatio > 0.4;
+    });
+
+    const extracted = textSegments.join(' ').replace(/\s+/g, ' ').trim();
+    if (extracted.length > 80) {
+      return `[PDF: ${fileName}]\n${extracted.substring(0, 12_000)}`;
+    }
+    // Compressed or binary-only PDF — note attachment exists
+    return `[PDF document attached: ${fileName} — full content available in the ADO ticket attachment]`;
+  }
+
+  return '';
+}
 
