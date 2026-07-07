@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AdoProgressPayload,
   AiSuggestion,
@@ -54,8 +54,6 @@ export function PbiStudio({
 }: Props): JSX.Element {
   const { pbiDrafts, linkTargets: linkTargetsState, projects } = state;
   const linkTargets = linkTargetsState ?? projects;
-  const [search, setSearch] = useState('');
-  const [filterProject, setFilterProject] = useState<string>('all');
   const [activeId, setActiveId] = useState<string | undefined>(pbiDrafts[0]?.id);
   const [working, setWorking] = useState<PbiDraft | undefined>(undefined);
   const [aiInstruction, setAiInstruction] = useState('');
@@ -88,36 +86,19 @@ export function PbiStudio({
   const [openBugRefinement, setOpenBugRefinement] = useState(false);
   const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false);
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return pbiDrafts.filter((draft) => {
-      if (filterProject !== 'all' && draft.projectId !== filterProject) {
-        return false;
-      }
-      if (!term) {
-        return true;
-      }
-      return (
-        draft.title.toLowerCase().includes(term) ||
-        draft.description.toLowerCase().includes(term)
-      );
-    });
-  }, [pbiDrafts, search, filterProject]);
-
   useEffect(() => {
-    if (!activeId && filtered.length > 0) {
-      setActiveId(filtered[0].id);
+    if (!activeId && pbiDrafts.length > 0) {
+      setActiveId(pbiDrafts[0].id);
       return;
     }
     if (activeId && !pbiDrafts.some((d) => d.id === activeId)) {
-      setActiveId(filtered[0]?.id);
+      setActiveId(pbiDrafts[0]?.id);
     }
-  }, [filtered, activeId, pbiDrafts]);
+  }, [activeId, pbiDrafts]);
 
   useEffect(() => {
     if (focusDraftId && pbiDrafts.some((d) => d.id === focusDraftId)) {
       setActiveId(focusDraftId);
-      setFilterProject('all');
       onConsumedFocusDraft?.();
     }
   }, [focusDraftId, pbiDrafts, onConsumedFocusDraft]);
@@ -568,96 +549,18 @@ export function PbiStudio({
             ✨ New &amp; Copilot Chat
           </button>
         </div>
-        <div className="studio-toolbar-stats">
-          <span>{pbiDrafts.length} draft{pbiDrafts.length !== 1 ? 's' : ''}</span>
-          {pbiDrafts.filter(d => d.status === 'pushed').length > 0 && (
-            <span className="chip success" style={{ fontSize: '0.7rem', padding: '1px 7px' }}>
-              {pbiDrafts.filter(d => d.status === 'pushed').length} pushed ✓
-            </span>
-          )}
-        </div>
       </div>
 
       {active && adoSyncingThis && (
         <LoadingBar label={adoMessage} ariaLabel={`Azure DevOps: ${adoMessage}`} />
       )}
 
-      <div className="studio">
-        <aside className="studio-list">
-          <div className="searchbar">
-            <input
-              placeholder="Search drafts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search PBI drafts"
-            />
-            <select
-              value={filterProject}
-              onChange={(e) => setFilterProject(e.target.value)}
-              title="Filter by project"
-              aria-label="Filter by project"
-            >
-              <option value="all">All</option>
-              {linkTargets.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-              <option value={STANDALONE_PROJECT_ID}>Standalone</option>
-              <option value="bulk">(Bulk)</option>
-            </select>
-          </div>
-          {filtered.map((draft) => {
-            const parentFeature = draft.parentFeatureId
-              ? (state.featureDrafts ?? []).find((f) => f.id === draft.parentFeatureId)
-              : undefined;
-            return (
-              <button
-                type="button"
-                key={draft.id}
-                className={`studio-item ${activeId === draft.id ? 'active' : ''}`}
-                onClick={() => setActiveId(draft.id)}
-              >
-                <div className="title">{draft.title}</div>
-                <div className="meta">
-                  <span>{projectName(linkTargets, draft.projectId)}</span>
-                  <span
-                    className={`chip ${
-                      draft.status === 'pushed' ? 'success' : 'info'
-                    }`}
-                  >
-                    {draft.status === 'pushed'
-                      ? `#${draft.adoWorkItemId ?? '??'}`
-                      : draft.workItemType ?? 'PBI'}
-                  </span>
-                </div>
-                {parentFeature && (
-                  <div
-                    className="mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
-                    title={`Part of Feature: ${parentFeature.title}`}
-                  >
-                    📦 {parentFeature.title.length > 28 ? parentFeature.title.slice(0, 28) + '…' : parentFeature.title}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">🔍</div>
-              <h3>No matching drafts</h3>
-              <p>Try adjusting your search or filter.</p>
-            </div>
-          )}
-        </aside>
-
-        <section className="studio-editor">
+      <section className="studio-editor">
           {!active && (
             <div className="empty-state">
-              <div className="empty-icon">👈</div>
-              <h3>Select a draft to edit</h3>
-              <p>Choose a story from the list or create a new one.</p>
+              <div className="empty-icon">📋</div>
+              <h3>No draft selected</h3>
+              <p>Open <strong>My Drafts</strong> to browse and select a story, or create a new one above.</p>
             </div>
           )}
           {active && (
@@ -1337,7 +1240,6 @@ export function PbiStudio({
             </>
           )}
         </section>
-      </div>
 
       <ConfirmDialog
         open={!!confirmDelete}

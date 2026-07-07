@@ -23,6 +23,7 @@ export function FeatureWizard({ draftId }: Props) {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [adoUrl, setAdoUrl] = useState<string | undefined>(undefined);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; family: string }>>([]);
   const vscode = useVsCodeApi();
   const announcementRef = useRef<HTMLDivElement>(null);
   const wasGeneratingRef = useRef(false);
@@ -125,6 +126,21 @@ export function FeatureWizard({ draftId }: Props) {
     return () => window.removeEventListener('message', handleMessage);
   }, [draftId, vscode]);
 
+  // Fetch available AI models on mount
+  useEffect(() => {
+    vscode.postMessage({ type: 'FETCH_AVAILABLE_AI_MODELS' });
+
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.type === 'AVAILABLE_AI_MODELS') {
+        setAvailableModels(message.payload.models ?? []);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [vscode]);
+
   const handleStepChange = (nextStep: number) => {
     if (nextStep < 0 || nextStep > steps.length - 1) {
       setError('Invalid step');
@@ -181,10 +197,10 @@ export function FeatureWizard({ draftId }: Props) {
     });
   };
 
-  const handleGenerateTechnicalConsiderations = () => {
+  const handleGenerateTechnicalConsiderations = (modelFamily?: string) => {
     vscode.postMessage({
       type: 'GENERATE_TECHNICAL_CONSIDERATIONS',
-      payload: { draftId },
+      payload: { draftId, modelFamily },
     });
   };
 
@@ -286,6 +302,7 @@ export function FeatureWizard({ draftId }: Props) {
             onSave={handleSave}
             onGenerate={handleGenerateTechnicalConsiderations}
             isGenerating={aiGenerating}
+            availableModels={availableModels}
           />
         )}
         {currentStep === 4 && (

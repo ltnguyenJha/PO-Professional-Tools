@@ -156,7 +156,10 @@ export class DashboardPanel {
         await this.handleGenerateFeatureDefinition(message.payload.draftId);
         return;
       case 'GENERATE_TECHNICAL_CONSIDERATIONS':
-        await this.handleGenerateTechnicalConsiderations(message.payload.draftId);
+        await this.handleGenerateTechnicalConsiderations(message.payload.draftId, message.payload.modelFamily);
+        return;
+      case 'FETCH_AVAILABLE_AI_MODELS':
+        await this.handleFetchAvailableAiModels();
         return;
       case 'OPEN_IN_COPILOT_CHAT':
         await this.handleOpenInChat(message.payload);
@@ -783,7 +786,7 @@ export class DashboardPanel {
     }
   }
 
-  private async handleGenerateTechnicalConsiderations(draftId: string): Promise<void> {
+  private async handleGenerateTechnicalConsiderations(draftId: string, modelFamily?: string): Promise<void> {
     const draft = this.findDraft(draftId);
     if (!draft) {
       this.postToast('error', 'Draft not found.');
@@ -799,7 +802,7 @@ export class DashboardPanel {
       const considerations = await this.copilotService.generateTechnicalConsiderations(
         draft,
         token,
-        { linkedProjectContext }
+        { linkedProjectContext, modelFamily }
       );
       const updated: PbiDraft = {
         ...draft,
@@ -818,6 +821,24 @@ export class DashboardPanel {
       });
     }
     await this.postState();
+  }
+
+  private async handleFetchAvailableAiModels(): Promise<void> {
+    try {
+      const models = await vscode.lm.selectChatModels({});
+      const unique = new Map<string, { id: string; name: string; family: string }>();
+      for (const m of models) {
+        if (!unique.has(m.family)) {
+          unique.set(m.family, { id: m.id, name: m.name, family: m.family });
+        }
+      }
+      this.post({
+        type: 'AVAILABLE_AI_MODELS',
+        payload: { models: Array.from(unique.values()) }
+      });
+    } catch {
+      this.post({ type: 'AVAILABLE_AI_MODELS', payload: { models: [] } });
+    }
   }
 
   private async handleGenerateFeatureDefinition(draftId: string): Promise<void> {

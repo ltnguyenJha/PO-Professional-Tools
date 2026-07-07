@@ -1983,3 +1983,32 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* ================================================================
+   Drafts View — browse, search, and manage PBI drafts
+   ================================================================ */
+.drafts-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.drafts-searchbar {
+  display: flex;
+  gap: var(--space-sm);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  padding-bottom: var(--space-sm);
+}
+
+.drafts-searchbar input {
+  flex: 1;
+}
+
+.drafts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}

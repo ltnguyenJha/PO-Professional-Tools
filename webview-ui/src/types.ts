@@ -366,7 +366,8 @@ export type ExtensionEvent =
   | { type: 'rdiPushed'; id: string; adoUrl: string }
   | { type: 'rdiListLoaded'; drafts: RdiDraft[] }
   | { type: 'defaultIterationLoaded'; iterationPath: string }
-  | { type: 'rdiError'; message: string };
+  | { type: 'rdiError'; message: string }
+  | { type: 'AVAILABLE_AI_MODELS'; payload: { models: Array<{ id: string; name: string; family: string }> } };
 
 export type WebviewRequest =
   | { type: 'APP_READY' }
@@ -396,7 +397,8 @@ export type WebviewRequest =
   | { type: 'REFINE_PBI_WITH_AI'; payload: { draftId: string; instruction?: string } }
   | { type: 'GENERATE_FULL_STORY_AI'; payload: { draftId: string; seedText?: string } }
   | { type: 'GENERATE_FEATURE_DEFINITION'; payload: { draftId: string } }
-  | { type: 'GENERATE_TECHNICAL_CONSIDERATIONS'; payload: { draftId: string } }
+  | { type: 'GENERATE_TECHNICAL_CONSIDERATIONS'; payload: { draftId: string; modelFamily?: string } }
+  | { type: 'FETCH_AVAILABLE_AI_MODELS' }
   | {
       type: 'OPEN_IN_COPILOT_CHAT';
       payload: {

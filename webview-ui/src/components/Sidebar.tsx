@@ -1,6 +1,6 @@
 import type { ThemePreference } from '../types';
 
-export type ViewId = 'dashboard' | 'projects' | 'studio' | 'bulk' | 'rdis' | 'settings' | 'epic-creation';
+export type ViewId = 'dashboard' | 'projects' | 'drafts' | 'studio' | 'bulk' | 'rdis' | 'settings' | 'epic-creation';
 
 interface NavEntry {
   id: ViewId;
@@ -12,6 +12,7 @@ const NAV: NavEntry[] = [
   { id: 'dashboard',     label: 'Dashboard',        icon: '▣' },
   { id: 'epic-creation', label: 'Epics',             icon: '◈' },
   { id: 'projects',      label: 'Projects',          icon: '❏' },
+  { id: 'drafts',        label: 'My Drafts',         icon: '◨' },
   { id: 'studio',        label: 'PBI Studio',        icon: '✎' },
   { id: 'bulk',          label: 'Feature Creation',  icon: '≡' },
   { id: 'rdis',          label: 'RDIs',              icon: '⬆' },

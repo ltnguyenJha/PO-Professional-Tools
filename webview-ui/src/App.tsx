@@ -12,6 +12,7 @@ import { Sidebar, type ViewId } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import { ThemeEffect } from './components/ThemeProvider';
 import { DashboardView } from './views/DashboardView';
+import { DraftsView } from './views/DraftsView';
 import { ProjectsView } from './views/ProjectsView';
 import { PbiStudio } from './views/PbiStudio';
 import { BulkBreakdownView } from './views/BulkBreakdownView';
@@ -208,6 +209,8 @@ export function App(): JSX.Element {
             </>
           )
         };
+      case 'drafts':
+        return { title: 'My Drafts', subtitle: 'Browse, search, and create PBI drafts.' };
       case 'studio':
         return { title: 'PBI Studio', subtitle: 'Edit drafts. Refine with Copilot. Push to ADO.' };
       case 'bulk':
@@ -258,6 +261,13 @@ export function App(): JSX.Element {
         )}
         {view === 'projects' && (
           <ProjectsView projects={state.projects} adoProgress={adoProgress} send={sendMessage} />
+        )}
+        {view === 'drafts' && (
+          <DraftsView
+            state={state}
+            send={sendMessage}
+            onNavigateToStudio={navigateToStudio}
+          />
         )}
         {view === 'studio' && (
           <PbiStudio

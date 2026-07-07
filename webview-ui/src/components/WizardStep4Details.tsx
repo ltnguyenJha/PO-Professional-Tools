@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import type { PbiDraft, PbiAttachment } from '../types';
 
+interface AiModelOption {
+  id: string;
+  name: string;
+  family: string;
+}
+
 interface Props {
   draft: PbiDraft;
   onNext: (nextStep: number) => void;
   onBack: (prevStep: number) => void;
   onSave: (partialDraft: Partial<PbiDraft>) => void;
-  onGenerate?: () => void;
+  onGenerate?: (modelFamily?: string) => void;
   isGenerating?: boolean;
+  availableModels?: AiModelOption[];
 }
 
-export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, isGenerating = false }: Props) {
+export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, isGenerating = false, availableModels = [] }: Props) {
   const [technicalDetails, setTechnicalDetails] = useState(
     draft.technicalConsiderations?.technicalDetails || ''
   );
@@ -20,6 +27,7 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
   const [newFile, setNewFile] = useState('');
   const [attachments] = useState<PbiAttachment[]>(draft.attachments || []);
   const [saveTimer, setSaveTimer] = useState<number | null>(null);
+  const [selectedModelFamily, setSelectedModelFamily] = useState('');
 
   // Sync when AI updates draft.technicalConsiderations from parent
   useEffect(() => {
@@ -84,27 +92,43 @@ export function WizardStep4Details({ draft, onNext, onBack, onSave, onGenerate, 
         />
         {onGenerate && (
           <div style={{ marginTop: 'var(--space-2)' }}>
-            <button
-              className="wizard-btn wizard-btn-secondary"
-              onClick={onGenerate}
-              disabled={isGenerating}
-              aria-label={isGenerating ? 'Generating technical considerations...' : 'Generate technical considerations with AI'}
-            >
-              {isGenerating ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    width: '12px',
-                    height: '12px',
-                    border: '2px solid currentColor',
-                    borderTopColor: 'transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 600ms linear infinite',
-                  }} />
-                  Generating...
-                </span>
-              ) : '✨ AI Generate'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              {availableModels.length > 0 && (
+                <select
+                  className="wizard-select"
+                  value={selectedModelFamily}
+                  onChange={(e) => setSelectedModelFamily(e.target.value)}
+                  disabled={isGenerating}
+                  aria-label="Select AI model for generation"
+                >
+                  <option value="">Auto (best available)</option>
+                  {availableModels.map((m) => (
+                    <option key={m.family} value={m.family}>{m.name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                className="wizard-btn wizard-btn-secondary"
+                onClick={() => onGenerate(selectedModelFamily || undefined)}
+                disabled={isGenerating}
+                aria-label={isGenerating ? 'Generating technical considerations...' : 'Generate technical considerations with AI'}
+              >
+                {isGenerating ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid currentColor',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 600ms linear infinite',
+                    }} />
+                    Generating...
+                  </span>
+                ) : '✨ AI Generate'}
+              </button>
+            </div>
             {isGenerating && (
               <p style={{
                 marginTop: 'var(--space-2)',

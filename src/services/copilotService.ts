@@ -367,9 +367,9 @@ export class CopilotService {
   public async generateTechnicalConsiderations(
     draft: PbiDraft,
     token: vscode.CancellationToken,
-    options?: { linkedProjectContext?: string }
+    options?: { linkedProjectContext?: string; modelFamily?: string }
   ): Promise<TechnicalConsiderations> {
-    const model = await this.pickModel();
+    const model = await this.pickModel(options?.modelFamily);
 
     const systemBlock = [
       TECHNICAL_CONSIDERATIONS_SYSTEM_PROMPT,
@@ -959,7 +959,16 @@ export class CopilotService {
     return lines.join('\n');
   }
 
-  private async pickModel(): Promise<vscode.LanguageModelChat> {
+  private async pickModel(preferredFamily?: string): Promise<vscode.LanguageModelChat> {
+    // If the caller requested a specific model family, try it first
+    if (preferredFamily) {
+      let preferred = await vscode.lm.selectChatModels({ vendor: 'copilot', family: preferredFamily });
+      if (preferred.length === 0) {
+        preferred = await vscode.lm.selectChatModels({ family: preferredFamily });
+      }
+      if (preferred.length > 0) return preferred[0];
+    }
+
     // Priority: gpt-5.4 → gpt-4o → any copilot model → any available model
     let models = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-5.4' });
     if (models.length === 0) {

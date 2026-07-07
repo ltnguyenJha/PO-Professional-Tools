@@ -450,6 +450,34 @@
   box-shadow: var(--shadow-focus);
 }
 
+/* Model selector — styled to match wizard-btn-secondary, keeps native dropdown arrow */
+.wizard-select {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-3);
+  font: var(--typography-button);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  background: var(--color-neutral-250);
+  color: var(--color-neutral-500);
+  border: 1px solid var(--color-neutral-300);
+  appearance: auto;
+}
+
+.wizard-select:hover {
+  background: var(--color-neutral-200);
+  border-color: var(--color-neutral-350);
+}
+
+.wizard-select:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.wizard-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Confirmation dialog */
 .wizard-dialog-overlay {
   position: fixed;
