@@ -168,10 +168,9 @@ After successful merge:
 ## Documentation References
 
 For more details, see:
-- `ISSUE_34_MERGE_STATUS.md` - Detailed merge status report
-- `ISSUE_34_COMPLETION_SUMMARY.txt` - Quick summary of work done
-- `.squad/artifacts/issue-34-test-validation-report.md` - Comprehensive test report
-- `.squad/artifacts/issue-34-test-implementation-guide.md` - Test implementation guide
+- `.squad/artifacts/issue-34-merge-status.md` — Detailed merge status report
+- `.squad/artifacts/issue-34-test-validation-report.md` — Comprehensive test report
+- `.squad/artifacts/issue-34-test-implementation-guide.md` — Test implementation guide
 
 ---
 

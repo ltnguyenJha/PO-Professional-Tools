@@ -504,6 +504,118 @@ export function PbiStudio({
     );
   }
 
+  if (!working) {
+    return (
+      <div className="content">
+        <LoadingBar label="Loading draft…" ariaLabel="Loading PBI draft" />
+      </div>
+    );
+  }
+
+  const draft = working;
+
+  const renderSuggestionReview = (s: AiSuggestion): JSX.Element => (
+    <div className="ai-suggestion">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap'
+        }}
+      >
+        <h4 style={{ margin: 0 }}>AI suggestion — review per field</h4>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => onDismissSuggestion(draft.id)}
+        >
+          Dismiss all
+        </button>
+      </div>
+      {typeof s.title === 'string' && (
+        <>
+          <div className="diff-block">{s.title}</div>
+          <div className="diff-actions">
+            <button className="btn btn-primary btn-sm" onClick={() => acceptSuggestedField('title')}>
+              Apply title
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.description === 'string' && (
+        <>
+          <div className="diff-block">{s.description}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('description')}
+            >
+              Apply description
+            </button>
+          </div>
+        </>
+      )}
+      {s.acceptanceCriteria && (
+        <>
+          <div className="diff-block">
+            {s.acceptanceCriteria.map((item) => `• ${item}\n`).join('')}
+          </div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('acceptanceCriteria')}
+            >
+              Apply acceptance criteria
+            </button>
+          </div>
+        </>
+      )}
+      {s.testScenarios && (
+        <>
+          <div className="diff-block">
+            {s.testScenarios.map((item) => `• ${item}\n`).join('')}
+          </div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('testScenarios')}
+            >
+              Apply test scenarios
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.userStoryStatement === 'string' && (
+        <>
+          <div className="diff-block">{s.userStoryStatement}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('userStoryStatement')}
+            >
+              Apply user story statement
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.businessRulesAndAssumptions === 'string' && (
+        <>
+          <div className="diff-block">{s.businessRulesAndAssumptions}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
+            >
+              Apply business rules & assumptions
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="content">
       <div className="studio-toolbar card" style={{ padding: '12px 16px', marginBottom: 4 }}>
@@ -682,7 +794,7 @@ export function PbiStudio({
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
                 <TechnicalConsiderationsSection
-                  draft={active}
+                  draft={draft}
                   isLoading={aiBusy}
                   onUpdate={handleUpdateTechnicalConsiderations}
                   onGenerate={handleGenerateTechnicalConsiderations}
@@ -724,10 +836,10 @@ export function PbiStudio({
                       send({
                         type: 'GENERATE_FULL_STORY_AI',
                         payload: {
-                          draftId: active.id,
+                          draftId: draft.id,
                           seedText:
                             fullStorySeed.trim() ||
-                            active.description.trim() ||
+                            draft.description.trim() ||
                             undefined
                         }
                       })
@@ -1074,110 +1186,7 @@ export function PbiStudio({
                   </button>
                 </div>
 
-                {suggestion && (
-                  <div className="ai-suggestion">
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 8,
-                        flexWrap: 'wrap'
-                      }}
-                    >
-                      <h4 style={{ margin: 0 }}>AI suggestion — review per field</h4>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => onDismissSuggestion(active.id)}
-                      >
-                        Dismiss all
-                      </button>
-                    </div>
-                    {typeof suggestion.title === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.title}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('title')}
-                          >
-                            Apply title
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.description === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.description}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('description')}
-                          >
-                            Apply description
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {suggestion.acceptanceCriteria && (
-                      <>
-                        <div className="diff-block">
-                          {suggestion.acceptanceCriteria.map((item, i) => `• ${item}\n`).join('')}
-                        </div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('acceptanceCriteria')}
-                          >
-                            Apply acceptance criteria
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {suggestion.testScenarios && (
-                      <>
-                        <div className="diff-block">
-                          {suggestion.testScenarios.map((item, i) => `• ${item}\n`).join('')}
-                        </div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('testScenarios')}
-                          >
-                            Apply test scenarios
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.userStoryStatement === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.userStoryStatement}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('userStoryStatement')}
-                          >
-                            Apply user story statement
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.businessRulesAndAssumptions === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.businessRulesAndAssumptions}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
-                          >
-                            Apply business rules & assumptions
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+                {suggestion ? renderSuggestionReview(suggestion!) : null}
 
                 <div className="apply-ai-box">
                   <div className="card-header" style={{ padding: 0, marginBottom: 6 }}>

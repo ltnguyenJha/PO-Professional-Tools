@@ -510,3 +510,29 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - Reusable skills inventory
 
 **Key Learning:** AI team memory is *real*. The Squad's orchestration logs, decision records, and agent histories form a coherent institutional memory that persists across sessions. This memory enables new agents to onboard with context, complex multi-agent coordination, and retrospective analysis without manual reconstruction.
+
+### Repo Cleanup — Root Sprawl Reduction (2026-07-08)
+
+**Task:** Remove ephemeral `.txt`/`.pdf` artifacts, tighten `.gitignore`, consolidate root-level one-off markdown on feature branch `chore/repo-cleanup`.
+
+**Branch:** `chore/repo-cleanup` (created via `ensure-feature-branch.ps1`, renamed from auto branch).
+
+**Deleted (6 files):**
+- `build-output.txt`, `ISSUE_34_COMPLETION_SUMMARY.txt`, `FINAL_REPORT_ISSUE_34.txt` — root build/issue handoff artifacts
+- `.squad/test-reports/phase-5-summary.txt` — test report export
+- `PITCH.md` — duplicate of `docs/PRODUCT_VISION.md` (per 2026-04-28 reorg decision; root copy never removed)
+- `INSTALLATION_GUIDE.md` — superseded by `docs/QUICK_START.md` + `deploy/DEPLOYMENT.md`
+
+**Archived to `.squad/artifacts/`:**
+- `ISSUE_34_MERGE_STATUS.md` → `issue-34-merge-status.md`
+- `HANDOFF_PR_CREATION.md` → `issue-34-pr-handoff.md`
+
+**`.gitignore`:** Added `*.txt` and `*.pdf` to block future artifact commits. No LICENSE.txt or requirements.txt in repo; runtime `.txt` uploads in PbiStudio are user-local, not tracked.
+
+**Reference fix:** `.squad/agents/README.md` PITCH link → `docs/PRODUCT_VISION.md`.
+
+**Intentionally untouched:** `.squad/` operational files, agent charters, `AGENTS.md`, `README.md`, `docs/`, `dev/`, `deploy/`, webview test `.md` plans. No PDFs found in repo.
+
+**Validation:** `npm run lint` — 0 errors (7 pre-existing warnings). `npm run build` — PASS.
+
+**Rationale:** Root = essentials only (charter principle). Completed issue handoffs belong in `.squad/artifacts/`; user-facing install/vision docs already live under `docs/` and `deploy/`.

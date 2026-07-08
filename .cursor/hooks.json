@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node .cursor/hooks/session-start.js"
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "node .cursor/hooks/subagent-followup.js",
+        "matcher": "generalPurpose|explore|shell"
+      }
+    ]
+  }
+}

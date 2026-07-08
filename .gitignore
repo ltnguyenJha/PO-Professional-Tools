@@ -13,3 +13,6 @@ webview-ui/node_modules/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
 .squad/.cache/
+# Ephemeral artifacts and reports (not source)
+*.txt
+*.pdf

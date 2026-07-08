@@ -1,0 +1,32 @@
+---
+description: VS Code extension + webview standards for PO Professional Tools
+globs: src/**/*.ts,webview-ui/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# PO Professional Tools Development
+
+- **Build gate:** `npm run build` from repo root before every PR — extension (esbuild) + webview (Vite) must succeed
+- **Lint:** `npm run lint` (extension `src/`); type-check both: `npx tsc --noEmit` and `npx tsc --noEmit --project webview-ui/tsconfig.json`
+- **Simplicity first:** smallest correct diff; reuse existing patterns
+- **Message contract:** keep `src/shared/messages.ts` and `webview-ui/src/types.ts` in sync — add handler in `DashboardPanel.ts` and webview caller together
+- **Secrets:** ADO PAT lives in `SecretStorageService` only — never log or commit
+- **Webview CSS:** use VS Code CSS variables (`--vscode-*`, `--accent`) — no hardcoded colours
+- **Extension:** catch errors at `handleMessage` level; surface via `postToast('error', message)`
+
+Full guide: `.github/copilot-instructions.md`
+
+**Debug extension:**
+
+```powershell
+# F5 → "Run Extension (Clean)" in VS Code
+npm run watch            # extension rebuild
+npm run watch:webview    # Vite dev server for webview
+```
+
+**Tests:**
+
+```powershell
+npm test                              # extension (Jest)
+npm --prefix webview-ui test          # webview (Vitest)
+```

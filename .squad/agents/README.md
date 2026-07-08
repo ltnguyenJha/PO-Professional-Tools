@@ -75,4 +75,4 @@ Each personality file contains:
 
 ---
 
-**Want to see how the team works together?** Check out the "Meet the AI Team" section in `../../PITCH.md`.
+**Want to see how the team works together?** Check out the "Meet the AI Team" section in `../../docs/PRODUCT_VISION.md`.

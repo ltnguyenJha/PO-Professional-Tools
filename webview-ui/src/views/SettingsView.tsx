@@ -124,10 +124,11 @@ export function SettingsView({
           error: message.payload.valid ? undefined : message.payload.error
         });
       } else if (message.type === 'ADO_TEAMS_RESULT') {
-        if (Array.isArray(message.payload)) {
+        const payload = message.payload;
+        if (Array.isArray(payload)) {
           setDropdownState((prev) => ({
             ...prev,
-            teams: message.payload as string[],
+            teams: payload,
             teamsLoading: false,
             teamsError: undefined
           }));
@@ -136,14 +137,15 @@ export function SettingsView({
             ...prev,
             teams: [],
             teamsLoading: false,
-            teamsError: message.payload.error
+            teamsError: payload.error
           }));
         }
       } else if (message.type === 'ADO_ITERATIONS_RESULT') {
-        if (Array.isArray(message.payload)) {
+        const payload = message.payload;
+        if (Array.isArray(payload)) {
           setDropdownState((prev) => ({
             ...prev,
-            iterations: message.payload as string[],
+            iterations: payload,
             iterationsLoading: false,
             iterationsError: undefined
           }));
@@ -152,7 +154,7 @@ export function SettingsView({
             ...prev,
             iterations: [],
             iterationsLoading: false,
-            iterationsError: message.payload.error
+            iterationsError: payload.error
           }));
         }
       }
