@@ -1164,3 +1164,8 @@ payload: {
 - Key edge case: handleLinkFeatureToEpic must not duplicate featureId if already linked
 - ADO push: status='partial' vs 'pushed' depends on linkedFeatureIds count vs featureResults count (not just pushChildren flag)
 - Test infra: extended vscode mock with workspace.onDidChangeWorkspaceFolders + CancellationTokenSource; captured onDidReceiveMessage callback to drive handler invocations
+
+### Localhost dev server (2026-07-08)
+- Started `npm run watch:webview` for user; Vite on **http://localhost:5174/** (5173 was already in use).
+- `node_modules` present at root and `webview-ui/`; `dist/extension.js` exists — no install/build required.
+- Full extension UX still requires F5 **Run Extension (Clean)** in VS Code; browser localhost is webview UI only (no extension host messaging).
