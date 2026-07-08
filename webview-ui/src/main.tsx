@@ -4,6 +4,7 @@ import { App } from './App';
 import './styles.css';
 import './styles/wizard.css';
 import './styles/tailwind.css';
+import './components/david/david-theme.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

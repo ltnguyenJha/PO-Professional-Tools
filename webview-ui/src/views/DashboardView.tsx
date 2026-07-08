@@ -44,11 +44,9 @@ function AdoStatusChip({
   return (
     <button
       type="button"
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 min-h-[44px] text-xs font-medium transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-      style={{
-        background: adoReady ? 'var(--tw-vscode-success-bg)' : 'var(--tw-vscode-warning-bg)',
-        color: adoReady ? 'var(--tw-vscode-success)' : 'var(--tw-vscode-warning)',
-      }}
+      className={`chip-energy focus-tw-ring-inset min-h-[44px] cursor-pointer border-0 ${
+        adoReady ? 'chip-energy-green' : 'chip-energy-warning'
+      }`}
       onClick={() => onNavigate('settings')}
       title={adoReady ? `Connected to ${projectName}` : 'Click to configure ADO in Settings'}
       aria-label={adoReady ? `ADO connected to ${projectName}. Click to open settings.` : 'ADO setup required. Click to configure in Settings.'}
@@ -56,6 +54,7 @@ function AdoStatusChip({
       <span
         className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
         style={{ background: 'currentColor' }}
+        aria-hidden="true"
       />
       {adoReady ? `ADO · ${projectName}` : 'ADO · Setup required'}
     </button>
@@ -69,7 +68,7 @@ function ChevronIcon({ open }: { open: boolean }) {
       height="10"
       viewBox="0 0 10 10"
       fill="none"
-      className="shrink-0 transition-transform duration-200"
+      className="shrink-0 transition-transform duration-200 text-tw-fg-muted"
       style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
       aria-hidden="true"
     >
@@ -144,8 +143,7 @@ function AccordionHeader({
   return (
     <button
       type="button"
-      className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-      style={{ background: 'var(--tw-vscode-bg-alt)', color: 'var(--tw-vscode-fg-muted)' }}
+      className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:bg-tw-hover border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset bg-tw-bg-alt text-tw-fg"
       onClick={onClick}
       aria-expanded={open}
       onKeyDown={(e) => {
@@ -157,14 +155,13 @@ function AccordionHeader({
     >
       <ChevronIcon open={open} />
       <span
-        className="flex-1 text-sm truncate font-medium"
-        style={{ color: labelMuted ? 'var(--tw-vscode-fg-muted)' : 'var(--tw-vscode-fg)' }}
+        className={`flex-1 text-sm truncate font-medium ${labelMuted ? 'text-contrast-muted' : 'text-tw-fg'}`}
       >
         {label}
       </span>
       {badge}
       {count !== undefined && (
-        <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+        <span className="text-xs shrink-0 text-contrast-muted">
           {count}
         </span>
       )}
@@ -209,7 +206,7 @@ function EpicAccordion({
             ))}
           </div>
         ) : (
-          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          <p className="px-3 py-2 text-xs text-contrast-muted">
             No features linked to this epic yet.
           </p>
         )}
@@ -235,12 +232,12 @@ function FeatureCard({
         background: 'var(--tw-vscode-bg)',
       }}
     >
-      <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+      <span className="flex-1 text-sm truncate text-tw-fg">
         {feature.title}
       </span>
       <StatusBadge status={feature.status ?? 'draft'} />
       {storyCount > 0 && (
-        <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+        <span className="text-xs shrink-0 text-contrast-muted">
           {storyCount} {storyCount === 1 ? 'story' : 'stories'}
         </span>
       )}
@@ -340,7 +337,7 @@ function StandaloneStories({
             className="flex items-center gap-2 px-3 py-2 min-h-[44px] border-b last:border-b-0"
             style={{ borderColor: 'var(--tw-vscode-border)' }}
           >
-            <span className="flex-1 text-sm truncate" style={{ color: 'var(--tw-vscode-fg)' }}>{s.title}</span>
+            <span className="flex-1 text-sm truncate text-tw-fg">{s.title}</span>
             <StatusBadge status={s.status ?? 'draft'} />
             <button
               type="button"
@@ -398,8 +395,7 @@ function RecentActivity({
         }}
       >
         <h3
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--tw-vscode-fg-muted)' }}
+          className="text-xs font-semibold uppercase tracking-wider text-contrast-muted"
         >
           Recent Activity
         </h3>
@@ -418,15 +414,14 @@ function RecentActivity({
           >
             <div className="flex items-start gap-1.5">
               <span
-                className="text-xs truncate flex-1 leading-4"
-                style={{ color: 'var(--tw-vscode-fg)' }}
+                className="text-xs truncate flex-1 leading-4 text-tw-fg"
               >
                 {item.title}
               </span>
               <StatusBadge status={item.status ?? 'draft'} size="xs" />
             </div>
             {item.updatedAt && (
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              <div className="text-xs mt-0.5 text-contrast-muted">
                 {new Date(item.updatedAt).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',
@@ -500,20 +495,19 @@ function FeatureMiniCard({
       >
         Feature
       </span>
-      <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+      <span className="flex-1 text-xs truncate text-tw-fg">
         {feature.title}
       </span>
       <HierarchyStatusBadge status={feature.hierarchyStatus ?? 'draft'} />
       {pbiCount > 0 && (
-        <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+        <span className="text-xs shrink-0 text-contrast-muted">
           {pbiCount} PBI{pbiCount !== 1 ? 's' : ''}
         </span>
       )}
       {feature.adoWorkItemUrl && (
         <button
           type="button"
-          className="text-xs shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] rounded border-0 bg-transparent cursor-pointer p-0"
-          style={{ color: 'var(--tw-vscode-fg-muted)' }}
+          className="text-xs shrink-0 text-contrast-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--vscode-focusBorder)] rounded border-0 bg-transparent cursor-pointer p-0"
           title="View in Azure DevOps"
           onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: feature.adoWorkItemUrl! } }); }}
           aria-label="View Feature in Azure DevOps"
@@ -560,37 +554,37 @@ function EpicDraftCard({
       className="rounded-lg overflow-hidden border"
       style={{ borderColor: 'var(--tw-vscode-border)', borderLeftWidth: '4px', borderLeftColor: 'var(--tw-epic)' }}
     >
-      <button
-        type="button"
-        className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-        style={{ background: 'var(--tw-vscode-bg-alt)' }}
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-label={`${epic.title} — ${expanded ? 'collapse' : 'expand'} epic details`}
+      <div
+        className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] bg-tw-bg-alt text-tw-fg"
       >
-        <ChevronIcon open={expanded} />
-        <span
-          className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
-          style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
+        <button
+          type="button"
+          className="flex flex-1 items-center gap-2 min-w-0 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset bg-transparent text-inherit p-0"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-label={`${epic.title} — ${expanded ? 'collapse' : 'expand'} epic details`}
         >
-          Epic
-        </span>
-        <span
-          className="flex-1 text-sm truncate font-medium"
-          style={{ color: 'var(--tw-vscode-fg)' }}
-        >
-          {epic.title}
-        </span>
+          <ChevronIcon open={expanded} />
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
+            style={{ background: 'var(--tw-epic-bg)', color: 'var(--tw-epic)' }}
+          >
+            Epic
+          </span>
+          <span className="flex-1 text-sm truncate font-medium text-tw-fg">
+            {epic.title}
+          </span>
+        </button>
         <EpicStatusBadge status={epic.status} />
         {featureCount > 0 && (
-          <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          <span className="text-xs shrink-0 text-contrast-muted">
             {featureCount} Feature{featureCount !== 1 ? 's' : ''}
           </span>
         )}
         <button
           type="button"
           className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-          onClick={(e) => { e.stopPropagation(); onEditEpic(); }}
+          onClick={onEditEpic}
           title={`Edit Epic: ${epic.title}`}
           aria-label={`Edit Epic: ${epic.title}`}
         >
@@ -600,7 +594,7 @@ function EpicDraftCard({
           <button
             type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: epic.adoUrl! } }); }}
+            onClick={() => vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: epic.adoUrl! } })}
             title="View Epic in Azure DevOps"
             aria-label={`View Epic in Azure DevOps: ${epic.title}`}
           >
@@ -611,14 +605,14 @@ function EpicDraftCard({
           <button
             type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => { e.stopPropagation(); onPushEpic(); }}
+            onClick={onPushEpic}
             title={`Push Epic to ADO: ${epic.title}`}
             aria-label={`Push Epic to ADO: ${epic.title}`}
           >
             ⬆ Push
           </button>
         )}
-      </button>
+      </div>
 
       <div
         className={`overflow-hidden transition-all duration-200 ease-out border-t ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -626,7 +620,7 @@ function EpicDraftCard({
         aria-hidden={!expanded}
       >
         {linkedFeatures.length === 0 ? (
-          <p className="px-3 py-2 text-xs italic" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          <p className="px-3 py-2 text-xs italic text-contrast-muted">
             No features yet — Edit Epic to add features.
           </p>
         ) : (
@@ -684,15 +678,13 @@ function EpicsSection({
       {/* Section header */}
       <div className="flex items-center justify-between px-1 mb-1">
         <h2
-          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
-          style={{ color: 'var(--tw-epic)' }}
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 text-tw-epic"
         >
           <span aria-hidden="true">⬟</span> Epics
         </h2>
         <button
           type="button"
-          className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
+          className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] bg-tw-epic text-tw-epic-fg border-transparent"
           onClick={onCreateEpic}
           aria-label="Create a new Epic"
         >
@@ -705,17 +697,16 @@ function EpicsSection({
           className="rounded-lg border px-4 py-5 flex flex-col items-center text-center"
           style={{ borderColor: 'var(--tw-epic-border)', background: 'var(--tw-epic-bg)' }}
         >
-          <div className="text-3xl mb-2 select-none" aria-hidden="true" style={{ color: 'var(--tw-epic)', opacity: 0.4 }}>⬟</div>
-          <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-            No Epics yet
+          <div className="text-3xl mb-2 select-none text-tw-epic/40" aria-hidden="true">⬟</div>
+          <p className="text-sm font-medium mb-1 text-tw-fg">
+            No epics yet — perfect time to think big
           </p>
-          <p className="text-xs mb-3" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-            Create an Epic to group related Features into strategic initiatives.
+          <p className="text-xs mb-3 text-contrast-muted">
+            Epics group related features into strategic initiatives your team can rally around.
           </p>
           <button
             type="button"
-            className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
+            className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] bg-tw-epic text-tw-epic-fg border-transparent"
             onClick={onCreateEpic}
           >
             Create Epic
@@ -778,27 +769,28 @@ function FeatureDraftCard({
       className="rounded-lg overflow-hidden border"
       style={{ borderColor: 'var(--tw-vscode-border)' }}
     >
-      <button
-        type="button"
-        className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-        style={{ background: 'var(--tw-vscode-bg-alt)' }}
-        onClick={() => setExpanded((o) => !o)}
-        aria-expanded={expanded}
-        aria-label={`${feature.title} — ${expanded ? 'collapse' : 'expand'} details`}
-      >
-        <ChevronIcon open={expanded} />
-        <span
-          className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
-          style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+      <div className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] bg-tw-bg-alt text-tw-fg">
+        <button
+          type="button"
+          className="flex flex-1 items-center gap-2 min-w-0 min-h-[44px] text-left transition-colors duration-200 hover:opacity-80 border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset bg-transparent text-inherit p-0"
+          onClick={() => setExpanded((o) => !o)}
+          aria-expanded={expanded}
+          aria-label={`${feature.title} — ${expanded ? 'collapse' : 'expand'} details`}
         >
-          Feature
-        </span>
-        <span className="flex-1 text-sm truncate font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>
-          {feature.title}
-        </span>
+          <ChevronIcon open={expanded} />
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium shrink-0"
+            style={{ background: 'var(--tw-vscode-info-bg)', color: 'var(--tw-vscode-info)' }}
+          >
+            Feature
+          </span>
+          <span className="flex-1 text-sm truncate font-medium text-tw-fg">
+            {feature.title}
+          </span>
+        </button>
         <HierarchyStatusBadge status={hierarchyStatus} />
         {childPbis.length > 0 && (
-          <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          <span className="text-xs shrink-0 text-contrast-muted">
             {childPbis.length} PBI{childPbis.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -806,7 +798,7 @@ function FeatureDraftCard({
           <button
             type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => { e.stopPropagation(); onNavigateToFeatureCreation(feature.id); }}
+            onClick={() => onNavigateToFeatureCreation(feature.id)}
             title={`Edit Feature: ${feature.title}`}
             aria-label={`Edit Feature: ${feature.title}`}
           >
@@ -817,10 +809,7 @@ function FeatureDraftCard({
           <button
             type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigate('bulk');
-            }}
+            onClick={() => onNavigate('bulk')}
             title="Push to ADO"
             aria-label={`Push ${feature.title} to ADO`}
           >
@@ -831,14 +820,14 @@ function FeatureDraftCard({
           <button
             type="button"
             className="btn btn-ghost btn-sm shrink-0 text-xs min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-            onClick={(e) => { e.stopPropagation(); vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: feature.adoWorkItemUrl! } }); }}
+            onClick={() => vscodeApi?.postMessage({ type: 'OPEN_EXTERNAL', payload: { url: feature.adoWorkItemUrl! } })}
             title="View Feature in Azure DevOps"
             aria-label={`View Feature in Azure DevOps: ${feature.title}`}
           >
             ↗ ADO
           </button>
         )}
-      </button>
+      </div>
 
       <div
         className={`overflow-hidden transition-all duration-200 ease-out border-t ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -846,13 +835,13 @@ function FeatureDraftCard({
         aria-hidden={!expanded}
       >
         {childPbis.length === 0 ? (
-          <p className="px-3 py-2 text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+          <p className="px-3 py-2 text-xs text-contrast-muted">
             No Product Backlog Items yet.
           </p>
         ) : (
           <div>
             <div className="px-3 py-1.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--tw-vscode-border)' }}>
-              <span className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+              <span className="text-xs text-contrast-muted">
                 {pushedCount > 0 && `${pushedCount} pushed`}
                 {pushedCount > 0 && draftCount > 0 && ' · '}
                 {draftCount > 0 && `${draftCount} draft`}
@@ -864,11 +853,11 @@ function FeatureDraftCard({
                 className="flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0"
                 style={{ borderColor: 'var(--tw-vscode-border)', paddingLeft: '2rem' }}
               >
-                <span className="flex-1 text-xs truncate" style={{ color: 'var(--tw-vscode-fg)' }}>
+                <span className="flex-1 text-xs truncate text-tw-fg">
                   {pbi.title}
                 </span>
                 {pbi.effortDays && (
-                  <span className="text-xs shrink-0" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
+                  <span className="text-xs shrink-0 text-contrast-muted">
                     {pbi.effortDays}pt
                   </span>
                 )}
@@ -915,28 +904,195 @@ function FeatureDraftCard({
 function EmptyState({ onNavigate }: { onNavigate: Props['onNavigate'] }) {
   return (
     <div
-      className="flex flex-col items-center justify-center py-12 px-6 rounded-lg border text-center"
-      style={{
-        borderColor: 'var(--tw-vscode-border)',
-        background: 'var(--tw-vscode-bg-alt)',
-      }}
+      className="flex flex-col items-center justify-center py-12 px-6 rounded-lg border text-center border-tw-border bg-tw-bg-alt"
     >
-      <div className="text-4xl mb-3 select-none">📋</div>
-      <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>
-        No work items yet
+      <div className="text-4xl mb-3 select-none" aria-hidden="true">🚀</div>
+      <h3 className="text-lg font-semibold mb-1 text-tw-fg">
+        Your backlog is ready to grow
       </h3>
-      <p className="text-sm mb-5 max-w-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
-        Create Features or User Stories to build your product backlog hierarchy.
+      <p className="text-sm mb-5 max-w-sm text-contrast-muted">
+        Start with an epic for big initiatives, a feature for scoped work, or jump straight into a PBI — you&apos;ve got this.
       </p>
       <div className="flex gap-2 flex-wrap justify-center">
-        <button type="button" className="btn btn-primary btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('bulk')}>
-          Create Feature
+        <button
+          type="button"
+          className="btn btn-energy-ai btn-sm min-h-[44px] focus-tw-ring"
+          onClick={() => onNavigate('studio')}
+        >
+          Create PBI
         </button>
-        <button type="button" className="btn btn-ghost btn-sm min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={() => onNavigate('studio')}>
-          Open PBI Studio
+        <button
+          type="button"
+          className="btn btn-energy btn-sm min-h-[44px] focus-tw-ring"
+          onClick={() => onNavigate('bulk')}
+        >
+          Create Feature
         </button>
       </div>
     </div>
+  );
+}
+
+function DashboardWelcome({
+  adoReady,
+  projectName,
+}: {
+  adoReady: boolean;
+  projectName?: string;
+}) {
+  return (
+    <section className="hero-energy mb-5" aria-label="Welcome">
+      <h2 className="text-xl font-bold text-tw-fg mb-1">
+        {adoReady && projectName
+          ? "Welcome back — let's ship something great ✨"
+          : 'Welcome — your backlog starts here ✨'}
+      </h2>
+      <p className="text-sm text-contrast-muted max-w-2xl">
+        {adoReady && projectName
+          ? `You're connected to ${projectName}. Pick up where you left off or start something new.`
+          : 'Connect Azure DevOps in Settings, then create your first epic or PBI.'}
+      </p>
+    </section>
+  );
+}
+
+function QuickActionsRow({
+  onNavigate,
+  onCreateEpic,
+  adoReady,
+}: {
+  onNavigate: Props['onNavigate'];
+  onCreateEpic: () => void;
+  adoReady: boolean;
+}) {
+  const actions = [
+    {
+      id: 'create-pbi',
+      icon: '✎',
+      title: 'Create PBI',
+      description: 'Draft a story with AI or from scratch',
+      onClick: () => onNavigate('studio'),
+      accentClass: 'border-l-[3px] border-[var(--ai)]',
+    },
+    {
+      id: 'new-epic',
+      icon: '◈',
+      title: 'New Epic',
+      description: 'Group features into strategic initiatives',
+      onClick: onCreateEpic,
+      accentClass: 'border-l-[3px] border-[var(--tw-epic)]',
+    },
+    {
+      id: 'open-settings',
+      icon: '⚙',
+      title: 'Open Settings',
+      description: adoReady
+        ? 'ADO connection and workspace defaults'
+        : 'Connect Azure DevOps and set your defaults',
+      onClick: () => onNavigate('settings'),
+      accentClass: 'border-l-[3px] border-[var(--accent)]',
+    },
+  ] as const;
+
+  return (
+    <section
+      className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-5"
+      aria-label="Quick actions"
+    >
+      {actions.map((action) => (
+        <button
+          key={action.id}
+          type="button"
+          className={`card-modern card-modern-interactive hover-lift focus-tw-ring text-left p-4 flex flex-col gap-1 min-h-[44px] ${action.accentClass}`}
+          onClick={action.onClick}
+        >
+          <span className="text-lg leading-none" aria-hidden="true">
+            {action.icon}
+          </span>
+          <span className="text-md font-semibold text-tw-fg">{action.title}</span>
+          <span className="text-sm text-contrast-muted">{action.description}</span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+// ─── KPI Cards ────────────────────────────────────────────────────────────────
+
+type KpiAccent = 'teal' | 'violet' | 'green' | 'neutral';
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  accent: KpiAccent;
+}) {
+  const hasValue = typeof value === 'number' ? value > 0 : value !== 'Setup' && Boolean(value);
+
+  return (
+    <div
+      className={`kpi-card-energy ${hasValue ? 'kpi-card-energy--active' : ''}`}
+      data-accent={accent}
+    >
+      <div className="kpi-card-accent" aria-hidden="true" />
+      <p className="kpi-card-label text-xs font-semibold uppercase tracking-wide text-contrast-muted">
+        {label}
+      </p>
+      <p className="kpi-card-value text-2xl font-bold text-tw-fg tabular-nums">{value}</p>
+      {hint && <p className="kpi-card-hint text-xs text-contrast-muted mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function DashboardKpis({
+  state,
+  adoReady,
+}: {
+  state: AppStatePayload;
+  adoReady: boolean;
+}) {
+  const { pbiDrafts, featureDrafts: rawFeatures, epicDrafts: rawEpics, adoSettings } = state;
+  const featureDrafts = rawFeatures ?? [];
+  const epicDrafts = rawEpics ?? [];
+  const pushedCount = pbiDrafts.filter((d) => d.status === 'pushed').length;
+  const aiEpicCount = epicDrafts.filter((e) => e.aiGeneratedFeatures).length;
+
+  return (
+    <section
+      className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-5"
+      aria-label="Workspace summary"
+    >
+      <KpiCard label="Total PBIs" value={pbiDrafts.length} accent="teal" />
+      <KpiCard
+        label="Features"
+        value={featureDrafts.length}
+        hint={epicDrafts.length > 0 ? `${epicDrafts.length} epics` : undefined}
+        accent="teal"
+      />
+      <KpiCard
+        label="AI Epics"
+        value={aiEpicCount}
+        hint={aiEpicCount > 0 ? 'AI-assisted breakdown' : 'Generate with AI'}
+        accent="violet"
+      />
+      <KpiCard
+        label="Pushed to ADO"
+        value={pushedCount}
+        hint={pushedCount > 0 ? 'Synced work items' : 'None pushed yet'}
+        accent="green"
+      />
+      <KpiCard
+        label="ADO Connection"
+        value={adoReady ? 'Ready' : 'Setup'}
+        hint={adoReady ? adoSettings?.projectName : 'Configure in Settings'}
+        accent={adoReady ? 'green' : 'neutral'}
+      />
+    </section>
   );
 }
 
@@ -1012,6 +1168,13 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
 
   return (
     <div className="content">
+      <DashboardWelcome adoReady={adoReady} projectName={adoSettings?.projectName} />
+
+      {/* ── KPI summary ──────────────────────────────────────────────── */}
+      <DashboardKpis state={state} adoReady={adoReady} />
+
+      <QuickActionsRow onNavigate={onNavigate} onCreateEpic={handleCreateEpic} adoReady={adoReady} />
+
       {/* ── Top bar: ADO status indicator ─────────────────────────────── */}
       <div className="flex items-center justify-end mb-4">
         <AdoStatusChip
@@ -1074,8 +1237,7 @@ export function DashboardView({ state, onNavigate, onNavigateToStudio, onNavigat
                 <div className="space-y-2">
                   {epicDrafts.length > 0 && (
                     <h3
-                      className="text-xs font-semibold uppercase tracking-wider px-1"
-                      style={{ color: 'var(--tw-vscode-fg-muted)' }}
+                      className="text-xs font-semibold uppercase tracking-wider px-1 text-contrast-muted"
                     >
                       Standalone Features
                     </h3>

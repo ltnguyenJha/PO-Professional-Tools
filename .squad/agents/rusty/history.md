@@ -12,6 +12,99 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-07-08 — Phase 2 AI visual identity (feature/a11y-david-ui-refresh)
+
+**Scope:** Saul `--ai` tokens + Tess LoadingBar `variant="ai"` / `AiLoadingBar`; DavidModal WCAG shell; AI loading + violet surfaces across AI-heavy flows.
+
+**LoadingBar:** `variant?: 'default' | 'ai'` + `AiLoadingBar` convenience wrapper; AI fill uses `.loading-bar-indeterminate.ai-shimmer` (violet gradient + shimmer).
+
+**AI loading wired:**
+- **PbiStudio:** `AiLoadingBar` when `aiBusy`; default bar for ADO sync
+- **FeatureCreationWizard / EpicCreationWizard:** `AiLoadingBar` during generation (already present; Epic Generate CTA → `btn-energy-ai`)
+- **BulkBreakdownView:** `AiLoadingBar` when `aiBusy`; ADO sync stays default
+
+**AI violet surfaces:**
+- `.ai-suggestion`, `.apply-ai-box` → `--ai` border/gradient + `.ai-badge`
+- BulkBreakdown AI mode: `.ai-section` on Children card, `btn-energy-ai` CTA
+- PbiStudio Copilot collapse already `.ai-section`; suggestion header gets `.ai-badge`
+
+**DavidModal / ConfirmDialog:**
+- New `DavidModal.tsx`, `useDavidModal.ts`, `useModalA11y.ts` (david-ai programmatic Modal + focus trap + Escape + return focus)
+- `ConfirmDialog` migrated to `DavidModal` with `aria-labelledby`
+
+**Success feedback:** `editCardFlash` + `.ai-success-flash` on Edit item `DavidCollapse` when AI suggestion applied (field apply, paste, auto-apply).
+
+**RDIs:** `RdiList` header → compact `.hero-energy` band.
+
+**Validation:** `npm run lint` ✅ (pre-existing warnings), `npx tsc --noEmit --project webview-ui/tsconfig.json` ✅, `npm run build` ✅, `npm --prefix webview-ui test` ✅ (23 tests).
+
+**Files:** `LoadingBar.tsx`, `ConfirmDialog.tsx`, `david/DavidModal.tsx`, `david/useDavidModal.ts`, `david/useModalA11y.ts`, `david/index.ts`, `types/david-ai.d.ts`, `styles.css`, `PbiStudio.tsx`, `BulkBreakdownView.tsx`, `EpicCreationWizard.tsx`, `FeatureCreationWizard.tsx`, `rdi/RdiList.tsx`, `rdi/rdi-wizard.css`
+
+
+**Scope:** Saul §12 energy utilities + Tess §13 IA — wired across Dashboard, Sidebar, PBI Studio, Drafts, Topbar, global CSS.
+
+**Surfaces updated:**
+- **DashboardView:** `.hero-energy` welcome band ("What will you build today? ✨"); `.kpi-card-energy` KPI row (`md:2` / `xl:3` grid); quick actions (Create PBI, New Epic, Configure ADO) with `.card-modern-interactive.hover-lift`; `.chip-energy-green/warning` ADO chip; encouraging hierarchy empty state + `.btn-energy-ai` / `.btn-energy` CTAs.
+- **Sidebar:** Tess nav groups (Plan/Create/Manage/Configure); `.brand-energy` gradient mark; active nav teal inset bar + glow (existing CSS).
+- **PbiStudio:** `.hero-energy` first-run welcome; `.btn-energy` / `.btn-energy-ai` on create, push, Copilot CTAs; `.ai-section` violet border on Copilot collapse; toolbar `.hover-lift`.
+- **DraftsView:** `.card-modern-interactive.draft-tile.hover-lift` list tiles; `.chip-energy` status pills; encouraging empty states (Tess copy).
+- **Topbar:** `.topbar-energy-accent` gradient bottom line (teal → violet).
+- **Global:** `.nav-group` / `.nav-group-label` CSS; Section 12 mirrors in `styles.css`; `.btn-energy.btn-sm` in `tailwind.css`.
+
+**Before → after:**
+| Surface | Before | After |
+|---------|--------|-------|
+| Dashboard | Flat KPI numbers, no hero, generic empty | Gradient hero band, colorful KPI cards with hover lift, quick-action grid |
+| Sidebar | Flat nav list, muted brand | Grouped IA, glowing active item, gradient brand mark |
+| PBI Studio | Plain card welcome, standard buttons | Hero-energy panel, violet AI CTAs, teal push/create CTAs |
+| Drafts | Plain `.studio-item` rows | Elevated card tiles with energy chips |
+| Topbar | Solid border only | Teal→violet accent underline |
+
+**Preserved:** Message contract untouched; `focus-tw-ring` / `--vscode-focusBorder`; light/dark themes; prior contrast fixes.
+
+**Validation:** `npm run lint` ✅ (pre-existing warnings only), `npx tsc --noEmit --project webview-ui/tsconfig.json` ✅, `npm run build` ✅.
+
+**Files:** `DashboardView.tsx`, `Sidebar.tsx`, `Topbar.tsx`, `PbiStudio.tsx`, `DraftsView.tsx`, `styles.css`, `tailwind.css`
+
+### 2026-07-08 — Light theme label contrast: component pass (feature/a11y-david-ui-refresh)
+
+**Scope:** `DashboardView.tsx`, `SettingsView.tsx`, `PbiStudio.tsx`, `styles.css`, `tailwind.css` (epic-fg token)
+
+**Problem:** Light theme labels unreadable/blurry; dark fine. Root cause split: Saul's `[data-theme="light"]` bridge in `tailwind.css` + component inline `var(--tw-vscode-fg-muted)` / `text-tw-fg-muted` / `--ink-soft` not tracking app theme toggle.
+
+**Component fixes:**
+- **DashboardView:** Replaced inline muted fg styles with `text-contrast-muted` / `text-tw-fg`; KPI labels `text-contrast-muted`; `text-[10px]` → `text-xs`; Epic CTAs use `bg-tw-epic text-tw-epic-fg` (no white-on-#2dd4bf in light).
+- **SettingsView:** Subtitles + field hints + unsaved banner use `text-contrast-muted`; `field-hint` CSS `--ink-soft` → `--ink-muted`.
+- **PbiStudio:** All `.hint` / `.card-subtitle` / `.pbi-type-label` paired with `text-contrast-muted`.
+- **Topbar / Sidebar:** Already on contrast utilities / dark-sidebar tokens — no change.
+- **tailwind.css:** Explicit `--tw-epic-fg: #ffffff` in light block for epic buttons.
+
+**Theme toggle:** `ThemeEffect` sets `html[data-theme]`; Saul's grouped `body.vscode-light, [data-theme="light"]` selector applies bridge tokens when user picks Light in sidebar while VS Code host is dark.
+
+**Validation:** `npm run lint`, `npx tsc --noEmit` (extension + webview), `npm run build` — all pass.
+
+### 2026-07-08 — David UI refresh: shell, KPI cards, contrast polish (feature/a11y-david-ui-refresh)
+
+**Scope:** `App.tsx`, `Sidebar.tsx`, `Topbar.tsx`, `DashboardView.tsx`, `SettingsView.tsx`, `PbiStudio.tsx`, `styles.css`, `tailwind.css`
+
+**Shell layout:**
+- Responsive sidebar: full (240px) → icon-only (64px, 481–768px) → stacked horizontal nav (≤480px)
+- Nav labels use `.nav-label`; brand uses `.brand-full` / `.brand-compact`; theme toggle uses `.theme-label-full` / `.theme-label-compact`
+- Active nav: inset 3px teal bar + `var(--sidebar-accent)` text; focus rings use `--vscode-focusBorder`
+- Topbar: `border-tw-border`, `shadow-tw-sm`, `bg-tw-bg-alt`; subtitle uses `text-contrast-muted`
+
+**Dashboard KPIs:**
+- New `DashboardKpis` + `KpiCard` with Saul's `.card-modern` + gradient accent bar (teal / violet / green)
+- Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+- Metrics: Total PBIs, Features (+ epic hint), AI Epics (`EpicDraft.aiGeneratedFeatures`), Pushed to ADO, ADO Connection
+
+**Shared polish:**
+- `.card-modern` on Settings shell, PBI Studio hero/toolbar/AI sections
+- Inputs: 44px min-height, stronger borders, placeholder `var(--ink-muted)`, focus ring via `--vscode-focusBorder`
+- `hover-lift` + kpi-card utilities in `tailwind.css` `@layer components`
+
+**Validation:** `npm run lint` (0 errors), `npx tsc --noEmit --project webview-ui/tsconfig.json`, `npm run build` — all pass. Message contract unchanged.
+
 ### 2026-05-01 — ADO URL Links in Dashboard Cards (Implemented)
 
 **Scope:** `DashboardView.tsx` — `EpicDraftCard`, `FeatureDraftCard`, `FeatureMiniCard`
@@ -1867,4 +1960,136 @@ Collapsing both into a single "diff vs. saved" check silently breaks the new-use
 **Type-safety note:** `form.pat && form.pat.trim().length > 0` returns `string | boolean | undefined`, not `boolean`. Always use `form.pat != null && form.pat.trim().length > 0` (or `!!`) when a guard needs to produce a clean `boolean` for `setState`.
 
 **Build Status:** ✅ Passed
+
+---
+
+### 2026-07-08 — david-ai Phase 1 Pilot (a11y + UI refresh)
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**Scope:** Integrate `david-ai` npm package via React wrapper layer; focused pilot on high-traffic surfaces.
+
+**Added:**
+- `david-ai@^1.0.6` in `webview-ui/package.json`
+- `webview-ui/src/components/david/` — `DavidCollapse`, `DavidTabs`, `DavidAccordion` + hooks (`useDavidCollapse`, `useDavidTabs`, `useDavidAccordion`)
+- `david-theme.css` — VS Code bridge tokens (`--tw-vscode-*`) for collapse, tabs, accordion; visible `:focus-visible` rings
+- `webview-ui/src/types/david-ai.d.ts` — TypeScript shim (package exports omit types)
+
+**Applied:**
+- **PBI Studio** — Bug Refinement, Copilot Chat, Edit item → `DavidCollapse` (proper `button` + `aria-expanded`, headerActions for Edit item toolbar)
+- **Settings** — Connection + Team & Defaults → `DavidTabs` (replaces collapsible cards)
+
+**Preserved:** VS Code theme bridge in `tailwind.css`; no message contract changes.
+
+**Build Status:** ✅ `npm run lint`, `npx tsc --noEmit --project webview-ui/tsconfig.json`, `npm run build`
+
+**Phase 2 follow-up:**
+- Roll `DavidCollapse` to remaining `.section-header` surfaces (TechnicalConsiderations, hidden demo sections)
+- Add `DavidTooltip` / `DavidModal` wrappers for ConfirmDialog and help hints
+- Dashboard epic/feature tree → `DavidAccordion` (exclusive)
+- Keyboard nav polish on tabs (ArrowLeft/Right)
+- Vitest smoke tests for david wrappers in jsdom
+
+### 2026-07-08 — A11y contrast bug sweep (feature/a11y-david-ui-refresh, Saul coord)
+
+**Scope:** Light/dark contrast fixes across Settings, PBI Studio, Topbar, Drafts, Dashboard.
+
+**Fixes:**
+1. **Settings labels (light)** — `david-theme.css`: inactive DavidTabs use `--ink` + semibold in light mode. `styles.css`: card-modern scoped rules for `settings-section-title`, `field-label`, subtitles/hints via app tokens (`--ink` / `--ink-muted`). `SettingsView.tsx`: dropped redundant `text-contrast-muted` on subtitles/hints (CSS owns color).
+2. **PBI Studio pushed banner (light)** — New `.pushed-banner-link` (inherits success color, underline, light bg tint); replaced `btn-ghost` on "Open in browser" in `PbiStudio.tsx`.
+3. **Topbar banner (light)** — Theme-specific `.topbar-banner-fade` (white→bg-elev gradient) + img `opacity`/`saturate`/`brightness` in `styles.css`.
+4. **Drafts tiles (dark)** — `.studio-item` + `.title` explicit `color: var(--ink)` + `text-align: left` (button color inheritance fix).
+5. **Dashboard chevrons (dark)** — `ChevronIcon` → `text-tw-fg-muted`; `AccordionHeader` button `text-tw-fg` (removed whole-button muted); Epic/Feature expand rows use `bg-tw-bg-alt text-tw-fg` Tailwind classes.
+
+**Files:** `styles.css`, `david-theme.css`, `DashboardView.tsx`, `PbiStudio.tsx`, `SettingsView.tsx`
+
+**Build Status:** ✅ `npm run lint`, `npx tsc --noEmit --project webview-ui/tsconfig.json`, `npm run build`
+
+### 2026-07-08 — Topbar banner removal + Settings light-mode label fix (feature/a11y-david-ui-refresh)
+
+**Task 1 — Remove Topbar banner:**
+- `Topbar.tsx`: removed `jh-anniversary-banner.png` import and banner div; kept title/subtitle/actions header
+- `styles.css`: deleted `.topbar-banner`, `.topbar-banner-img`, `.topbar-banner-fade` and light-theme overrides (asset file left in place, unreferenced)
+
+**Task 2 — Settings light-mode labels (P0):**
+- Root cause: `.field` wrapper set `color: var(--ink-muted)` — dropdown labels (bare text) inherited muted color despite `.field-label` rules on inline fields
+- `styles.css` + `apply-tokens.css`: removed muted color from `.field` wrapper; hints/subtitles stay muted via `.hint` / `.field-hint`
+- `styles.css`: scoped `.settings-section` rules — titles + `.field-label` use `var(--ink)` fw 600; subtitles/hints use `var(--ink-muted)` fw 500 (light + base)
+- `SettingsView.tsx`: added `text-tw-fg` on section titles and field-label spans; unsaved-changes hint → `field-hint`
+- `DropdownWithFallback.tsx` + `SearchableDropdown.tsx`: wrap label text in `<span className="field-label">`
+- `david-theme.css`: inactive tab links default to `var(--ink)` (not `--tw-vscode-fg-muted`); active tab white-on-accent unchanged; light overrides retained
+
+**Files:** `Topbar.tsx`, `styles.css`, `apply-tokens.css`, `SettingsView.tsx`, `DropdownWithFallback.tsx`, `SearchableDropdown.tsx`, `david-theme.css`
+
+**Build Status:** ✅ `npm run lint`, `npx tsc --noEmit --project webview-ui/tsconfig.json`, `npm run build`
+
+### 2026-07-08 — Light mode label hierarchy soften (feature/a11y-david-ui-refresh)
+
+**Problem:** User feedback — Settings section titles + field labels and RDI "Release Deployment Items" too harsh/black after prior contrast fix pushed labels to `var(--ink)` / `text-tw-fg`.
+
+**Design target (Saul, per DESIGN.md):** Light mode labels use `var(--ink-muted)` (#475569, ≈5.9:1 on white) — section headings fw 600, field labels fw 500. Dark mode unchanged (`--ink` on dark panel).
+
+**Changes:**
+- `SettingsView.tsx`: removed `text-tw-fg` from section titles + field labels — semantic classes only
+- `styles.css`: split light overrides — `.settings-section-title` ink-muted/600, `.field-label` ink-muted/500; removed combined rule forcing `--ink`
+- `wizard.css`: split light block — `.wizard-field-label` ink-muted/500; progress/description labels stay ink-muted/600
+- `rdi-wizard.css`: light `.rdi-list-title` → ink-muted/600 (was `--color-neutral-500` → `--ink`)
+
+**Tokens:** `--ink-muted: #475569` (light), `--ink: #0f172a` retained for body/values; dark `--ink-muted: #b0bdd4` unchanged.
+
+**Files:** `SettingsView.tsx`, `styles.css`, `wizard.css`, `rdi-wizard.css`
+
+**Build Status:** ✅ `npm run build`
+
+### 2026-07-08 — Settings DavidTabs light-mode contrast (feature/a11y-david-ui-refresh)
+
+**Problem:** "Team & Defaults" tab invisible in light mode — active tab used white text (`#ffffff`) relying on sliding `.tab-indicator` pill; when indicator misaligned or absent, white text sat on light gray tab-list background.
+
+**Fix (`david-theme.css`):**
+- `.tab-link.active` — explicit `background-color: var(--tw-vscode-accent)` + accent-fg text + `border-radius: 4px` (no longer indicator-only)
+- `.tab-link.active:hover` — preserves accent bg/fg
+- Light inactive tabs — `color: var(--ink-muted)`, transparent bg (muted but readable on panel)
+- `.tab-indicator` — `opacity: 0; visibility: hidden` (active tab self-contained; avoids pill misalignment)
+
+**A11y (`useDavidTabs.ts`):** MutationObserver syncs `aria-selected` + `tabIndex` when david-ai toggles `.active` (library does not update ARIA).
+
+**Files:** `david-theme.css`, `useDavidTabs.ts`
+
+**Build Status:** ✅ `npm run build`
+
+### 2026-07-08 — Livingston review fixes (feature/a11y-david-ui-refresh)
+
+**Scope:** P0 nested buttons, P1 sidebar icon rail, Settings grid, Saul epic-fg token, KPI grid verify.
+
+**Fixes:**
+- **P0 — Nested buttons (`DashboardView.tsx`):** `EpicDraftCard` and `FeatureDraftCard` accordion headers refactored — outer row is a `div`; expand toggle is a sibling `button` (chevron + title only); Edit/ADO/Push are separate sibling buttons (valid HTML, no `stopPropagation` needed).
+- **P1 — Sidebar `<480px` (`styles.css`):** Replaced legacy horizontal wrap (`grid-template-columns: 1fr`, row nav) with **56px icon rail** per DESIGN.md §10.2; vertical column layout preserved.
+- **P1 — Icon rail width:** 481–768px breakpoint changed from **64px → 56px**; nav items + theme toggle get `min-width/min-height: 44px` touch targets.
+- **P1 — Tooltips (`Sidebar.tsx`):** david-ai declarative tooltips via `data-dui-toggle="tooltip"` + `useDavidTooltips` hook; `.david-tooltip` theme bridge in `david-theme.css`; `aria-label` retained on all nav buttons.
+- **P1 — Settings grid (`SettingsView.tsx`):** `.field-row` → `grid grid-cols-1 gap-4 md:grid-cols-2`; PAT and default work-item type use `md:col-span-2`.
+- **P1 — Epic CTA contrast:** Saul's dark `--tw-epic-fg: #042f2e` already wired in `tailwind.css`; Dashboard CTAs use `text-tw-epic-fg` (≥4.5:1 on `#2dd4bf`).
+- **KPI grid:** Verified `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3` — no change needed.
+
+**Files:** `DashboardView.tsx`, `SettingsView.tsx`, `Sidebar.tsx`, `styles.css`, `useDavidTooltips.ts`, `david/index.ts`, `david-theme.css`, `david-ai.d.ts`
+
+**Build Status:** ✅ `npx tsc --noEmit --project webview-ui/tsconfig.json` · ✅ `npm run build` · ✅ `npm --prefix webview-ui test` (23/23) · ⚠️ `npm run lint` — pre-existing extension test-file parser errors (unchanged)
+
+### 2026-07-08 — Livingston Phase 2 P0: DavidDropdown pilot + DavidModal aria-hidden (feature/a11y-david-ui-refresh)
+
+**P0-1 — Dropdown pilot (Settings Default Work Item Type):**
+- Added `DavidDropdown.tsx` + `useDavidDropdown.ts` — david-ai programmatic `Dropdown` for Popper positioning; React owns open state, outside-click, and WAI-ARIA menu keyboard nav (Arrow Up/Down, Home/End, Enter/Space, Escape)
+- DOM: trigger `button` with `aria-haspopup="menu"` / `aria-expanded`; menu `role="menu"` + items `role="menuitem"`
+- Static `WORK_ITEM_TYPES` list — no ADO fetch
+- `david-theme.css`: VS Code bridge tokens for trigger/menu (light + dark hover/selected/focus)
+- `SettingsView.tsx`: Default Work Item Type → `DavidDropdown`; Team stays `DropdownWithFallback`, Iteration stays `SearchableDropdown`
+
+**P0-2 — DavidModal aria-hidden while open:**
+- Removed hardcoded `aria-hidden="true"` and React-controlled `opacity-0 pointer-events-none` from open modal JSX — React re-renders were resetting both after `Modal.show()` ran
+- david-ai `Modal.show()` now owns visibility classes + `aria-hidden="false"`; `useModalA11y` focus trap unchanged
+
+**Bonus:** `DavidModal.unit.test.tsx` — open dialog has `role="dialog"`, `aria-hidden` not `"true"`, closed renders null
+
+**Files:** `DavidDropdown.tsx`, `useDavidDropdown.ts`, `DavidModal.tsx`, `DavidModal.unit.test.tsx`, `david/index.ts`, `david-theme.css`, `david-ai.d.ts`, `SettingsView.tsx`
+
+**Build Status:** ✅ `npm run lint` · ✅ `npx tsc --noEmit --project webview-ui/tsconfig.json` · ✅ `npm run build` · ✅ `npm --prefix webview-ui test` (25/25)
 

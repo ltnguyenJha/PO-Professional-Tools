@@ -55,7 +55,7 @@ button {
   --panel-muted: var(--color-neutral-250);
   --ink: var(--color-neutral-500);
   --ink-muted: var(--color-neutral-400);
-  --ink-soft: var(--color-neutral-450);
+  --ink-soft: var(--color-neutral-450); /* #475569 — ≥4.5:1 on white */
   --line: var(--color-neutral-300);
   --line-strong: var(--color-neutral-350);
   --accent: var(--color-primary-default);
@@ -178,7 +178,6 @@ button {
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--font-size-base);
-  color: var(--ink-muted);
 }
 
 .field input,

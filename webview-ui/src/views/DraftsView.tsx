@@ -65,7 +65,7 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
   return (
     <div className="content">
       {/* Creation toolbar */}
-      <div className="card" style={{ padding: '12px 16px' }}>
+      <div className="card card-modern" style={{ padding: '12px 16px' }}>
         <div className="action-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
           <strong style={{ marginRight: 8 }}>New PBI</strong>
           <select
@@ -84,7 +84,7 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
           </select>
           <button
             type="button"
-            className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
+            className="btn-energy btn-sm focus-tw-ring"
             disabled={!canCreate}
             onClick={() => handleCreate(false)}
           >
@@ -92,7 +92,7 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
           </button>
           <button
             type="button"
-            className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
+            className="btn-energy btn-energy-ai btn-sm focus-tw-ring"
             disabled={!canCreate}
             onClick={() => handleCreate(true)}
           >
@@ -104,7 +104,7 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
             {pbiDrafts.length} draft{pbiDrafts.length !== 1 ? 's' : ''}
           </span>
           {pushedCount > 0 && (
-            <span className="chip success" style={{ fontSize: '0.7rem', padding: '1px 7px' }}>
+            <span className="chip-energy chip-energy-green">
               {pushedCount} pushed ✓
             </span>
           )}
@@ -146,13 +146,13 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
               <button
                 type="button"
                 key={draft.id}
-                className="studio-item"
+                className="card-modern card-modern-interactive draft-tile hover-lift focus-tw-ring"
                 onClick={() => onNavigateToStudio(draft.id)}
               >
-                <div className="title">{draft.title}</div>
-                <div className="meta">
+                <div className="font-semibold text-sm text-tw-fg line-clamp-2">{draft.title}</div>
+                <div className="flex justify-between items-center gap-2 mt-1 text-xs text-contrast-muted">
                   <span>{projectDisplayName(linkTargets, draft.projectId)}</span>
-                  <span className={`chip ${draft.status === 'pushed' ? 'success' : 'info'}`}>
+                  <span className={`chip-energy ${draft.status === 'pushed' ? 'chip-energy-green' : 'chip-energy-violet'}`}>
                     {draft.status === 'pushed'
                       ? `#${draft.adoWorkItemId ?? '??'}`
                       : (draft.workItemType ?? 'PBI')}
@@ -179,17 +179,20 @@ export function DraftsView({ state, send, onNavigateToStudio }: Props): JSX.Elem
 
           {pbiDrafts.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <h3>No drafts yet</h3>
-              <p>Create your first PBI using the toolbar above.</p>
+              <div className="empty-icon" aria-hidden="true">✨</div>
+              <h3>A blank canvas — let&apos;s write your first story</h3>
+              <p>
+                Draft PBIs here, refine with AI, then push to Azure DevOps when you&apos;re ready.
+                Use the toolbar above to get started.
+              </p>
             </div>
           )}
 
           {pbiDrafts.length > 0 && filtered.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon">🔍</div>
-              <h3>No matching drafts</h3>
-              <p>Try adjusting your search or filter.</p>
+              <div className="empty-icon" aria-hidden="true">🔍</div>
+              <h3>Nothing matched — try a wider search</h3>
+              <p>Clear filters or create a new draft to keep momentum going.</p>
             </div>
           )}
         </div>

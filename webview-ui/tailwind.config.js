@@ -18,12 +18,16 @@ export default {
         'tw-bg':          'var(--tw-vscode-bg)',
         'tw-bg-alt':      'var(--tw-vscode-bg-alt)',
         'tw-surface':     'var(--tw-vscode-surface)',
+        'tw-surface-elevated': 'var(--tw-vscode-surface-elevated, var(--tw-vscode-surface))',
         'tw-fg':          'var(--tw-vscode-fg)',
         'tw-fg-muted':    'var(--tw-vscode-fg-muted)',
         'tw-muted':       'var(--tw-vscode-muted)',
         'tw-border':      'var(--tw-vscode-border)',
+        'tw-border-strong': 'var(--tw-vscode-border-strong)',
         'tw-accent':      'var(--tw-vscode-accent)',
         'tw-accent-fg':   'var(--tw-vscode-accent-fg)',
+        'tw-accent-hover': 'var(--tw-vscode-accent-hover)',
+        'tw-focus':       'var(--tw-vscode-focus)',
         'tw-success':     'var(--tw-vscode-success)',
         'tw-success-bg':  'var(--tw-vscode-success-bg)',
         'tw-warning':     'var(--tw-vscode-warning)',
@@ -88,12 +92,21 @@ export default {
 
       // ─── Box Shadows (subtle, VS Code native feel) ───────────────────────
       boxShadow: {
-        'sm':     '0 1px 2px rgba(0,0,0,0.08)',
-        DEFAULT:  '0 2px 4px rgba(0,0,0,0.12)',
-        'md':     '0 4px 8px rgba(0,0,0,0.16)',
-        'lg':     '0 8px 16px rgba(0,0,0,0.20)',
-        'focus':  '0 0 0 2px var(--vscode-focusBorder)',
+        'sm':     'var(--tw-shadow-sm, 0 1px 2px rgba(0,0,0,0.08))',
+        DEFAULT:  'var(--tw-shadow-md, 0 2px 4px rgba(0,0,0,0.12))',
+        'md':     'var(--tw-shadow-md, 0 4px 8px rgba(0,0,0,0.16))',
+        'lg':     'var(--tw-shadow-lg, 0 8px 16px rgba(0,0,0,0.20))',
+        'focus':  '0 0 0 2px var(--tw-vscode-focus)',
         'none':   'none',
+      },
+
+      ringColor: {
+        'tw-focus': 'var(--tw-vscode-focus)',
+      },
+      ringOffsetColor: {
+        'tw-bg':     'var(--tw-vscode-bg)',
+        'tw-accent': 'var(--tw-vscode-accent)',
+        'tw-surface': 'var(--tw-vscode-surface)',
       },
 
       // ─── Transitions (purposeful, ≤300ms) ───────────────────────────────
@@ -132,12 +145,15 @@ export default {
 
       // ─── Screens (responsive breakpoints) ───────────────────────────────
       // panel-wide: two-column layout threshold for VS Code webview panels
+      // panel-narrow: single-column stack for PBI Studio / wizards
       screens: {
+        'xs':         '360px',
         'sm':         '480px',
         'md':         '640px',
         'lg':         '768px',
         'xl':         '1024px',
         '2xl':        '1280px',
+        'panel-narrow': '560px',
         'panel-wide': '700px',
       },
     },

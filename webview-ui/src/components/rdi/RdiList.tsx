@@ -56,7 +56,7 @@ export function RdiList({ onOpen, onNew }: Props) {
 
   return (
     <div className="rdi-list">
-      <div className="rdi-list-header">
+      <div className="rdi-list-header hero-energy">
         <h2 className="rdi-list-title">Release Deployment Items</h2>
         <button className="wizard-btn wizard-btn-primary" onClick={onNew}>
           + New RDI

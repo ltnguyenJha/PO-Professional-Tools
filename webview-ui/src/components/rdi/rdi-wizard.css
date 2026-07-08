@@ -17,10 +17,20 @@
   align-items: center;
 }
 
+.rdi-list-header.hero-energy {
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-xs);
+}
+
 .rdi-list-title {
   font: var(--typography-heading-2);
   color: var(--color-neutral-500);
   margin: 0;
+}
+
+html[data-theme="light"] .rdi-list-title {
+  color: var(--ink-muted);
+  font-weight: 600;
 }
 
 .rdi-list-empty {

@@ -536,3 +536,66 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 **Validation:** `npm run lint` — 0 errors (7 pre-existing warnings). `npm run build` — PASS.
 
 **Rationale:** Root = essentials only (charter principle). Completed issue handoffs belong in `.squad/artifacts/`; user-facing install/vision docs already live under `docs/` and `deploy/`.
+
+### A11y + david-ai UI Refresh — Architecture Scope (2026-07-08)
+
+**Task:** Scope accessibility improvement initiative using `david-ai` npm package; create feature branch from `chore/docs-consolidation`; write inbox decision; delegate implementation.
+
+**Branch:** `feature/a11y-david-ui-refresh` (already existed at same HEAD as `chore/docs-consolidation` @ `6367dba`; checked out and confirmed).
+
+**Deliverable:** `.squad/decisions/inbox/danny-a11y-david-ui.md`
+
+**Key decisions:**
+- **Hybrid integration:** React + david Tailwind classes for simple stateful UI; david-ai programmatic API (Modal, Dropdown, Accordion) for focus trap, combobox, and roving tabindex — not a React port of the library.
+- **Phase 1 pilots:** Dashboard hierarchy accordions, Settings collapsible sections (highest a11y gap), PBI Studio `.section-header` blocks.
+- **WCAG 2.1 AA:** Mandatory baseline; detailed checklist lives in `docs/DESIGN.md` Sections 6–8 (Tess maintains living doc).
+- **Hard gates:** VS Code `--vscode-*` theme bridge, message contract unchanged, nav structure unchanged, wizard logic untouched in Phase 1.
+- **Phasing:** Phase 0 spike → Phase 1 pilot → Phase 2 Modal/Dropdown/Tabs → Phase 3 polish per DESIGN.md Section 7 priority table.
+
+**Delegation:** Rusty (implementation), Tess (a11y UX + DESIGN.md), Saul (token mapping). Danny reviews at Phase 1 PR only — no production UI code.
+
+**Note:** Uncommitted working-tree changes on branch (`david-ai` in `webview-ui/package.json`, DESIGN.md Sections 6–8) predate this scope doc; Rusty commits with first implementation PR after Phase 0 spike validates bundle/Popper behavior.
+
+### UI Energy Refresh — Scope & Phase 1 Delegation (2026-07-08)
+
+**Task:** User directive — "More colorful, high energy, positive vibe" with responsive design and logical flow. Scope only; no implementation.
+
+**Branch:** `feature/a11y-david-ui-refresh` — **keep** (do not rename to `feature/ui-energy-refresh`; a11y + energy ship on one branch).
+
+**Deliverable:** `.squad/decisions/inbox/danny-ui-energy-refresh.md`
+
+**Key decisions:**
+- **Dashboard as home hub:** Hero strip ("What will you build today?") + Quick Actions grid above KPIs/hierarchy; empty first-run surfaces hero instead of sad tree-only state.
+- **Nav grouping (visual only):** Home → Create (Epics, Feature Creation, PBI Studio, RDIs) → Workspace (Projects, My Drafts) → System (Settings). `ViewId` routing unchanged.
+- **CTA hierarchy:** Violet gradient = AI primary; teal = manual primary; ghost = secondary.
+- **Phase 1 this session:** Tokens/micro-interactions, sidebar icon rail `<480px`, dashboard hero + quick actions, four empty-state refreshes, `hover-lift` on touched controls.
+- **Deferred:** david-ai Modal/Dropdown (Phase 2), AI shimmer/success animations, conversational refine, personalization.
+
+**Delegation:** Tess (IA/copy/a11y sign-off), Saul (hero gradient + `btn-ai` + nav accent tokens), Rusty (Sidebar groups, DashboardHero, QuickActions, empty states, responsive shell), Livingston (lint/build/axe gate).
+
+**Related:** Extends `danny-a11y-david-ui.md`; DESIGN.md §1–11 authoritative for visual specs.
+
+### Phase 2 Kickoff — AI Visual Identity + david-ai Pilots (2026-07-08)
+
+**Task:** User directive "move to next" after Phase 1 complete + Livingston merge-ready YES on `feature/a11y-david-ui-refresh`. Scope only; no implementation.
+
+**Deliverable:** `.squad/decisions/inbox/danny-phase2-ai-identity.md`
+
+**Phase 2 theme:** AI actions feel distinct, responsive, and trustworthy.
+
+**Scope locked:**
+- AI violet surfaces (consistent `--ai` / `btn-ai` on all AI entry points)
+- Shimmer loading skeleton (PBI Studio, Feature wizard AI step; `prefers-reduced-motion` safe)
+- Success micro-celebrations (checkmark bounce, green flash, polite toast — no confetti)
+- PBI Studio hero parity with Dashboard
+- ConfirmDialog → david-ai Modal (focus trap, labelling, Escape)
+- SearchableDropdown pilot — Settings Default Work Item Type only
+- Settings accordion ARIA (Connection + Defaults)
+
+**Deferred to Phase 3:** Bulk Breakdown Tabs, confetti, conversational refine UI, full Dropdown rollout.
+
+**Delegation:** Saul (tokens/animations), Tess (copy/a11y/live regions), Rusty (implementation), Livingston (8-point exit gate).
+
+**Hard gates unchanged:** VS Code theme bridge, WCAG 2.1 AA, no message-contract changes, teal=manual / violet=AI.
+
+**Danny:** PR review only; no production UI code.

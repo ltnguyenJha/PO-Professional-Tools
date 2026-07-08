@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AppStatePayload, PbiDraft, WebviewRequest, FeatureDraft, HierarchyStatus } from '../types';
 import type { ViewId } from '../components/Sidebar';
-import { LoadingBar } from '../components/LoadingBar';
+import { AiLoadingBar, LoadingBar } from '../components/LoadingBar';
 
 // ─── Local types ─────────────────────────────────────────────────────────────
 interface FeaturePushProgress {
@@ -471,7 +471,7 @@ function Step3Generate({
           </p>
         </div>
         <div className="w-full max-w-xs">
-          <LoadingBar label="Generating user stories…" />
+          <AiLoadingBar label="✨ AI is breaking this down…" ariaLabel="AI is generating child work items" />
         </div>
         <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
           This usually takes 10–20 seconds.
@@ -520,7 +520,7 @@ function Step3Generate({
             <span className="font-medium" style={{ color: 'var(--tw-vscode-fg)' }}>Product Backlog Items</span>.
           </p>
         </div>
-        <button type="button" className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={onGenerate}>
+        <button type="button" className="btn btn-energy btn-energy-ai min-h-[44px] transition-colors duration-200 focus-tw-ring" onClick={onGenerate}>
           ✨ Generate User Stories
         </button>
       </div>

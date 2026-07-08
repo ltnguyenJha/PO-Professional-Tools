@@ -9,7 +9,7 @@ import type {
   PbiDraft,
   WebviewRequest
 } from '../types';
-import { LoadingBar } from '../components/LoadingBar';
+import { AiLoadingBar, LoadingBar } from '../components/LoadingBar';
 import { WORK_ITEM_TYPES } from '../types';
 
 type Mode = 'manual' | 'ai' | 'scan';
@@ -172,6 +172,12 @@ export function BulkBreakdownView({
 
   return (
     <div className="content">
+      {aiBusy && (
+        <AiLoadingBar
+          label="Asking Copilot for breakdown…"
+          ariaLabel="AI is suggesting child work items"
+        />
+      )}
       {bulkAdoBusy && (
         <div className="bulk-ado-banner">
           <LoadingBar label={bulkAdoLabel} ariaLabel={`Azure DevOps: ${bulkAdoLabel}`} />
@@ -286,9 +292,17 @@ export function BulkBreakdownView({
         )}
       </section>
 
-      <section className="card">
+      <section className={`card${mode === 'ai' ? ' ai-section' : ''}`}>
         <div className="card-header">
-          <h3>Children</h3>
+          <h3>
+            {mode === 'ai' ? (
+              <>
+                Children <span className="ai-badge">AI</span>
+              </>
+            ) : (
+              'Children'
+            )}
+          </h3>
           <div className="tabs">
             <button aria-pressed={mode === 'manual'} onClick={() => setMode('manual')}>
               Manual
@@ -336,11 +350,12 @@ export function BulkBreakdownView({
             </label>
             <div className="action-row">
               <button
-                className="btn btn-primary"
+                type="button"
+                className="btn btn-energy btn-energy-ai focus-tw-ring"
                 disabled={aiBusy || bulkAdoBusy}
                 onClick={requestAi}
               >
-                {aiBusy ? 'Asking Copilot...' : 'Suggest breakdown with AI'}
+                {aiBusy ? 'Asking Copilot...' : '✨ Suggest breakdown with AI'}
               </button>
               {children.length > 0 && (
                 <button className="btn btn-ghost" onClick={() => setChildren([])}>

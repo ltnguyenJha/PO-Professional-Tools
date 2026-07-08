@@ -5,7 +5,7 @@ import type {
   HierarchyStatus,
   WebviewRequest,
 } from '../types';
-import { LoadingBar } from '../components/LoadingBar';
+import { AiLoadingBar, LoadingBar } from '../components/LoadingBar';
 
 // ─── Local types ─────────────────────────────────────────────────────────────
 
@@ -622,7 +622,7 @@ function Step3Generation({
           </p>
         </div>
         <div className="w-full max-w-xs">
-          <LoadingBar label="Generating features…" />
+          <AiLoadingBar label="✨ AI is breaking this down…" ariaLabel="AI is generating child work items" />
         </div>
         <p className="text-xs" style={{ color: 'var(--tw-vscode-fg-muted)' }}>
           This usually takes 10–20 seconds.
@@ -692,8 +692,7 @@ function Step3Generation({
         </div>
         <button
           type="button"
-          className="btn btn-primary min-h-[44px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-          style={{ background: 'var(--tw-epic)', borderColor: 'transparent', color: 'var(--tw-epic-fg)' }}
+          className="btn btn-energy btn-energy-ai min-h-[44px] focus-tw-ring"
           onClick={onGenerate}
         >
           ✨ Generate Features

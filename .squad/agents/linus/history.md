@@ -1089,3 +1089,20 @@ Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vi
 **Build:** ✅ esbuild clean (2.8MB), tsc errors only in pre-existing test files (missing @types/jest).
 **Commit:** 78d5ee1 on branch feature/saul-tailwind-dashboard-redesign
 
+### Extension tsc/Jest PR gate fixes (2026-07-08)
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**Errors fixed:**
+1. **`DashboardPanel.ts` — `postToast('warning')`:** Toast contract only allows `'info' | 'error' | 'success'`. Changed three test-plan workflow warnings to `'info'`.
+2. **`DashboardPanel.ts` — `importService.getAll()` / wrong `buildLinkedProjectContext` signature:** Rewrote `buildLinkedContextForDraft()` to delegate to `buildLinkedContextForProjectId()` or `getLinkTargets()` + object-form `buildLinkedProjectContext()` (matches existing handler pattern).
+3. **`testPlanService.ts` — `JsonPatchOperation` casts:** Applied `as unknown as JsonPatchOperation[]` on patch array (same pattern as `adoService.ts` `asPatch` helper).
+4. **Jest types blocking `tsc --noEmit`:** Excluded `src/test` from main `tsconfig.json`; added `tsconfig.eslint.json` (includes tests + `@types/jest`) and pointed ESLint `parserOptions.project` at it.
+5. **Epic push hierarchy status:** When epic has `linkedFeatureIds` but `pushChildren: false`, status is now `'partial'` (was incorrectly `'pushed'`).
+
+**Validation:**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅ 3 suites, 60 tests
+- `npm run lint` ✅ (pre-existing unused-var warnings only)
+- `npm run build` ✅
+

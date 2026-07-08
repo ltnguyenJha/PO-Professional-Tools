@@ -204,3 +204,177 @@ All patterns documented in Rusty's decision entry for team reference.
 - Violet over pink: More gender-neutral, better WCAG contrast
 - Violet over purple: `#7c3aed` has better contrast than lighter purples
 - Separate from teal: Critical to maintain visual semantics distinction
+
+### 2026-07-08 — David UI Visual Bridge + Focus Ring Utilities
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**Coordination with Tess:**
+- Tess owns Sections 6–8 (a11y, david component mapping, usage guidelines) in `docs/DESIGN.md`
+- Saul added **Section 9** — visual token bridge, focus ring spec, spacing/radius scale, Button/Card/Input/Modal specs
+- Focus rings: aligned on `--tw-vscode-focus` → `--vscode-focusBorder` (not brand `--accent`)
+
+**Deliverables:**
+- `docs/DESIGN.md` §9 — full David UI → `--tw-vscode-*` mapping table (surfaces, interactive, forms, status, AI, focus)
+- Focus ring spec: global outline (base) + `focus-tw-ring` / `focus-tw-ring-accent` / `focus-tw-ring-inset` / `focus-tw-ring-surface` utilities
+- Spacing/radius harmonization: 4px base; `rounded-md` controls, `rounded-lg` containers
+- Component visual specs for Button, Card, Input, Modal with copy-paste TSX examples for Rusty
+
+**CSS changes (`tailwind.css` + `tailwind.config.js`):**
+- Added `tw-focus`, `tw-accent-hover` color tokens
+- Added `ringColor.tw-focus`, `ringOffsetColor` for bg/accent/surface
+- Added `@layer utilities` focus-tw-ring* classes
+- Updated `shadow-focus` to use `--tw-vscode-focus` (was raw `--vscode-focusBorder`)
+
+**Key mapping rules for Rusty:**
+| David default | Use instead |
+|---|---|
+| `bg-blue-500` | `bg-tw-accent` |
+| `text-gray-500` | `text-tw-fg-muted` |
+| `bg-white` / `bg-gray-900` | `bg-tw-surface` / `bg-tw-bg` |
+| `focus:ring-blue-500` | `focus-tw-ring` |
+| AI purple gradient | `--ai` / `--ai-strong` (never `bg-tw-accent`) |
+
+**Files updated:**
+- `docs/DESIGN.md` — Section 9 added; header co-authorship; cross-refs to Tess §6
+- `webview-ui/src/styles/tailwind.css` — focus ring utilities
+- `webview-ui/tailwind.config.js` — tw-focus, tw-accent-hover, ring offset tokens
+
+### 2026-07-08 — Modern UI + Contrast Refresh
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**Problem:** Muted text, borders, and card surfaces failed WCAG AA in several VS Code themes. Cards blended into canvas; focus rings used brand teal instead of `--vscode-focusBorder`.
+
+**Contrast fixes:**
+- `--tw-vscode-fg-muted`: `color-mix()` boost for ≥4.5:1 on surface tokens
+- `--tw-vscode-border` / `--tw-vscode-border-strong`: stronger fallbacks
+- `--tw-vscode-surface-elevated` + dark surface `#2d2d2d` for card hierarchy
+- Theme-aware `--tw-shadow-sm/md/lg`
+- Legacy `--ink-soft`, `--line`, `--line-strong` boosted; focus → `--vscode-focusBorder`
+
+**New utilities:** `.card-modern`, `.card-modern-interactive`, `.btn-primary`, `.btn-secondary`, `.text-contrast-muted`, `.shadow-tw-*`, `.border-tw-strong`, `.focus-contrast`
+
+**Tailwind config:** `tw-surface-elevated`, `tw-border-strong`, `xs` + `panel-narrow` breakpoints
+
+**Documentation:** `docs/DESIGN.md` **Section 11** (Tess owns §10 responsive layout)
+
+**Files updated:**
+- `webview-ui/src/styles/tailwind.css`
+- `webview-ui/src/styles.css`
+- `webview-ui/tailwind.config.js`
+- `docs/DESIGN.md` — Section 11 added
+
+---
+
+## 2026-07-08 — P0 Light Theme Contrast Fix (feature/a11y-david-ui-refresh)
+
+**Bug:** In-app Light theme labels unreadable / blurry; Dark theme fine.
+
+**Root causes:**
+1. **Theme sync gap** — `ThemeProvider` sets `data-theme="light"` on `<html>` but `tailwind.css` light bridge only keyed on `body.vscode-light`. Choosing Light while VS Code host is dark left `--tw-vscode-fg-muted` at dark-theme values (light gray text on light panels).
+2. **Weak fg-muted mix** — 80/20 color-mix toward foreground still too faint on some VS Code light themes (`#717171` family).
+3. **Opacity stacking** — `.pbi-type-btn { opacity: 0.6 }`, `.brand-company { opacity: 0.7 }` compounded low-contrast token colors.
+4. **Font smoothing** — global `-webkit-font-smoothing: antialiased` thins strokes on Windows light backgrounds → perceived blur.
+5. **Legacy `--ink-soft` drift** — `#526480` / `#64748b` inconsistent across `styles.css`, `tokens.css`, bridge.
+
+**Fixes:**
+- `tailwind.css`: `body.vscode-light, [data-theme="light"]` shared light block; `[data-theme="dark"]` forced-dark block; fg-muted **60/40** mix; placeholder **65/35**; light font-smoothing `auto`; semibold `.kpi-card-label` / `.text-contrast-muted` in light.
+- `styles.css`: `--ink-soft` → `#475569`; removed label opacity; light label weight 600; form/KPI/wizard caption rules under `html[data-theme="light"]`.
+- `wizard.css`, `tokens.css`, `apply-tokens.css`: aligned neutral-450 + light label rules.
+- `docs/DESIGN.md` §11.1 / §11.3 updated with light-theme contrast table + theme-sync rule.
+
+**Before → after (approximate):**
+| Pair | Before | After |
+|------|--------|-------|
+| `--tw-vscode-fg-muted` on white (Light app + dark VS Code host) | ~2.5:1 (wrong dark token) | **≥5.5:1** |
+| `--ink-soft` on `--panel` | ~4.2–4.8:1 variable | **~5.9:1** (`#475569`) |
+| `.pbi-type-btn` inactive + opacity 0.6 | ~2.7:1 effective | **~5.9:1** (no opacity) |
+
+**Build:** `npm run build --prefix webview-ui` ✅
+
+**Files changed:** `tailwind.css`, `styles.css`, `wizard.css`, `tokens.css`, `apply-tokens.css`, `docs/DESIGN.md`
+
+---
+
+## 2026-07-08 — Energy & Positivity Visual Layer (feature/a11y-david-ui-refresh)
+
+**Goal:** More colorful, high-energy, positive vibe — brighter teal, warm violet AI, success green pop, gradient utilities, sidebar teal glow.
+
+**Token updates (`styles.css` + `tailwind.css`):**
+- `--accent` → `#14b8a6` (light + dark energy teal)
+- `--ai-strong` / `--energy-violet` → `#8b5cf6`
+- `--success-energy` / `--energy-success` → `#10b981` (gradients); `--success` stays readable for chip text
+- Gradients: `--gradient-hero`, `--gradient-ai`, `--gradient-kpi-teal|violet|green`
+- Light `--bg` warmer (`#f4f7fb`); body radial peach/cyan/violet wash
+- Sidebar: `--sidebar-active-glow` + box-shadow on active nav
+
+**New utilities (`tailwind.css` @layer components):**
+- `.hero-energy`, `.btn-energy`, `.btn-energy-ai`
+- `.chip-energy` + `-teal|-violet|-green|-warning|-danger`
+- `.kpi-card-energy`, `.kpi-card-energy--active`
+
+**Documentation:** `docs/DESIGN.md` **Section 12** — Energy & Positivity Design Language
+
+**Build:** `npm run build --prefix webview-ui`
+
+**Handoff for Rusty:** Apply utilities per §12.6 checklist; token/class reference in §12.2–12.3.
+
+**Files changed:** `webview-ui/src/styles.css`, `webview-ui/src/styles/tailwind.css`, `docs/DESIGN.md`
+
+---
+
+## 2026-07-08 — Dark epic CTA contrast fix (Livingston P0, feature/a11y-david-ui-refresh)
+
+**Issue:** White (`#ffffff`) on bright epic bg `#2dd4bf` ≈ **1.86:1** — fails WCAG AA for CTA text.
+
+**Fix (`tailwind.css` dark blocks — `:root` + `[data-theme="dark"]`):**
+- `--tw-epic-fg`: `#ffffff` → **`#042f2e`** (teal-950 on `#2dd4bf` — ≥7:1)
+- Light mode unchanged: `--tw-epic: #0f766e`, `--tw-epic-fg: #ffffff` (≥4.5:1)
+
+**DashboardView:** Epic CTAs already use `bg-tw-epic text-tw-epic-fg` — no component change required.
+
+**Token values (final):**
+
+| Token | Dark | Light |
+|-------|------|-------|
+| `--tw-epic` | `#2dd4bf` | `#0f766e` |
+| `--tw-epic-fg` | `#042f2e` | `#ffffff` |
+| `--tw-epic-bg` | `rgba(45,212,191,0.12)` | `rgba(15,118,110,0.10)` |
+| `--tw-epic-border` | `rgba(45,212,191,0.35)` | `rgba(15,118,110,0.35)` |
+
+**Build:** `npm run build --prefix webview-ui`
+
+**Files changed:** `webview-ui/src/styles/tailwind.css`
+
+---
+
+## 2026-07-08 — Phase 2 AI Visual Identity (feature/a11y-david-ui-refresh)
+
+**Goal:** Violet/teal AI shimmer vocabulary, loading bar AI variant, success micro-animation, consistent AI buttons.
+
+**New tokens (`styles.css` light + dark):**
+- `--gradient-ai-shimmer` — panel → violet soft → teal mix → violet glow (animated shimmer)
+- `--gradient-ai-loading` — violet ↔ teal loading bar fill
+
+**Enhanced AI state classes (`styles.css`):**
+1. `.ai-shimmer` — violet/teal gradient shimmer (replaces flat panel sweep)
+2. `.ai-thinking` — dual violet + teal pulse with border
+3. `.ai-success-flash` — violet hint → green celebration → fade
+4. `.ai-badge` — uppercase pill + `::before` ✦ sparkle
+5. `.loading-bar-ai` — modifier on wrap or `.loading-bar-indeterminate` (slide + shimmer)
+6. `.success-pop` — 480ms scale + green glow for task completion
+
+**Button alignment:**
+- `.btn-ai` — now uses `--gradient-ai` (matches `.btn-energy-ai`)
+- `.btn-energy-ai` — mirrored in `styles.css` §12 + updated hover in `tailwind.css`
+
+**Reduced motion:** Explicit static fallbacks for all Phase 2 AI animations in `styles.css`.
+
+**Documentation:** `docs/DESIGN.md` §12.2–12.3 Phase 2 table + examples; §12.6 checklist extended.
+
+**Build:** `npm run build --prefix webview-ui` ✅
+
+**Handoff for Rusty:** Apply classes per §12 Phase 2 table — no new tokens needed.
+
+**Files changed:** `webview-ui/src/styles.css`, `webview-ui/src/styles/tailwind.css`, `docs/DESIGN.md`

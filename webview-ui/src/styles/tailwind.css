@@ -35,21 +35,32 @@
    ALL variables to light-safe values (see below).
    ---------------------------------------------------------------- */
 :root {
-  /* Backgrounds */
+  /* Backgrounds — three-tier elevation: canvas → alt → surface */
   --tw-vscode-bg:        var(--vscode-editor-background, #1e1e1e);
   --tw-vscode-bg-alt:    var(--vscode-sideBar-background, #252526);
-  --tw-vscode-surface:   var(--vscode-editorWidget-background, #252526);
-  --tw-vscode-hover:     var(--vscode-list-hoverBackground, rgba(255,255,255,0.06));
+  --tw-vscode-surface:   var(--vscode-editorWidget-background, #2d2d2d);
+  --tw-vscode-surface-elevated: color-mix(in srgb, var(--tw-vscode-surface) 88%, #ffffff 12%);
+  --tw-vscode-hover:     var(--vscode-list-hoverBackground, rgba(255,255,255,0.08));
   --tw-vscode-selected:  var(--vscode-list-activeSelectionBackground, #094771);
   --tw-vscode-selected-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
 
-  /* Foregrounds */
+  /* Foregrounds — muted boosted toward fg for ≥4.5:1 on surface tokens */
   --tw-vscode-fg:        var(--vscode-editor-foreground, #cccccc);
-  --tw-vscode-fg-muted:  var(--vscode-descriptionForeground, #858585);
-  --tw-vscode-muted:     var(--vscode-descriptionForeground, #999999);
+  --tw-vscode-fg-muted:  color-mix(
+                           in srgb,
+                           var(--vscode-descriptionForeground, #9d9d9d) 70%,
+                           var(--vscode-editor-foreground, #cccccc) 30%
+                         );
+  --tw-vscode-muted:     var(--tw-vscode-fg-muted);
 
-  /* Borders */
-  --tw-vscode-border:    var(--vscode-widget-border, var(--vscode-panel-border, rgba(255,255,255,0.1)));
+  /* Borders — stronger fallbacks for card outlines and dividers (≥3:1 non-text) */
+  --tw-vscode-border:    var(--vscode-widget-border, var(--vscode-panel-border, rgba(255,255,255,0.16)));
+  --tw-vscode-border-strong: color-mix(in srgb, var(--tw-vscode-border) 55%, var(--tw-vscode-fg) 45%);
+
+  /* Elevation shadows — theme-aware depth without hardcoded hex */
+  --tw-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --tw-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --tw-shadow-lg:  0 12px 28px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
   /* Interactive */
   --tw-vscode-accent:        var(--vscode-button-background, #0e639c);
@@ -60,7 +71,11 @@
   --tw-vscode-input-bg:          var(--vscode-input-background, #3c3c3c);
   --tw-vscode-input-fg:          var(--vscode-input-foreground, #cccccc);
   --tw-vscode-input-border:      var(--vscode-input-border, transparent);
-  --tw-vscode-input-placeholder: var(--vscode-input-placeholderForeground, #999999);
+  --tw-vscode-input-placeholder: color-mix(
+                                   in srgb,
+                                   var(--vscode-input-placeholderForeground, #a0a0a0) 75%,
+                                   var(--vscode-editor-foreground, #cccccc) 25%
+                                 );
 
   /* Status foreground colors (from VS Code diagnostic / test icons) */
   --tw-vscode-success: var(--vscode-testing-iconPassed,
@@ -85,35 +100,64 @@
   /* ── Epic tier — teal accent (matches sidebar navigation green) ─ */
   --tw-epic:         #2dd4bf;
   --tw-epic-bg:      rgba(45, 212, 191, 0.12);
-  --tw-epic-fg:      #ffffff;
+  --tw-epic-fg:      #042f2e; /* dark text on bright epic bg — ≥4.5:1 vs #2dd4bf */
   --tw-epic-muted:   rgba(45, 212, 191, 0.25);
   --tw-epic-border:  rgba(45, 212, 191, 0.35);
+
+  /* ── Energy & positivity layer (DESIGN.md §12) ── */
+  --energy-teal:     #14b8a6;
+  --energy-teal-strong: #0d9488;
+  --energy-violet:   #8b5cf6;
+  --energy-violet-strong: #7c3aed;
+  --energy-success:  #10b981;
+  --energy-success-strong: #059669;
+  --gradient-hero: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.16) 0%,
+    rgba(20, 184, 166, 0.14) 50%,
+    rgba(15, 23, 42, 0) 100%
+  );
+  --gradient-ai: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  --gradient-kpi-teal: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+  --gradient-kpi-violet: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+  --gradient-kpi-green: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  --sidebar-active-glow: rgba(20, 184, 166, 0.45);
 }
 
 /* ----------------------------------------------------------------
-   Light theme overrides— ALL bridge variables re-declared with
-   light-safe tokens and fallbacks.  In VS Code light themes:
-   - panel-border can be transparent → use widget-border fallback
-   - sidebar-background can match editor-background → add gray fallback
-   - :root status fg tokens use dark-optimised values → override here
+   Light theme overrides — ALL bridge variables re-declared with
+   light-safe tokens and fallbacks.
+   Triggers: VS Code body class OR ThemeProvider data-theme on <html>.
+   data-theme wins when user picks Light while VS Code host is dark.
    ---------------------------------------------------------------- */
-/* VS Code injects vscode-light/vscode-dark/vscode-high-contrast on <body> */
-body.vscode-light {
-  /* Backgrounds */
+body.vscode-light,
+[data-theme="light"] {
+  /* Backgrounds — surface elevated above canvas for card hierarchy */
   --tw-vscode-bg:          var(--vscode-editor-background, #ffffff);
   --tw-vscode-bg-alt:      var(--vscode-sideBar-background, #f3f3f3);
-  --tw-vscode-surface:     var(--vscode-editorWidget-background, #f3f3f3);
-  --tw-vscode-hover:       var(--vscode-list-hoverBackground, rgba(0,0,0,0.05));
+  --tw-vscode-surface:     var(--vscode-editorWidget-background, #ffffff);
+  --tw-vscode-surface-elevated: var(--vscode-editorWidget-background, #ffffff);
+  --tw-vscode-hover:       var(--vscode-list-hoverBackground, rgba(0,0,0,0.06));
   --tw-vscode-selected:    var(--vscode-list-activeSelectionBackground, #0060c0);
   --tw-vscode-selected-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
 
-  /* Foregrounds */
+  /* Foregrounds — muted pulled toward fg for ≥4.5:1 on white / light gray */
   --tw-vscode-fg:       var(--vscode-editor-foreground, #1e1e1e);
-  --tw-vscode-fg-muted: var(--vscode-descriptionForeground, #717171);
-  --tw-vscode-muted:    var(--vscode-descriptionForeground, #616161);
+  --tw-vscode-fg-muted: color-mix(
+                          in srgb,
+                          var(--vscode-descriptionForeground, #525252) 60%,
+                          var(--vscode-editor-foreground, #1e1e1e) 40%
+                        );
+  --tw-vscode-muted:    var(--tw-vscode-fg-muted);
 
-  /* Borders — widget-border is more reliably visible than panel-border in light themes */
-  --tw-vscode-border: var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4));
+  /* Borders — widget-border preferred; strong variant for emphasis */
+  --tw-vscode-border: var(--vscode-widget-border, var(--vscode-panel-border, #c8c8c8));
+  --tw-vscode-border-strong: color-mix(in srgb, var(--tw-vscode-border) 50%, var(--tw-vscode-fg) 50%);
+
+  /* Elevation shadows — lighter, crisp outlines on white panels */
+  --tw-shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --tw-shadow-md:  0 4px 12px rgba(15, 23, 42, 0.10), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --tw-shadow-lg:  0 12px 28px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.10);
 
   /* Interactive */
   --tw-vscode-accent:        var(--vscode-button-background, #007acc);
@@ -124,7 +168,11 @@ body.vscode-light {
   --tw-vscode-input-bg:          var(--vscode-input-background, #ffffff);
   --tw-vscode-input-fg:          var(--vscode-input-foreground, #1e1e1e);
   --tw-vscode-input-border:      var(--vscode-input-border, #d4d4d4);
-  --tw-vscode-input-placeholder: var(--vscode-input-placeholderForeground, #767676);
+  --tw-vscode-input-placeholder: color-mix(
+                                   in srgb,
+                                   var(--vscode-input-placeholderForeground, #525252) 65%,
+                                   var(--vscode-editor-foreground, #1e1e1e) 35%
+                                 );
 
   /* Status foreground — must override :root defaults (which are dark-theme values).
      Use semantically equivalent tokens with guaranteed AA contrast in light themes. */
@@ -146,15 +194,110 @@ body.vscode-light {
   /* Focus ring */
   --tw-vscode-focus: var(--vscode-focusBorder, #0090f1);
 
-  /* ── Epic tier light overrides — teal-700 = 5:1 on white ✅ */
+  /* ── Epic tier light overrides — teal-700 + white = ≥4.5:1 on buttons ✅ */
   --tw-epic:         #0f766e;
   --tw-epic-bg:      rgba(15, 118, 110, 0.10);
+  --tw-epic-fg:      #ffffff;
   --tw-epic-muted:   #ccfbf1;
   --tw-epic-border:  rgba(15, 118, 110, 0.35);
+
+  /* ── Energy layer — light theme (warm wash, readable text pairs) ── */
+  --energy-teal:     #14b8a6;
+  --energy-teal-strong: #0d9488;
+  --energy-violet:   #8b5cf6;
+  --energy-violet-strong: #7c3aed;
+  --energy-success:  #10b981;
+  --energy-success-strong: #059669;
+  --gradient-hero: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.10) 0%,
+    rgba(20, 184, 166, 0.12) 55%,
+    rgba(255, 237, 213, 0.06) 100%
+  );
+  --gradient-ai: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  --gradient-kpi-teal: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+  --gradient-kpi-violet: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+  --gradient-kpi-green: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  --sidebar-active-glow: rgba(20, 184, 166, 0.35);
+}
+
+/* App-forced dark when VS Code host is light — must follow light block */
+[data-theme="dark"] {
+  --tw-vscode-bg:        var(--vscode-editor-background, #1e1e1e);
+  --tw-vscode-bg-alt:    var(--vscode-sideBar-background, #252526);
+  --tw-vscode-surface:   var(--vscode-editorWidget-background, #2d2d2d);
+  --tw-vscode-surface-elevated: color-mix(in srgb, var(--tw-vscode-surface) 88%, #ffffff 12%);
+  --tw-vscode-hover:     var(--vscode-list-hoverBackground, rgba(255,255,255,0.08));
+  --tw-vscode-selected:  var(--vscode-list-activeSelectionBackground, #094771);
+  --tw-vscode-selected-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+  --tw-vscode-fg:        var(--vscode-editor-foreground, #cccccc);
+  --tw-vscode-fg-muted:  color-mix(
+                           in srgb,
+                           var(--vscode-descriptionForeground, #9d9d9d) 70%,
+                           var(--vscode-editor-foreground, #cccccc) 30%
+                         );
+  --tw-vscode-muted:     var(--tw-vscode-fg-muted);
+  --tw-vscode-border:    var(--vscode-widget-border, var(--vscode-panel-border, rgba(255,255,255,0.16)));
+  --tw-vscode-border-strong: color-mix(in srgb, var(--tw-vscode-border) 55%, var(--tw-vscode-fg) 45%);
+  --tw-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --tw-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --tw-shadow-lg:  0 12px 28px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --tw-vscode-accent:        var(--vscode-button-background, #0e639c);
+  --tw-vscode-accent-fg:     var(--vscode-button-foreground, #ffffff);
+  --tw-vscode-accent-hover:  var(--vscode-button-hoverBackground, #1177bb);
+  --tw-vscode-input-bg:          var(--vscode-input-background, #3c3c3c);
+  --tw-vscode-input-fg:          var(--vscode-input-foreground, #cccccc);
+  --tw-vscode-input-border:      var(--vscode-input-border, transparent);
+  --tw-vscode-input-placeholder: color-mix(
+                                   in srgb,
+                                   var(--vscode-input-placeholderForeground, #a0a0a0) 75%,
+                                   var(--vscode-editor-foreground, #cccccc) 25%
+                                 );
+  --tw-vscode-success: var(--vscode-testing-iconPassed,
+                        var(--vscode-notebookStatusSuccessIcon-foreground, #4caf50));
+  --tw-vscode-warning: var(--vscode-editorWarning-foreground, #ff9800);
+  --tw-vscode-info:    var(--vscode-textLink-foreground, #4fc3f7);
+  --tw-vscode-error:   var(--vscode-editorError-foreground, #f44747);
+  --tw-vscode-success-bg: rgba(78, 201, 176, 0.15);
+  --tw-vscode-warning-bg: rgba(204, 167, 0, 0.15);
+  --tw-vscode-info-bg:    rgba(0, 120, 212, 0.15);
+  --tw-vscode-error-bg:   rgba(244, 71, 71, 0.15);
+  --tw-vscode-badge-bg: var(--vscode-badge-background, #4d4d4d);
+  --tw-vscode-badge-fg: var(--vscode-badge-foreground, #ffffff);
+  --tw-vscode-focus: var(--vscode-focusBorder, #007fd4);
+  --tw-epic:         #2dd4bf;
+  --tw-epic-bg:      rgba(45, 212, 191, 0.12);
+  --tw-epic-fg:      #042f2e; /* dark text on bright epic bg — ≥4.5:1 vs #2dd4bf */
+  --tw-epic-muted:   rgba(45, 212, 191, 0.25);
+  --tw-epic-border:  rgba(45, 212, 191, 0.35);
+  --energy-teal:     #14b8a6;
+  --energy-teal-strong: #2dd4bf;
+  --energy-violet:   #8b5cf6;
+  --energy-violet-strong: #7c3aed;
+  --energy-success:  #10b981;
+  --energy-success-strong: #059669;
+  --gradient-hero: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.16) 0%,
+    rgba(20, 184, 166, 0.14) 50%,
+    rgba(15, 23, 42, 0) 100%
+  );
+  --gradient-ai: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  --gradient-kpi-teal: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+  --gradient-kpi-violet: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+  --gradient-kpi-green: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  --sidebar-active-glow: rgba(20, 184, 166, 0.50);
 }
 
 body.vscode-high-contrast {
-  --tw-vscode-surface:    var(--vscode-editorWidget-background, #000000);
+  --tw-vscode-surface:          var(--vscode-editorWidget-background, #000000);
+  --tw-vscode-surface-elevated: var(--vscode-editorWidget-background, #000000);
+  --tw-vscode-fg-muted:         var(--vscode-descriptionForeground, var(--tw-vscode-fg));
+  --tw-vscode-border:           var(--vscode-contrastBorder, var(--vscode-widget-border, #ffffff));
+  --tw-vscode-border-strong:    var(--vscode-contrastBorder, #ffffff);
+  --tw-shadow-sm:  none;
+  --tw-shadow-md:  none;
+  --tw-shadow-lg:  none;
   --tw-vscode-success-bg: rgba(78, 201, 176, 0.25);
   --tw-vscode-warning-bg: rgba(204, 167, 0, 0.25);
   --tw-vscode-info-bg:    rgba(0, 120, 212, 0.25);
@@ -173,6 +316,13 @@ body {
   font-size: var(--vscode-font-size, 13px);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Light theme: antialiased thins strokes on Windows — labels look blurry/faint */
+html[data-theme="light"] body,
+body.vscode-light {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* Accessible focus — visible ring on all interactive elements */
@@ -223,12 +373,13 @@ a:not(.btn):not([class*="button"]) {
 .badge-partial { background-color: color-mix(in srgb, var(--tw-vscode-warning) 15%, transparent); color: var(--tw-vscode-warning); }
 .badge-ready   { background-color: color-mix(in srgb, var(--tw-vscode-accent) 15%, transparent);  color: var(--tw-vscode-accent); }
 
-/* Card surface */
+/* Card surface — legacy alias; prefer .card-modern for new work */
 .card-surface {
   background-color: var(--tw-vscode-surface);
   border: 1px solid var(--tw-vscode-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 16px;
+  box-shadow: var(--tw-shadow-sm);
 }
 
 /* Accordion item */
@@ -253,3 +404,412 @@ a:not(.btn):not([class*="button"]) {
 }
 .accordion-trigger:hover { background-color: var(--tw-vscode-hover); }
 .accordion-content { padding: 12px; background-color: var(--tw-vscode-bg); }
+
+/* ----------------------------------------------------------------
+   David UI bridge — focus ring utilities (§9.2 in docs/DESIGN.md)
+   Use on david-ai / Tailwind components; defers to --tw-vscode-focus
+   ---------------------------------------------------------------- */
+@layer components {
+  /* ── Rusty-ready: modern elevated card ─────────────────────────────── */
+  .card-modern {
+    background-color: var(--tw-vscode-surface-elevated, var(--tw-vscode-surface));
+    border: 1px solid var(--tw-vscode-border);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--tw-shadow-sm);
+    transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+
+  .card-modern-interactive {
+    cursor: pointer;
+  }
+
+  .card-modern-interactive:hover {
+    border-color: var(--tw-vscode-border-strong);
+    box-shadow: var(--tw-shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .card-modern-interactive:focus-visible {
+    outline: 2px solid var(--tw-vscode-focus);
+    outline-offset: 2px;
+  }
+
+  /* ── Rusty-ready: primary button (bridge + legacy compatible) ────── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background-color: var(--tw-vscode-accent);
+    color: var(--tw-vscode-accent-fg);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--tw-shadow-sm);
+    transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--tw-vscode-accent-hover);
+    box-shadow: var(--tw-shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--tw-shadow-sm);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--tw-vscode-focus);
+    outline-offset: 2px;
+  }
+
+  /* Secondary / outline variant */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--tw-vscode-border-strong);
+    background-color: transparent;
+    color: var(--tw-vscode-fg);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--tw-vscode-hover);
+    border-color: var(--tw-vscode-border-strong);
+  }
+
+  .btn-secondary:focus-visible {
+    outline: 2px solid var(--tw-vscode-focus);
+    outline-offset: 2px;
+  }
+
+  /* High-contrast helper / metadata text */
+  .text-contrast-muted {
+    color: var(--tw-vscode-fg-muted);
+  }
+
+  .text-contrast-subtle {
+    color: color-mix(in srgb, var(--tw-vscode-fg-muted) 70%, var(--tw-vscode-fg) 30%);
+  }
+
+  /* Light theme labels — semibold + token color (no opacity fade) */
+  html[data-theme="light"] .kpi-card-label,
+  html[data-theme="light"] .text-contrast-muted,
+  body.vscode-light .kpi-card-label,
+  body.vscode-light .text-contrast-muted {
+    font-weight: 600;
+    color: var(--tw-vscode-fg-muted);
+  }
+
+  /* KPI cards — gradient accent bar (DESIGN.md §3.6) */
+  .kpi-card {
+    position: relative;
+    overflow: hidden;
+    padding: 20px 16px 16px;
+  }
+
+  .kpi-card-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .kpi-card-label {
+    margin: 0 0 4px;
+  }
+
+  .kpi-card-value {
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .kpi-card-hint {
+    margin: 4px 0 0;
+  }
+
+  .hover-lift {
+    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+  }
+
+  .hover-lift:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--tw-shadow-md);
+  }
+
+  /* ── Energy & positivity utilities (DESIGN.md §12) ─────────────── */
+
+  /* Hero band — dashboard / PBI Studio welcome areas */
+  .hero-energy {
+    position: relative;
+    overflow: hidden;
+    padding: 24px 32px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--energy-teal) 22%, transparent);
+    background: var(--gradient-hero);
+    box-shadow: var(--tw-shadow-sm);
+  }
+
+  .hero-energy::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 70% 55% at 15% 0%,
+      color-mix(in srgb, var(--energy-teal) 12%, transparent) 0%,
+      transparent 68%
+    );
+    pointer-events: none;
+  }
+
+  .hero-energy > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Primary CTA — teal gradient with hover lift + glow */
+  .btn-energy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--gradient-kpi-teal);
+    color: #ecfeff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--tw-shadow-sm);
+    transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out;
+  }
+
+  .btn-energy:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--tw-shadow-md), 0 6px 20px color-mix(in srgb, var(--energy-teal) 35%, transparent);
+    filter: brightness(1.05);
+  }
+
+  .btn-energy:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--tw-shadow-sm);
+  }
+
+  .btn-energy:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-energy:focus-visible {
+    outline: 2px solid var(--tw-vscode-focus);
+    outline-offset: 2px;
+  }
+
+  .btn-energy.btn-sm {
+    min-height: 32px;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  /* AI variant — violet gradient CTA (aligned with .btn-ai) */
+  .btn-energy-ai {
+    background: var(--gradient-ai);
+    color: #f5f3ff;
+    border-color: transparent;
+  }
+
+  .btn-energy-ai:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--energy-violet) 0%, #9f7aea 100%);
+    box-shadow: var(--tw-shadow-md), 0 6px 20px color-mix(in srgb, var(--energy-violet) 40%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .btn-energy-ai:focus-visible {
+    outline: 2px solid var(--tw-vscode-focus);
+    outline-offset: 2px;
+  }
+
+  .btn-energy-ai:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  /* Colorful status chips — text always on soft bg (≥4.5:1) */
+  .chip-energy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  }
+
+  .chip-energy:hover {
+    transform: translateY(-1px);
+  }
+
+  .chip-energy-teal {
+    background: color-mix(in srgb, var(--energy-teal) 14%, transparent);
+    color: var(--energy-teal-strong, #0d9488);
+    border-color: color-mix(in srgb, var(--energy-teal) 35%, transparent);
+  }
+
+  .chip-energy-violet {
+    background: color-mix(in srgb, var(--energy-violet) 14%, transparent);
+    color: var(--energy-violet-strong, #6d28d9);
+    border-color: color-mix(in srgb, var(--energy-violet) 35%, transparent);
+  }
+
+  .chip-energy-green {
+    background: color-mix(in srgb, var(--energy-success) 14%, transparent);
+    color: var(--energy-success-strong, #059669);
+    border-color: color-mix(in srgb, var(--energy-success) 35%, transparent);
+  }
+
+  .chip-energy-warning {
+    background: var(--tw-vscode-warning-bg);
+    color: var(--tw-vscode-warning);
+    border-color: color-mix(in srgb, var(--tw-vscode-warning) 40%, transparent);
+  }
+
+  .chip-energy-danger {
+    background: var(--tw-vscode-error-bg);
+    color: var(--tw-vscode-error);
+    border-color: color-mix(in srgb, var(--tw-vscode-error) 40%, transparent);
+  }
+
+  html[data-theme="dark"] .chip-energy-teal,
+  [data-theme="dark"] .chip-energy-teal {
+    color: #5eead4;
+  }
+
+  html[data-theme="dark"] .chip-energy-violet,
+  [data-theme="dark"] .chip-energy-violet {
+    color: #c4b5fd;
+  }
+
+  html[data-theme="dark"] .chip-energy-green,
+  [data-theme="dark"] .chip-energy-green {
+    color: #6ee7b7;
+  }
+
+  /* Vibrant KPI cards — gradient top bar + hover lift */
+  .kpi-card-energy {
+    position: relative;
+    overflow: hidden;
+    padding: 20px 16px 16px;
+    border-radius: 8px;
+    background-color: var(--tw-vscode-surface-elevated, var(--tw-vscode-surface));
+    border: 1px solid var(--tw-vscode-border);
+    box-shadow: var(--tw-shadow-sm);
+    transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
+  }
+
+  .kpi-card-energy:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tw-shadow-md);
+    border-color: var(--tw-vscode-border-strong);
+  }
+
+  .kpi-card-energy .kpi-card-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+  }
+
+  .kpi-card-energy[data-accent="teal"] .kpi-card-accent {
+    background: var(--gradient-kpi-teal);
+  }
+
+  .kpi-card-energy[data-accent="violet"] .kpi-card-accent {
+    background: var(--gradient-kpi-violet);
+  }
+
+  .kpi-card-energy[data-accent="green"] .kpi-card-accent {
+    background: var(--gradient-kpi-green);
+  }
+
+  .kpi-card-energy[data-accent="neutral"] .kpi-card-accent {
+    background: linear-gradient(
+      90deg,
+      var(--tw-vscode-border) 0%,
+      var(--tw-vscode-border-strong) 100%
+    );
+  }
+
+  .kpi-card-energy.kpi-card-energy--active[data-accent="teal"] {
+    box-shadow: var(--tw-shadow-sm), 0 0 0 1px color-mix(in srgb, var(--energy-teal) 25%, transparent);
+  }
+
+  .kpi-card-energy.kpi-card-energy--active[data-accent="violet"] {
+    box-shadow: var(--tw-shadow-sm), 0 0 0 1px color-mix(in srgb, var(--energy-violet) 25%, transparent);
+  }
+
+  .kpi-card-energy.kpi-card-energy--active[data-accent="green"] {
+    box-shadow: var(--tw-shadow-sm), 0 0 0 1px color-mix(in srgb, var(--energy-success) 25%, transparent);
+  }
+}
+
+@layer utilities {
+  .shadow-tw-sm { box-shadow: var(--tw-shadow-sm); }
+  .shadow-tw-md { box-shadow: var(--tw-shadow-md); }
+  .shadow-tw-lg { box-shadow: var(--tw-shadow-lg); }
+
+  .border-tw-strong { border-color: var(--tw-vscode-border-strong); }
+
+  .bg-tw-surface-elevated {
+    background-color: var(--tw-vscode-surface-elevated, var(--tw-vscode-surface));
+  }
+
+  .focus-tw-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tw-focus focus-visible:ring-offset-2 focus-visible:ring-offset-tw-bg;
+  }
+
+  .focus-tw-ring-accent {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tw-focus focus-visible:ring-offset-2 focus-visible:ring-offset-tw-accent;
+  }
+
+  .focus-tw-ring-inset {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-tw-focus;
+  }
+
+  .focus-tw-ring-surface {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tw-focus focus-visible:ring-offset-2 focus-visible:ring-offset-tw-surface;
+  }
+
+  /* Contrast-safe focus — visible on both light and dark VS Code themes */
+  .focus-contrast {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tw-focus focus-visible:ring-offset-2;
+  }
+}

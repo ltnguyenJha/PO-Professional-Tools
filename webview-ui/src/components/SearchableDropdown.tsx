@@ -112,7 +112,7 @@ export function SearchableDropdown({
 
   return (
     <label className="field">
-      {label}
+      <span className="field-label">{label}</span>
       {showFallback ? (
         <>
           <input

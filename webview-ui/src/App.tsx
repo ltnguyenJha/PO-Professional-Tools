@@ -123,7 +123,7 @@ export function App(): JSX.Element {
           setConnectionResult(message.payload);
           return;
         case 'FEATURE_DRAFT_CREATED':
-          pushToast({ level: 'success', message: 'Feature draft created.' });
+          pushToast({ level: 'success', message: 'Nailed it! Feature draft ready to edit.' });
           return;
         case 'FEATURE_DRAFT_UPDATED':
           return;
@@ -236,7 +236,7 @@ export function App(): JSX.Element {
   }, [view]);
 
   return (
-    <div className="app">
+    <div className="app min-h-screen bg-tw-bg text-tw-fg">
       <ThemeEffect theme={state.uiSettings.theme} />
 
       <Sidebar
@@ -246,7 +246,7 @@ export function App(): JSX.Element {
         onThemeChange={onThemeChange}
       />
 
-      <div className="main">
+      <div className="main min-w-0 flex flex-col">
         <Topbar title={header.title} subtitle={header.subtitle} actions={header.actions} />
 
         {view === 'dashboard' && (
@@ -318,7 +318,12 @@ export function App(): JSX.Element {
 
       <div className="toast-stack" role="status" aria-live="polite">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast-item level-${toast.level}`}>
+          <div
+            key={toast.id}
+            className={`toast-item level-${toast.level}${toast.level === 'success' ? ' success-pop' : ''}`}
+            role={toast.level === 'error' ? 'alert' : 'status'}
+            aria-live={toast.level === 'error' ? 'assertive' : 'polite'}
+          >
             {toast.message}
           </div>
         ))}
