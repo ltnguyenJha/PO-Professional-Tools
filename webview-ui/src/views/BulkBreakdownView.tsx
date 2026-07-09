@@ -10,6 +10,7 @@ import type {
   WebviewRequest
 } from '../types';
 import { AiLoadingBar, LoadingBar } from '../components/LoadingBar';
+import { DavidTabs } from '../components/david';
 import { WORK_ITEM_TYPES } from '../types';
 
 type Mode = 'manual' | 'ai' | 'scan';
@@ -43,10 +44,17 @@ export function BulkBreakdownView({
       : 'Syncing with Azure DevOps…';
 
   const [mode, setMode] = useState<Mode>('manual');
+  const [progressPanelOpen, setProgressPanelOpen] = useState(true);
   const [prefix, setPrefix] = useState('PAL Guest Payment');
   const [separator, setSeparator] = useState(' - ');
   const [projectId, setProjectId] = useState<string>(linkTargets[0]?.id ?? '');
   const [iteration, setIteration] = useState<string>(adoSettings?.iterationPath ?? '');
+
+  useEffect(() => {
+    if (bulkAdoBusy) {
+      setProgressPanelOpen(true);
+    }
+  }, [bulkAdoBusy]);
 
   useEffect(() => {
     if (linkTargets.length === 0) {
@@ -170,18 +178,100 @@ export function BulkBreakdownView({
     });
   };
 
+  const manualTab = (
+    <label className="field">
+      One child suffix per line
+      <textarea rows={6} value={manualText} onChange={(e) => setManualText(e.target.value)} />
+    </label>
+  );
+
+  const aiTab = (
+    <>
+      <label className="field">
+        Feature description (be specific — personas, constraints, channels)
+        <textarea
+          rows={5}
+          placeholder="Who is affected, what problem is solved, boundaries (in/out of scope), compliance or reporting needs, and happy vs edge paths."
+          value={aiDescription}
+          onChange={(e) => setAiDescription(e.target.value)}
+        />
+      </label>
+      <label className="field">
+        Suggested child count
+        <input
+          type="number"
+          min={2}
+          max={15}
+          value={aiCount}
+          onChange={(e) => setAiCount(Number(e.target.value) || 5)}
+        />
+      </label>
+      <div className="action-row">
+        <button
+          type="button"
+          className="btn btn-energy btn-energy-ai focus-tw-ring"
+          disabled={aiBusy || bulkAdoBusy}
+          onClick={requestAi}
+        >
+          {aiBusy ? 'Asking Copilot...' : '✨ Suggest breakdown with AI'}
+        </button>
+        {children.length > 0 && (
+          <button className="btn btn-ghost" onClick={() => setChildren([])}>
+            Clear AI results
+          </button>
+        )}
+      </div>
+      {children.length > 0 && (
+        <div className="bulk-preview">
+          {children.map((child, index) => (
+            <div className="preview-item" key={`${child.suffix}-${index}`}>
+              <input
+                style={{ flex: 1 }}
+                value={child.suffix}
+                onChange={(e) => {
+                  const next = children.slice();
+                  next[index] = { ...child, suffix: e.target.value };
+                  setChildren(next);
+                }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setChildren(children.filter((_, i) => i !== index))}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const scanTab = (
+    <>
+      {!scanProject && <p className="hint">Pick a project above to pull children from its scan.</p>}
+      {scanProject && scanChildren.length === 0 && (
+        <p className="hint">No scan data for {scanProject.name}. Run a scan in Projects first.</p>
+      )}
+      {scanChildren.length > 0 && (
+        <div className="bulk-preview">
+          {scanChildren.map((child, index) => (
+            <div className="preview-item" key={`${child.suffix}-${index}`}>
+              <span>{child.suffix}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="content">
       {aiBusy && (
         <AiLoadingBar
-          label="Asking Copilot for breakdown…"
+          label="✨ AI is breaking this down…"
           ariaLabel="AI is suggesting child work items"
         />
-      )}
-      {bulkAdoBusy && (
-        <div className="bulk-ado-banner">
-          <LoadingBar label={bulkAdoLabel} ariaLabel={`Azure DevOps: ${bulkAdoLabel}`} />
-        </div>
       )}
       {linkTargets.length === 0 && (
         <p className="hint card" style={{ marginBottom: 12 }}>
@@ -227,10 +317,7 @@ export function BulkBreakdownView({
           <label className="field">
             Iteration
             {adoSettings?.iterationPath ? (
-              <select
-                value={iteration}
-                onChange={(e) => setIteration(e.target.value)}
-              >
+              <select value={iteration} onChange={(e) => setIteration(e.target.value)}>
                 <option value="">Select iteration...</option>
                 {[
                   adoSettings.iterationPath,
@@ -292,7 +379,10 @@ export function BulkBreakdownView({
         )}
       </section>
 
-      <section className={`card${mode === 'ai' ? ' ai-section' : ''}`}>
+      <section
+        className={`card ai-section${mode === 'ai' && aiBusy ? ' ai-thinking' : ''}`}
+        aria-busy={mode === 'ai' && aiBusy ? true : undefined}
+      >
         <div className="card-header">
           <h3>
             {mode === 'ai' ? (
@@ -303,113 +393,17 @@ export function BulkBreakdownView({
               'Children'
             )}
           </h3>
-          <div className="tabs">
-            <button aria-pressed={mode === 'manual'} onClick={() => setMode('manual')}>
-              Manual
-            </button>
-            <button aria-pressed={mode === 'ai'} onClick={() => setMode('ai')}>
-              AI-assisted
-            </button>
-            <button aria-pressed={mode === 'scan'} onClick={() => setMode('scan')}>
-              From scan
-            </button>
-          </div>
         </div>
 
-        {mode === 'manual' && (
-          <label className="field">
-            One child suffix per line
-            <textarea
-              rows={6}
-              value={manualText}
-              onChange={(e) => setManualText(e.target.value)}
-            />
-          </label>
-        )}
-
-        {mode === 'ai' && (
-          <>
-            <label className="field">
-              Feature description (be specific — personas, constraints, channels)
-              <textarea
-                rows={5}
-                placeholder="Who is affected, what problem is solved, boundaries (in/out of scope), compliance or reporting needs, and happy vs edge paths."
-                value={aiDescription}
-                onChange={(e) => setAiDescription(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              Suggested child count
-              <input
-                type="number"
-                min={2}
-                max={15}
-                value={aiCount}
-                onChange={(e) => setAiCount(Number(e.target.value) || 5)}
-              />
-            </label>
-            <div className="action-row">
-              <button
-                type="button"
-                className="btn btn-energy btn-energy-ai focus-tw-ring"
-                disabled={aiBusy || bulkAdoBusy}
-                onClick={requestAi}
-              >
-                {aiBusy ? 'Asking Copilot...' : '✨ Suggest breakdown with AI'}
-              </button>
-              {children.length > 0 && (
-                <button className="btn btn-ghost" onClick={() => setChildren([])}>
-                  Clear AI results
-                </button>
-              )}
-            </div>
-            {children.length > 0 && (
-              <div className="bulk-preview">
-                {children.map((child, index) => (
-                  <div className="preview-item" key={`${child.suffix}-${index}`}>
-                    <input
-                      style={{ flex: 1 }}
-                      value={child.suffix}
-                      onChange={(e) => {
-                        const next = children.slice();
-                        next[index] = { ...child, suffix: e.target.value };
-                        setChildren(next);
-                      }}
-                    />
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setChildren(children.filter((_, i) => i !== index))}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {mode === 'scan' && (
-          <>
-            {!scanProject && (
-              <p className="hint">Pick a project above to pull children from its scan.</p>
-            )}
-            {scanProject && scanChildren.length === 0 && (
-              <p className="hint">
-                No scan data for {scanProject.name}. Run a scan in Projects first.
-              </p>
-            )}
-            {scanChildren.length > 0 && (
-              <div className="bulk-preview">
-                {scanChildren.map((child, index) => (
-                  <div className="preview-item" key={`${child.suffix}-${index}`}>
-                    <span>{child.suffix}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        <DavidTabs
+          defaultTabId={mode}
+          onTabChange={(tabId) => setMode(tabId as Mode)}
+          tabs={[
+            { id: 'manual', label: 'Manual', content: manualTab },
+            { id: 'ai', label: 'AI-assisted', content: aiTab },
+            { id: 'scan', label: 'From scan', content: scanTab }
+          ]}
+        />
       </section>
 
       <section className="card">
@@ -452,6 +446,33 @@ export function BulkBreakdownView({
           push to ADO" saves them, creates a parent (if selected), and links children under it.
         </p>
       </section>
+
+      {bulkAdoBusy && (
+        <div
+          className={`bulk-progress-panel${progressPanelOpen ? '' : ' bulk-progress-panel--collapsed'}`}
+          role="region"
+          aria-label="Azure DevOps push progress"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <button
+            type="button"
+            className="bulk-progress-panel-header focus-tw-ring-inset"
+            aria-expanded={progressPanelOpen}
+            onClick={() => setProgressPanelOpen((open) => !open)}
+          >
+            <span>Pushing to ADO… {bulkAdoLabel}</span>
+            <span className="bulk-progress-panel-chevron" aria-hidden="true">
+              {progressPanelOpen ? '▾' : '▴'}
+            </span>
+          </button>
+          {progressPanelOpen && (
+            <div className="bulk-progress-panel-body">
+              <LoadingBar label={bulkAdoLabel} ariaLabel={`Azure DevOps: ${bulkAdoLabel}`} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

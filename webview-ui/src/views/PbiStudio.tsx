@@ -17,6 +17,7 @@ import { FeatureWizard } from '../components/FeatureWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
 import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
 import { DavidCollapse } from '../components/david';
+import { RefineChatPanel } from '../components/RefineChatPanel';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -57,7 +58,6 @@ export function PbiStudio({
   const linkTargets = linkTargetsState ?? projects;
   const [activeId, setActiveId] = useState<string | undefined>(pbiDrafts[0]?.id);
   const [working, setWorking] = useState<PbiDraft | undefined>(undefined);
-  const [aiInstruction, setAiInstruction] = useState('');
   const [pastedAi, setPastedAi] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [editCardFlash, setEditCardFlash] = useState(false);
@@ -82,7 +82,6 @@ export function PbiStudio({
   const [pbiType, setPbiType] = useState<'feature' | 'bug'>('feature');
   // Collapsible section state — hidden demo sections only
   const [openFullStory, setOpenFullStory] = useState(false);
-  const [openRefineAI, setOpenRefineAI] = useState(false);
   const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false);
 
   useEffect(() => {
@@ -128,7 +127,6 @@ export function PbiStudio({
       }
       setWorking(next);
     }
-    setAiInstruction('');
     setPastedAi('');
     setFullStorySeed('');
     lastClipboardApplyHash.current = '';
@@ -364,11 +362,11 @@ export function PbiStudio({
     window.setTimeout(() => setAutoApplyNotice(''), 4000);
   };
 
-  const refine = (): void => {
+  const refine = (instruction: string): void => {
     if (active) {
       send({
         type: 'REFINE_PBI_WITH_AI',
-        payload: { draftId: active.id, instruction: aiInstruction || undefined }
+        payload: { draftId: active.id, instruction: instruction.trim() || undefined }
       });
     }
   };
@@ -863,7 +861,7 @@ export function PbiStudio({
               )}{/* end hidden: Generate full story in-panel */}
 
               <DavidCollapse
-                className="ai-section"
+                className={`ai-section${aiBusy ? ' ai-thinking' : ''}`}
                 title={
                   <h3 style={{ margin: 0 }}>
                     ✨ Copilot Chat <span className="ai-badge">AI</span>
@@ -907,6 +905,92 @@ export function PbiStudio({
                   >
                     Refine in Copilot Chat
                   </button>
+                </div>
+              </DavidCollapse>
+
+              <DavidCollapse
+                defaultOpen
+                className={`ai-section${aiBusy ? ' ai-thinking' : ''}`}
+                title={
+                  <h3 style={{ margin: 0 }}>
+                    Collaborate with AI ✨ <span className="ai-badge">AI</span>
+                  </h3>
+                }
+                trailing={
+                  aiBusy ? (
+                    <span className="chip info" aria-live="polite">
+                      Collaborating with AI…
+                    </span>
+                  ) : null
+                }
+              >
+                <p className="card-subtitle text-contrast-muted">
+                  Runs Copilot inside the extension. Chat to refine your draft, or use quick pills for
+                  common improvements — review each field before applying.
+                </p>
+                <RefineChatPanel
+                  key={active.id}
+                  busy={aiBusy}
+                  onRefine={refine}
+                  completionMessage="Looking good! I've prepared an updated draft — review the suggestion below."
+                />
+
+                {suggestion ? renderSuggestionReview(suggestion!) : null}
+
+                <div className="apply-ai-box">
+                  <div className="card-header" style={{ padding: 0, marginBottom: 6 }}>
+                    <strong>Apply JSON from Copilot Chat</strong>
+                  </div>
+                  <p className="hint text-contrast-muted" style={{ marginTop: 0 }}>
+                    When <strong>Auto-apply</strong> is on, pasting Copilot&apos;s reply or returning to
+                    this tab after copying JSON will merge title, description, acceptance criteria, and
+                    tests into the selected item. Extra text (e.g. &quot;GitHub&quot; or link junk) is
+                    ignored when possible.
+                  </p>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      fontSize: '0.88rem',
+                      marginBottom: 8
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={autoApplyEnabled}
+                      onChange={(e) => persistAutoApply(e.target.checked)}
+                    />
+                    Auto-apply JSON from paste and when this panel gets focus (uses clipboard)
+                  </label>
+                  {autoApplyNotice && (
+                    <div className="pushed-banner" style={{ marginBottom: 8 }}>
+                      {autoApplyNotice}
+                    </div>
+                  )}
+                  <span className="hint text-contrast-muted">Or paste below and click Apply JSON</span>
+                  <textarea
+                    value={pastedAi}
+                    placeholder={
+                      '{\n  "title": "Optional better title",\n  "description": "...",\n  "acceptanceCriteria": ["..."],\n  "testScenarios": ["..."]\n}'
+                    }
+                    onChange={(e) => setPastedAi(e.target.value)}
+                    onPaste={onPasteApplyBox}
+                    rows={6}
+                  />
+                  <div className="action-row">
+                    <button
+                      className="btn btn-sm"
+                      disabled={!pastedAi.trim()}
+                      onClick={applyPastedAi}
+                    >
+                      Apply JSON
+                    </button>
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={importFromClipboard}>
+                      Import from clipboard
+                    </button>
+                  </div>
                 </div>
               </DavidCollapse>
 
@@ -1152,96 +1236,6 @@ export function PbiStudio({
                   </div>
                 </div>
               </DavidCollapse>
-
-              {/* Hidden for demo — re-enable when ready (issue #42) */}
-              {false && (
-              <article className="card card-modern ai-section">
-                <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
-                  <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info">Working...</span>}
-                    <span className={`section-chevron ${openRefineAI ? 'open' : ''}`}>▾</span>
-                  </div>
-                </div>
-                <div className={`section-body ${openRefineAI ? '' : 'collapsed'}`}>
-                <p className="card-subtitle text-contrast-muted">
-                  Runs Copilot inside the extension. Review each field before applying.
-                </p>
-                <label className="field">
-                  PO notes for refinement (optional — prioritized when filled)
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. compliance must mention NACHA; mobile-first; keep scope to guest pay only"
-                    value={aiInstruction}
-                    onChange={(e) => setAiInstruction(e.target.value)}
-                  />
-                </label>
-                <div className="action-row">
-                  <button className="btn btn-primary" disabled={aiBusy} onClick={refine}>
-                    Refine with AI
-                  </button>
-                </div>
-
-                {suggestion ? renderSuggestionReview(suggestion!) : null}
-
-                <div className="apply-ai-box">
-                  <div className="card-header" style={{ padding: 0, marginBottom: 6 }}>
-                    <strong>Apply JSON from Copilot Chat</strong>
-                  </div>
-                  <p className="hint text-contrast-muted" style={{ marginTop: 0 }}>
-                    When <strong>Auto-apply</strong> is on, pasting Copilot&apos;s reply or returning to
-                    this tab after copying JSON will merge title, description, acceptance criteria, and
-                    tests into the selected item. Extra text (e.g. &quot;GitHub&quot; or link junk) is
-                    ignored when possible.
-                  </p>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      cursor: 'pointer',
-                      fontSize: '0.88rem',
-                      marginBottom: 8
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={autoApplyEnabled}
-                      onChange={(e) => persistAutoApply(e.target.checked)}
-                    />
-                    Auto-apply JSON from paste and when this panel gets focus (uses clipboard)
-                  </label>
-                  {autoApplyNotice && (
-                    <div className="pushed-banner" style={{ marginBottom: 8 }}>
-                      {autoApplyNotice}
-                    </div>
-                  )}
-                  <span className="hint text-contrast-muted">Or paste below and click Apply JSON</span>
-                  <textarea
-                    value={pastedAi}
-                    placeholder={
-                      '{\n  "title": "Optional better title",\n  "description": "...",\n  "acceptanceCriteria": ["..."],\n  "testScenarios": ["..."]\n}'
-                    }
-                    onChange={(e) => setPastedAi(e.target.value)}
-                    onPaste={onPasteApplyBox}
-                    rows={6}
-                  />
-                  <div className="action-row">
-                    <button
-                      className="btn btn-sm"
-                      disabled={!pastedAi.trim()}
-                      onClick={applyPastedAi}
-                    >
-                      Apply JSON
-                    </button>
-                    <button className="btn btn-ghost btn-sm" type="button" onClick={importFromClipboard}>
-                      Import from clipboard
-                    </button>
-                  </div>
-                </div>
-                </div>{/* end section-body */}
-              </article>
-              )}{/* end hidden: Refine with AI (in panel) */}
             </>
           )}
         </section>

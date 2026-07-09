@@ -378,3 +378,25 @@ All patterns documented in Rusty's decision entry for team reference.
 **Handoff for Rusty:** Apply classes per §12 Phase 2 table — no new tokens needed.
 
 **Files changed:** `webview-ui/src/styles.css`, `webview-ui/src/styles/tailwind.css`, `docs/DESIGN.md`
+
+---
+
+## 2026-07-08 — Phase 3 Conversational Refine UI (feature/a11y-david-ui-refresh)
+
+**Goal:** Chat-like Refine-with-AI visual vocabulary — teal user bubbles, violet AI bubbles, quick-refinement pills, non-blocking bulk ADO push panel.
+
+**New component classes (`styles.css` §12 + `tailwind.css` `@layer components`):**
+1. `.refine-chat` — scrollable message column (`max-height: min(420px, 50vh)`)
+2. `.refine-bubble-user` — right-aligned teal speech bubble (asymmetric radius, tail bottom-right)
+3. `.refine-bubble-ai` — left-aligned violet speech bubble (tail bottom-left); pair with `.ai-thinking` in-flight
+4. `.refine-pills` — horizontal wrap/scroll chip row
+5. `.refine-pill` — violet outline pill button (32px min-height, hover lift)
+6. `.bulk-progress-panel` — sticky bottom panel; `aria-expanded="false"` collapses to 44px header
+
+**Documentation:** `docs/DESIGN.md` **§12.8** — bubble dimension table, pill copy examples, bulk panel markup, Refine section shell example; §12.6 checklist extended.
+
+**Build:** `npm run build --prefix webview-ui` ✅
+
+**Handoff for Rusty:** Six class names below — wire in `PbiStudio.tsx` Refine section per §12.8 example. Child hooks: `.bulk-progress-panel__header`, `.bulk-progress-panel__body` (panel collapse only).
+
+**Files changed:** `webview-ui/src/styles.css`, `webview-ui/src/styles/tailwind.css`, `docs/DESIGN.md`

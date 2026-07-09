@@ -3,7 +3,7 @@
 **Authors:** Tess (UX Designer), Saul (UI Designer)  
 **Status:** Living Document  
 **Last Updated:** 2026-07-08  
-**Purpose:** Guide the UI/UX refresh to make the extension feel warm, delightful, and energizing while maintaining accessibility and VS Code consistency. Sections 6–8: UX/a11y (Tess). Section 9: visual tokens & david-ai bridge (Saul). Section 10: responsive layout & text hierarchy (Tess). Section 11: modern UI + contrast token standards (Saul). Section 13: information architecture & flow logic (Tess).
+**Purpose:** Guide the UI/UX refresh to make the extension feel warm, delightful, and energizing while maintaining accessibility and VS Code consistency. Sections 6–8: UX/a11y (Tess). Section 9: visual tokens & david-ai bridge (Saul). Section 10: responsive layout & text hierarchy (Tess). Section 11: modern UI + contrast token standards (Saul). Section 13: information architecture & flow logic (Tess). Section 14: Phase 3 conversational UX (Tess).
 
 ---
 
@@ -1692,12 +1692,122 @@ On manual task complete (push): `ref.current?.classList.add('success-pop')` then
 - [ ] **Phase 2:** Use `AiLoadingBar` / `variant="ai"` on AI generation progress (not ADO sync)
 - [ ] **Phase 2:** Add `.ai-badge` on AI-generated field labels
 - [ ] **Phase 2:** Trigger `.success-pop` on push/save completion
+- [ ] **Phase 3:** Wire `.refine-chat` + bubble classes on Refine-with-AI history (§12.8)
+- [ ] **Phase 3:** Add `.refine-pills` / `.refine-pill` quick-refinement row
+- [ ] **Phase 3:** Use `.bulk-progress-panel` for multi-item ADO push (collapsible, non-blocking)
 - [ ] Verify light + dark + high-contrast at 320px / 700px
 - [ ] No hardcoded david purple/teal — use CSS variables above
 
 ### 12.7 AI Success Toast Pattern
 
 Success toasts use `level-success` + `.success-pop` (brief scale + green glow). Copy follows §2.2.1 — upbeat verb first ("Nailed it!", "Nice work!", "Great job!"), then outcome + optional next step. Avoid past-tense-only labels ("Feature draft created.").
+
+### 12.8 Phase 3 — Conversational Refine UI (Saul)
+
+**Owner:** Saul · **Implement:** Rusty (`PbiStudio.tsx` Refine section)  
+**Branch:** `feature/a11y-david-ui-refresh`  
+**Purpose:** Chat-like co-creation for "Refine with AI" — user prompts as teal bubbles, AI replies as violet bubbles, quick-refinement pills, and a non-blocking bulk ADO push panel.
+
+Defined in `webview-ui/src/styles.css` and `webview-ui/src/styles/tailwind.css` `@layer components`.
+
+#### Utility classes (Rusty-ready)
+
+| Class | Purpose | Pair with |
+|-------|---------|-----------|
+| `.refine-chat` | Scrollable message column (history) | `.refine-bubble-user` + `.refine-bubble-ai` |
+| `.refine-bubble-user` | Right-aligned user prompt bubble (teal) | `role="listitem"` inside chat `role="log"` |
+| `.refine-bubble-ai` | Left-aligned AI response bubble (violet) | `.ai-thinking` while in-flight |
+| `.refine-pills` | Horizontal wrap/scroll row of quick actions | `.refine-pill` children |
+| `.refine-pill` | Clickable refinement chip button | `type="button"`, `disabled` when `aiBusy` |
+| `.bulk-progress-panel` | Sticky bottom panel for bulk ADO push | `aria-expanded`, `.loading-bar-wrap` in body |
+
+#### Chat bubble specs
+
+| Property | `.refine-bubble-user` | `.refine-bubble-ai` |
+|----------|----------------------|---------------------|
+| Alignment | `align-self: flex-end` (right) | `align-self: flex-start` (left) |
+| Max width | `min(85%, 420px)` | `min(85%, 420px)` |
+| Background | Teal soft gradient (`--accent-soft` → accent mix) | Violet soft gradient (`--ai-soft` → ai mix) |
+| Border | `1px` accent at 32% mix | `1px` ai at 28% mix |
+| Text color | `--accent-ink` (light) · `#5eead4` (dark) | `--ink` / `--tw-vscode-fg` |
+| Border radius | `10px 10px 6px 10px` (tail bottom-right) | `10px 10px 10px 6px` (tail bottom-left) |
+| Padding | `8px 12px` | `8px 12px` |
+| Type | `14px` / `line-height: 1.5` | same |
+
+**Tail corner:** Asymmetric radius signals speech-bubble direction without SVG tails. User bubble tail points right; AI bubble tail points left.
+
+**In-flight AI bubble:** Add `.ai-thinking` to the pending `.refine-bubble-ai` placeholder (typing indicator lives inside the bubble).
+
+**Contrast:** Bubble backgrounds are soft fills only — never gradient text. Validated pairs match §12.4 (`#0f766e` on teal soft, `#c4b5fd` pill text in dark).
+
+#### Quick refinement pills
+
+| Property | Value |
+|----------|-------|
+| Row | `.refine-pills` — `flex-wrap` + horizontal scroll on narrow widths |
+| Chip min height | `32px` (compact; send CTA stays `.btn-energy-ai` at 44px) |
+| Default copy (examples) | "Make more technical" · "Add acceptance criteria" · "Shorten description" · "Add accessibility notes" |
+| Interaction | Click fills prompt or sends directly; `disabled` when AI busy |
+
+#### Bulk progress panel
+
+Non-blocking sticky footer inside the view — user can collapse and keep editing.
+
+```tsx
+<section
+  className="bulk-progress-panel"
+  aria-expanded={expanded}
+  aria-label="Bulk push progress"
+>
+  <button
+    type="button"
+    className="bulk-progress-panel__header focus-tw-ring"
+    aria-expanded={expanded}
+    onClick={() => setExpanded((e) => !e)}
+  >
+    Pushing to ADO… {done}/{total}
+  </button>
+  <div className="bulk-progress-panel__body">
+    <div className="loading-bar-wrap" role="status" aria-live="polite">
+      <div className="loading-bar-track">
+        <div className="loading-bar-indeterminate" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  </div>
+</section>
+```
+
+| State | Behavior |
+|-------|----------|
+| Expanded (`aria-expanded="true"`) | `max-height: 168px` — header + progress bar visible |
+| Collapsed (`aria-expanded="false"`) | `max-height: 44px` — header only; body hidden |
+| Complete | Replace bar with `.chip-energy-green` + trigger §12.7 success toast |
+
+#### Example — Refine section shell
+
+```tsx
+<section className="ai-section">
+  <h3>Collaborate with AI ✨</h3>
+  <div className="refine-chat" role="log" aria-live="polite" aria-relevant="additions">
+    {history.map((turn) =>
+      turn.role === 'user' ? (
+        <div key={turn.id} className="refine-bubble-user" role="listitem">{turn.text}</div>
+      ) : (
+        <div key={turn.id} className="refine-bubble-ai" role="listitem">{turn.text}</div>
+      )
+    )}
+    {aiBusy && <div className="refine-bubble-ai ai-thinking" aria-busy="true">…</div>}
+  </div>
+  <div className="refine-pills" role="group" aria-label="Quick refinements">
+    {suggestions.map((s) => (
+      <button key={s} type="button" className="refine-pill" disabled={aiBusy}>{s}</button>
+    ))}
+  </div>
+  {/* prompt input + .btn-energy-ai "Send to AI ✨" */}
+</section>
+```
+
+**Reduced motion:** Pill hover lift and panel expand transitions are decorative — no required animation fallback.
 
 ---
 
@@ -1821,6 +1931,260 @@ Empty states **guide the next step** — never blame the user or feel terminal. 
 - Tab order: group labels are non-focusable (`<span>`); buttons unchanged.
 - Screenshot at 320px, 480px, 700px — hero and quick actions stack cleanly.
 - All new text uses bridge tokens (`text-tw-fg`, `text-contrast-muted`).
+
+---
+
+## Section 14: Phase 3 Conversational UX
+
+**Owner:** Tess (UX Designer) · **Implement:** Rusty (PbiStudio, BulkBreakdownView, App.tsx) · **Visual tokens:** Saul (§9, §12)  
+**Branch:** `feature/a11y-david-ui-refresh`  
+**Purpose:** Replace transactional "Refine with AI" textarea with a chat-like co-creation panel; unify AI status announcements; migrate Bulk Breakdown mode switcher to david-ai `Tabs`.
+
+Cross-ref: §2.2.1 (AI loading/success copy), §4 (Co-Creation Principle), §6.6 (live regions), §7 (David Tabs mapping).
+
+### 14.1 Design Intent
+
+Phase 3 makes **AI co-creation feel collaborative**, not like submitting a form:
+
+| Before (Phase 2) | After (Phase 3) |
+|------------------|-----------------|
+| Single textarea + "Refine with AI" button | Chat history + bottom input + quick pills |
+| No visual distinction user vs AI turns | User bubbles right/teal; AI bubbles left/violet |
+| Refinement feels one-shot | Multi-turn history scrollable in panel |
+| Manual edit is implicit | Explicit escape hatch link to Edit item section |
+
+**Golden rule (unchanged):** Conversational AI **supplements** the form — never replaces it. The **Edit item** `DavidCollapse` remains the primary manual path.
+
+### 14.2 PBI Studio — "Collaborate with AI" Panel
+
+**Location:** Re-enable the hidden "Refine with AI (in panel)" section in `PbiStudio.tsx` (currently behind `{false && …}`). Replace inner markup with conversational layout. Wrap in `DavidCollapse` with `className="ai-section"`; apply `.ai-thinking` while `aiBusy`.
+
+**Header copy:**
+
+| Element | Copy |
+|---------|------|
+| Collapse title | `Collaborate with AI` + `<span className="ai-badge">AI</span>` |
+| Subtitle | `Refine your draft with natural language. You can always edit fields directly in Edit item below.` |
+| Trailing chip (when busy) | `Copilot is thinking…` (`aria-live="polite"`) |
+
+**Constants file:** `webview-ui/src/constants/refinePrompts.ts` — pill labels, placeholder, send button label. Import in PbiStudio; do not duplicate strings inline.
+
+#### 14.2.1 Layout (top → bottom)
+
+```
+┌─ DavidCollapse: Collaborate with AI [AI] ─────────────────────┐
+│  Subtitle (muted)                                              │
+│  ┌─ .refine-chat-history (scroll, max-h ~240px) ─────────────┐ │
+│  │  [empty state OR bubble list]                              │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│  ┌─ .refine-quick-pills (flex wrap) ──────────────────────────┐ │
+│  │  [Make more technical] [Add acceptance criteria] …         │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│  ┌─ .refine-input-row (sticky bottom) ────────────────────────┐ │
+│  │  <textarea rows={2} />  [Send to AI ✨]                    │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│  {suggestion ? renderSuggestionReview() : null}                 │
+│  <details> Apply JSON from Copilot Chat … </details>           │
+│  <a/button> Edit fields manually ↓ </a>  → scroll/focus Edit   │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Panel order in PBI Studio:** Copilot Chat collapse → **Collaborate with AI** (new) → Edit item (defaultOpen). User sees chat refinement before the manual form.
+
+#### 14.2.2 Chat Bubble Pattern
+
+| Role | Alignment | Background | Text | Border radius |
+|------|-----------|------------|------|---------------|
+| **User prompt** | `justify-end` (right) | Teal soft — `background: var(--accent-soft)` or `chip-energy-teal` fill | `text-tw-fg` | `rounded-lg rounded-br-sm` |
+| **AI response** | `justify-start` (left) | Violet soft — `background: var(--ai-soft)` | `text-tw-fg` | `rounded-lg rounded-bl-sm` |
+| **Typing indicator** | Left | Same as AI bubble | Three pulsing dots + sr-only "AI is typing" | — |
+
+**Bubble content:**
+- User: raw prompt text (what was sent to `REFINE_PBI_WITH_AI`).
+- AI (on `AI_SUGGESTION_READY`): short conversational line + optional field summary — e.g. *"I've updated your draft based on your request. Review the suggestion below."* Full diff stays in `renderSuggestionReview` (existing per-field Apply buttons).
+
+**History state:** `useState<RefineChatTurn[]>` where `{ role: 'user' | 'ai'; text: string; timestamp?: number }`. Append user turn on send; append AI turn when suggestion arrives. Clear history on draft change (`activeId` effect).
+
+**Accessibility:**
+- Chat list: `role="log"` + `aria-label="Refinement conversation"` + `aria-live="polite"` (polite only on new messages — or rely on global `#ai-status-announcer` for completion).
+- Each bubble: `role="article"` with `aria-label="You said"` / `aria-label="AI replied"`.
+- Pills: `<button type="button">` — clicking fills input **and sends** (one action) OR fills only — **spec: one-click send** for fewer steps.
+
+#### 14.2.3 Quick Refinement Pills
+
+Import `REFINE_PROMPT_PILLS` from `refinePrompts.ts`:
+
+| Pill label | Instruction (sent to backend) |
+|------------|-------------------------------|
+| Make more technical | Make description/AC more technical with implementation details… |
+| Add acceptance criteria | Add 4–7 Given/When/Then criteria… |
+| Shorten description | Shorten while preserving scope… |
+| Add accessibility notes | Add WCAG 2.1 AA, keyboard, SR requirements… |
+
+**Visual:** `chip-energy-violet` or outline pills — `rounded-full px-3 py-1 text-sm`, `min-h-touch` where space allows, `focus-tw-ring`. Wrap row in `role="group"` + `aria-label="Quick refinements"`.
+
+**Disabled:** When `aiBusy`, pills and send button disabled; show `AiLoadingBar` above panel or trailing chip.
+
+#### 14.2.4 Input Row
+
+| Property | Value |
+|----------|-------|
+| Placeholder | `Tell me how to improve this PBI… (e.g., "Add security requirements", "Focus on mobile users")` |
+| Send button | `Send to AI ✨` — `.btn-energy.btn-energy-ai` |
+| Submit | Enter without Shift sends; Shift+Enter newline |
+| `aria-label` on send | `Send refinement request to AI` |
+
+#### 14.2.5 Manual Edit Escape Hatch
+
+Below chat input, persistent text link or ghost button:
+
+- **Label:** `Edit fields manually`
+- **Action:** Scroll `Edit item` collapse into view; if collapsed, programmatically expand (`DavidCollapse` needs `open` prop or ref — coordinate with Rusty). Optional: focus first field (Title).
+- **Copy hint:** `Prefer typing directly? Jump to Edit item below.`
+
+Keep **Apply JSON from Copilot Chat** in a `<details>` disclosure (collapsed by default) — power-user path, not primary.
+
+#### 14.2.6 CSS Hooks (Rusty — `styles.css` or Tailwind `@layer components`)
+
+```css
+.refine-chat-history { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 240px; padding: 8px 0; }
+.refine-chat-turn { display: flex; max-width: 92%; }
+.refine-chat-turn--user { align-self: flex-end; }
+.refine-chat-turn--ai { align-self: flex-start; }
+.refine-chat-bubble { padding: 10px 14px; font-size: 0.875rem; line-height: 1.5; }
+.refine-quick-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.refine-input-row { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.refine-input-row textarea { flex: 1; min-height: 44px; }
+```
+
+Use `--accent-soft` / `--ai-soft` (§12) — no hardcoded hex.
+
+### 14.3 Global `#ai-status-announcer`
+
+**Location:** `App.tsx` — single app-wide polite status region (§6.6).
+
+```tsx
+<div
+  id="ai-status-announcer"
+  className="sr-only"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+>
+  {aiAnnouncerMessage}
+</div>
+```
+
+**Wire to extension events** (in `App.tsx` message handler):
+
+| Event | Announcer copy (no emoji — sr-only) |
+|-------|-------------------------------------|
+| `AI_PROGRESS` busy (draft) | `AI is processing your request.` |
+| `AI_PROGRESS` idle (draft) | `AI finished processing.` |
+| `AI_PROGRESS` busy (breakdown) | `AI is breaking this down into child work items.` |
+| `AI_PROGRESS` idle (breakdown) | `AI breakdown finished.` |
+| `AI_SUGGESTION_READY` | `AI refinement ready. Review the suggestion in PBI Studio.` |
+| `AI_BREAKDOWN_READY` | `Nice work! {n} child items ready for review.` |
+
+**Rules:**
+- Visual toasts keep emoji (§2.2.1); announcer text is plain language.
+- Do **not** duplicate announcer on every view — inline wizard sr-only regions remain for step-specific context; global announcer covers cross-view AI lifecycle.
+- Errors: use toast `role="alert"` assertive — not the polite announcer.
+
+**Shipped (Tess):** `App.tsx` announcer + state wiring for `AI_PROGRESS`, `AI_SUGGESTION_READY`, `AI_BREAKDOWN_READY`.
+
+### 14.4 Bulk Breakdown — David Tabs Migration
+
+**File:** `BulkBreakdownView.tsx` (Feature Creation flow may embed similar pattern — reuse spec).
+
+**Problem:** Mode switcher uses `.tabs` + `aria-pressed` only (§7 gap #4). Missing `tablist`/`tab`/`tabpanel`, arrow keys, and focus management.
+
+**Solution:** Replace header `.tabs` block with `DavidTabs` (same component as `SettingsView.tsx`).
+
+#### 14.4.1 Tab Definition
+
+| Tab id | Label | Panel content |
+|--------|-------|---------------|
+| `tab-manual` | Manual | One suffix per line textarea (existing) |
+| `tab-ai` | AI-assisted | Description, count, Suggest button, editable preview (existing) |
+| `tab-scan` | From scan | Scan-derived children list (existing) |
+
+**Props:**
+
+```tsx
+<DavidTabs
+  defaultTabId="tab-manual"
+  className="bulk-children-tabs"
+  tabs={[
+    { id: 'tab-manual', label: 'Manual', content: <ManualPanel … /> },
+    { id: 'tab-ai', label: 'AI-assisted', content: <AiPanel … /> },
+    { id: 'tab-scan', label: 'From scan', content: <ScanPanel … /> },
+  ]}
+/>
+```
+
+**State sync:** Replace `mode: 'manual' | 'ai' | 'scan'` with tab id string OR listen to david-ai tab change events. `effectiveChildren` logic unchanged — map tab id → mode internally.
+
+**AI visual:** When `tab-ai` selected, parent card keeps `ai-section` class + `ai-badge` on section title ("Children AI").
+
+#### 14.4.2 Responsive Labels (§10.5)
+
+| Width | Tab labels |
+|-------|------------|
+| < `md` (640px) | Short labels OK: Manual · AI · Scan |
+| ≥ `md` | Full: Manual · AI-assisted · From scan |
+
+Optional icons (future): ✎ / ✨ / 🔍 prefix with `aria-hidden` — labels remain authoritative.
+
+#### 14.4.3 Accessibility Checklist
+
+- [ ] `role="tablist"` on list container (DavidTabs provides)
+- [ ] Arrow Left/Right moves between tabs (david-ai `useDavidTabs`)
+- [ ] Active tab `aria-selected="true"`, inactive tabs `tabIndex={-1}`
+- [ ] Panel `aria-labelledby` points to tab id
+- [ ] AI busy disables tab switch OR allows switch with warning — **spec: allow switch; disable only destructive actions inside AI panel**
+
+#### 14.4.4 Copy Updates (AI tab)
+
+| Control | Copy |
+|---------|------|
+| Suggest button | `✨ Suggest breakdown with AI` (unchanged) |
+| Loading (global) | Announcer + `AiLoadingBar`: `✨ AI is breaking this down…` |
+| Empty AI results | `Describe your feature above, then ask AI to suggest child stories.` |
+
+### 14.5 Implementation Handoff (Rusty)
+
+**Priority order:**
+
+1. Wire `refinePrompts.ts` into re-enabled Collaborate with AI panel + chat bubbles
+2. Migrate Bulk Breakdown mode switcher → `DavidTabs`
+3. CSS: `.refine-chat-*` bubble layout + pill row
+4. Escape hatch: scroll/expand Edit item
+5. Verify announcer does not double-speak with inline `AiLoadingBar` labels (loading bar keeps visual label; announcer fires on state transition)
+
+**Do not change:** `REFINE_PBI_WITH_AI` message contract, `renderSuggestionReview` field apply logic, or Copilot Chat external flow.
+
+**Test matrix:**
+
+| Scenario | Expected |
+|----------|----------|
+| Click pill | User bubble appears; AI busy; suggestion review renders |
+| Send custom prompt | Same as pill flow |
+| Switch draft | Chat history clears |
+| Screen reader | Announcer speaks busy → ready; bubbles have labels |
+| Bulk tabs | Arrow keys switch modes; preview count updates |
+| Narrow panel | Pills wrap; chat scrolls; input row stacks if needed (`flex-col` < `sm`) |
+
+### 14.6 Files (Phase 3)
+
+| File | Owner | Status |
+|------|-------|--------|
+| `docs/DESIGN.md` §14 | Tess | ✅ Spec |
+| `webview-ui/src/constants/refinePrompts.ts` | Tess | ✅ Copy constants |
+| `webview-ui/src/App.tsx` `#ai-status-announcer` | Tess | ✅ Implemented |
+| `webview-ui/src/views/PbiStudio.tsx` | Rusty | 🔲 Chat panel |
+| `webview-ui/src/views/BulkBreakdownView.tsx` | Rusty | 🔲 DavidTabs |
+| `webview-ui/src/styles.css` | Rusty/Saul | 🔲 `.refine-chat-*` |
 
 ---
 

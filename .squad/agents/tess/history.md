@@ -269,3 +269,10 @@
   - **§6.6 / §12.7:** Cross-referenced warm copy + `.success-pop` toast pattern.
   - **Components:** `LoadingBar` `variant="ai"` + `AiLoadingBar` wrapper; `App.tsx` success toasts get `success-pop` + per-toast `aria-live`; Feature/Epic wizards use `AiLoadingBar` on AI generation steps.
   - **Files:** `docs/DESIGN.md`, `LoadingBar.tsx`, `App.tsx`, `styles.css`, `FeatureCreationWizard.tsx`, `EpicCreationWizard.tsx`.
+
+- **2026-07-08 (Phase 3):** Conversational UX spec on `feature/a11y-david-ui-refresh`.
+  - **§14 — Phase 3 Conversational UX:** Chat-like "Collaborate with AI" panel spec (user/teal right, AI/violet left bubbles, quick pills, Send to AI ✨, manual edit escape hatch); global `#ai-status-announcer` wired in `App.tsx`; Bulk Breakdown `DavidTabs` migration spec.
+  - **Copy constants:** `webview-ui/src/constants/refinePrompts.ts` — four quick-refinement pills + panel strings.
+  - **Announcer events:** `AI_PROGRESS`, `AI_SUGGESTION_READY`, `AI_BREAKDOWN_READY` (plain-language sr-only text; visual toasts unchanged).
+  - **Rusty handoff:** Re-enable hidden Refine section in `PbiStudio.tsx`; replace `.tabs` in `BulkBreakdownView.tsx` with `DavidTabs`; add `.refine-chat-*` CSS.
+  - **Files:** `docs/DESIGN.md`, `refinePrompts.ts`, `App.tsx`.

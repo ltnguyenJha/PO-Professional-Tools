@@ -603,7 +603,7 @@ function Step3Generation({
   if (generationBusy) {
     return (
       <div
-        className="flex flex-col items-center justify-center py-10 space-y-4"
+        className="ai-section ai-thinking flex flex-col items-center justify-center py-10 space-y-4"
         role="status"
         aria-live="polite"
         aria-label="Generating features from epic"

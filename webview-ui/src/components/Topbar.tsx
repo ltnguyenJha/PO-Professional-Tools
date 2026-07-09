@@ -1,12 +1,23 @@
 import type { ReactNode } from 'react';
+import type { ThemePreference } from '../types';
 
 interface Props {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  theme: ThemePreference;
+  onThemeChange: (theme: ThemePreference) => void;
 }
 
-export function Topbar({ title, subtitle, actions }: Props): JSX.Element {
+const THEME_OPTIONS = ['light', 'dark', 'auto'] as const;
+
+const THEME_LABELS: Record<ThemePreference, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  auto: 'Auto',
+};
+
+export function Topbar({ title, subtitle, actions, theme, onThemeChange }: Props): JSX.Element {
   return (
     <header
       className="topbar topbar-energy-accent sticky top-0 z-10 border-b border-tw-border bg-tw-bg-alt shadow-tw-sm"
@@ -23,6 +34,20 @@ export function Topbar({ title, subtitle, actions }: Props): JSX.Element {
         </div>
         <div className="topbar-actions shrink-0" role="toolbar" aria-label="Page actions">
           {actions}
+          <div className="theme-toggle" role="group" aria-label="Theme selection">
+            {THEME_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="focus-tw-ring-inset"
+                aria-pressed={theme === option}
+                aria-label={`Switch to ${option} theme`}
+                onClick={() => onThemeChange(option)}
+              >
+                {THEME_LABELS[option]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </header>

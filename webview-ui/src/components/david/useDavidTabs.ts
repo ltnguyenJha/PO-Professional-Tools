@@ -5,7 +5,10 @@ import type { TabsConfig, ITabs } from 'david-ai';
 /**
  * Initializes david-ai Tabs on a container ref. Cleans up on unmount.
  */
-export function useDavidTabs(config: TabsConfig = {}): RefObject<HTMLDivElement> {
+export function useDavidTabs(
+  config: TabsConfig = {},
+  onTabChange?: (tabId: string) => void
+): RefObject<HTMLDivElement> {
   const groupRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ITabs | null>(null);
 
@@ -29,6 +32,9 @@ export function useDavidTabs(config: TabsConfig = {}): RefObject<HTMLDivElement>
         const isActive = link.classList.contains('active');
         link.setAttribute('aria-selected', String(isActive));
         link.tabIndex = isActive ? 0 : -1;
+        if (isActive && link.id) {
+          onTabChange?.(link.id);
+        }
       });
     };
 
@@ -56,7 +62,7 @@ export function useDavidTabs(config: TabsConfig = {}): RefObject<HTMLDivElement>
       tabs?.cleanup();
       instanceRef.current = null;
     };
-  }, [config.defaultTabId, config.orientation]);
+  }, [config.defaultTabId, config.orientation, onTabChange]);
 
   return groupRef;
 }

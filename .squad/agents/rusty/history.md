@@ -2093,3 +2093,35 @@ Collapsing both into a single "diff vs. saved" check silently breaks the new-use
 
 **Build Status:** ✅ `npm run lint` · ✅ `npx tsc --noEmit --project webview-ui/tsconfig.json` · ✅ `npm run build` · ✅ `npm --prefix webview-ui test` (25/25)
 
+### 2026-07-08 — Phase 3: Conversational refine + AI state polish (feature/a11y-david-ui-refresh)
+
+**Scope:** DESIGN.md §2.4 conversational refine, §6.6 `#ai-status-announcer`, §12 `.ai-thinking`, Bulk Breakdown DavidTabs + collapsible ADO progress.
+
+**Added:**
+- `RefineChatPanel.tsx` — local chat history, quick refinement pills (`constants/refinementPills.ts`), Saul bubble classes, typing indicator + `.ai-thinking` while busy
+- `styles.css` — `.refine-chat-*`, `.refine-pill`, `.bulk-progress-panel`, global `.sr-only`
+
+**Wired:**
+- **PbiStudio** — replaced hidden "Refine with AI (in panel)" with `DavidCollapse` + `RefineChatPanel` → existing `REFINE_PBI_WITH_AI`; `.ai-thinking` on Copilot Chat + Collaborate sections when `aiBusy`
+- **App.tsx** — enhanced `#ai-status-announcer` copy (§2.2.1 refine/breakdown/ADO); success/error toasts mirror to announcer
+- **BulkBreakdownView** — mode tabs → `DavidTabs` + `onTabChange`; sticky collapsible `.bulk-progress-panel` during bulk ADO push; `.ai-thinking` on AI tab section
+- **FeatureCreationWizard / EpicCreationWizard / FeatureWizard** — `.ai-section.ai-thinking` during in-flight AI generation
+
+**DavidTabs:** optional `onTabChange` callback via MutationObserver sync.
+
+**Deferred:** BulkBreakdownView not mounted in `App.tsx` (FeatureCreationWizard used for `bulk` view); confetti / streaming refine; Settings accordion ARIA; full combobox rollout; Phase 4 personalization.
+
+**Build Status:** ✅ `npm run lint` · ✅ `npx tsc --noEmit --project webview-ui/tsconfig.json` · ✅ `npm run build` · ✅ `npm --prefix webview-ui test` (25/25)
+
+### 2026-07-08 — Theme toggle to Topbar; remove sidebar nav tooltips (feature/a11y-david-ui-refresh)
+
+**Scope:** Move Light/Dark/Auto theme control from sidebar footer to topbar actions; drop David tooltips on nav items (keep `aria-label`).
+
+**Changed:**
+- `Sidebar.tsx` — removed `theme`/`onThemeChange` props, `nav-footer`, `useDavidTooltips()`, and `data-dui-*` tooltip attrs on nav buttons
+- `Topbar.tsx` — added compact pill `theme-toggle` (Light / Dark / Auto) in `topbar-actions`, right of page actions
+- `App.tsx` — wires `theme` + `onThemeChange` to `Topbar` instead of `Sidebar`
+- `styles.css` — relocated `.theme-toggle` styles to topbar context (panel bg, accent pressed state); removed `.nav-footer` and sidebar-specific theme-label responsive rules
+
+**Build Status:** ✅ `npm run lint` · ✅ `npx tsc --noEmit --project webview-ui/tsconfig.json` · ✅ `npm run build` · ✅ `npm --prefix webview-ui test` (25/25)
+

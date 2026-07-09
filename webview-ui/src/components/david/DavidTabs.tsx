@@ -13,6 +13,7 @@ export interface DavidTabsProps {
   defaultTabId?: string;
   orientation?: TabsConfig['orientation'];
   className?: string;
+  onTabChange?: (tabId: string) => void;
 }
 
 /**
@@ -23,10 +24,11 @@ export function DavidTabs({
   tabs,
   defaultTabId,
   orientation = 'horizontal',
-  className = ''
+  className = '',
+  onTabChange
 }: DavidTabsProps): JSX.Element {
   const initialTabId = defaultTabId ?? tabs[0]?.id;
-  const groupRef = useDavidTabs({ defaultTabId: initialTabId, orientation });
+  const groupRef = useDavidTabs({ defaultTabId: initialTabId, orientation }, onTabChange);
 
   return (
     <div ref={groupRef} className={`david-tabs ${className}`.trim()}>

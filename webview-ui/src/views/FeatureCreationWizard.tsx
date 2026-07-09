@@ -459,7 +459,12 @@ function Step3Generate({
 
   if (generationBusy) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 space-y-4" role="status" aria-live="polite" aria-label="Generating user stories">
+      <div
+        className="ai-section ai-thinking flex flex-col items-center justify-center py-10 space-y-4"
+        role="status"
+        aria-live="polite"
+        aria-label="Generating user stories"
+      >
         <div className="text-2xl select-none" aria-hidden="true">✨</div>
         <div className="text-center">
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--tw-vscode-fg)' }}>

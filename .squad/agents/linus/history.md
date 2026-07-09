@@ -1106,3 +1106,17 @@ Implemented immediate workaround to build failure on Node 14.17.5: downgraded Vi
 - `npm run lint` ✅ (pre-existing unused-var warnings only)
 - `npm run build` ✅
 
+### pickModel() — GPT 5.5 default (2026-07-08)
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**Change:** Updated `CopilotService.pickModel()` default chain per user directive ("Update to GPT 5.5 as default").
+
+**selectChatModels fallback:** `{ vendor:'copilot', family:'gpt-5.5' }` → `gpt-5.4` → `gpt-4o` → `{ vendor:'copilot' }` → `{}`.
+
+**preferred find chain:** `gpt-5.5` > `gpt-5.4` > `gpt-4o` > `gpt-4` > `models[0]`.
+
+**Inbox:** `.squad/decisions/inbox/linus-gpt-55-default.md` (not merged to decisions.md yet).
+
+**Validation:** `npm test` ✅ (3 suites, 60 tests), `npx tsc --noEmit` ✅, `npm run build` ✅.
+

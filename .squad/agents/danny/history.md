@@ -599,3 +599,37 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 **Hard gates unchanged:** VS Code theme bridge, WCAG 2.1 AA, no message-contract changes, teal=manual / violet=AI.
 
 **Danny:** PR review only; no production UI code.
+
+### Post-PR #88 UI Completeness Assessment (2026-07-08)
+
+**Question:** Do we need more UI improvements after Phase 1–2 + david-ai a11y?
+
+**Verdict:** **Ship PR #88** — Livingston merge-ready YES (all gates green). **Further UI work is optional for release, recommended for "complete" vision.**
+
+**DONE (users will feel the shift):** Energy layer (hero, KPI, quick actions, empty states, icon rail), violet AI identity (shimmer loading, success flash/toasts, DavidModal/DavidDropdown pilots), contrast tokens, nav IA groups, encouraging copy.
+
+**Remaining gaps:** Phase 3 conversational refine + pills, full combobox rollout, global `#ai-status-announcer`, `.ai-thinking` pulse, Phase 4 personalization — per DESIGN.md deferred phases + Livingston P1/P2 carry-over.
+
+**Next 3 (if continuing):** (1) AI state/a11y bundle — announcer + ai-thinking + §2.2.1 copy; (2) david-ai combobox + Settings accordion completion; (3) Phase 3 Refine-with-AI conversational UI + quick-refinement pills.
+
+### Phase 3 Kickoff — Conversational & Progress (2026-07-08)
+
+**Task:** User directive "Let's do Phase 3" after PR #88 on `feature/a11y-david-ui-refresh`. Scope only; no implementation.
+
+**Deliverable:** `.squad/decisions/inbox/danny-phase3-conversational.md`
+
+**Branch:** **`feature/phase3-conversational-refine`** (new from `main` after PR #88 merge) — rejected continuing a11y branch to keep PR #88 review bounded.
+
+**Phase 3 theme:** AI as co-creator; long-running ADO work never blocks navigation.
+
+**Scope locked (IN):** Refine-with-AI chat UI (`RefineChatPanel` polish), quick refinement pills, global `#ai-status-announcer`, `.ai-thinking` toggle across AI surfaces, Bulk Breakdown `DavidTabs` on active route, app-shell non-blocking bulk ADO progress panel, celebratory toasts via existing `TOAST` only.
+
+**Scope locked (OUT):** Phase 4 personalization, predictive UX pills, confetti, new message types, extension-host contract changes.
+
+**Message contract:** No new types — `REFINE_PBI_WITH_AI`, `TOAST`, `AI_PROGRESS`, `ADO_PROGRESS` only.
+
+**Livingston gate:** P3-E1–P3-E9 (build, refine chat, announcer, ai-thinking, bulk progress dock, DavidTabs, contract audit, regression, responsive).
+
+**Rusty priority:** (1) announcer → (2) ai-thinking → (3) bulk progress shell → (4) RefineChatPanel polish → (5) pills → (6) DavidTabs on active bulk route → (7) toast copy → (8) Vitest/axe.
+
+**References:** DESIGN.md §2 patterns 4–5, §2.2.1, §6.6; Livingston P1 #4/#6/#8 carry-over.

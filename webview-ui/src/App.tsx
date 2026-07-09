@@ -73,11 +73,17 @@ export function App(): JSX.Element {
   const [featurePushResult, setFeaturePushResult] = useState<{
     featureId: string; adoWorkItemId?: number; childAdoIds: Record<string, number>; hierarchyStatus: import('./types').HierarchyStatus;
   } | null>(null);
+  const [aiAnnouncerMessage, setAiAnnouncerMessage] = useState('');
   const toastIdRef = useRef(0);
 
   const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = ++toastIdRef.current;
     setToasts((prev) => [...prev, { ...toast, id }]);
+    if (toast.level === 'success') {
+      setAiAnnouncerMessage(toast.message);
+    } else if (toast.level === 'error') {
+      setAiAnnouncerMessage(toast.message);
+    }
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
@@ -99,8 +105,18 @@ export function App(): JSX.Element {
         case 'AI_PROGRESS':
           if (message.payload.draftId) {
             setAiBusyDraftId(message.payload.busy ? message.payload.draftId : undefined);
+            setAiAnnouncerMessage(
+              message.payload.busy
+                ? 'AI is refining the draft.'
+                : 'Looking good! Draft updated.'
+            );
           } else {
             setBreakdownBusy(message.payload.busy);
+            setAiAnnouncerMessage(
+              message.payload.busy
+                ? 'AI is breaking this down into child work items.'
+                : 'AI breakdown finished.'
+            );
           }
           return;
         case 'ADO_PROGRESS':
@@ -109,15 +125,26 @@ export function App(): JSX.Element {
               ? message.payload
               : { ...EMPTY_ADO_PROGRESS, scope: message.payload.scope }
           );
+          if (message.payload.busy) {
+            setAiAnnouncerMessage(
+              message.payload.message.trim() || 'Pushing to Azure DevOps.'
+            );
+          } else if (message.payload.scope === 'bulk') {
+            setAiAnnouncerMessage('Great job! Pushed to Azure DevOps.');
+          }
           return;
         case 'AI_SUGGESTION_READY':
           setSuggestions((prev) => ({
             ...prev,
             [message.payload.draftId]: message.payload.suggestion
           }));
+          setAiAnnouncerMessage('AI refinement ready. Review the suggestion in PBI Studio.');
           return;
         case 'AI_BREAKDOWN_READY':
           setSuggestedChildren(message.payload.children);
+          setAiAnnouncerMessage(
+            `Nice work! ${message.payload.children.length} child items ready for review.`
+          );
           return;
         case 'ADO_CONNECTION_RESULT':
           setConnectionResult(message.payload);
@@ -239,15 +266,16 @@ export function App(): JSX.Element {
     <div className="app min-h-screen bg-tw-bg text-tw-fg">
       <ThemeEffect theme={state.uiSettings.theme} />
 
-      <Sidebar
-        active={view}
-        theme={state.uiSettings.theme}
-        onNavigate={setView}
-        onThemeChange={onThemeChange}
-      />
+      <Sidebar active={view} onNavigate={setView} />
 
       <div className="main min-w-0 flex flex-col">
-        <Topbar title={header.title} subtitle={header.subtitle} actions={header.actions} />
+        <Topbar
+          title={header.title}
+          subtitle={header.subtitle}
+          actions={header.actions}
+          theme={state.uiSettings.theme}
+          onThemeChange={onThemeChange}
+        />
 
         {view === 'dashboard' && (
           <DashboardView
@@ -314,6 +342,16 @@ export function App(): JSX.Element {
             lastConnectionResult={connectionResult}
           />
         )}
+      </div>
+
+      <div
+        id="ai-status-announcer"
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {aiAnnouncerMessage}
       </div>
 
       <div className="toast-stack" role="status" aria-live="polite">

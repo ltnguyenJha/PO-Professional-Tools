@@ -1,6 +1,3 @@
-import type { ThemePreference } from '../types';
-import { useDavidTooltips } from './david';
-
 export type ViewId = 'dashboard' | 'projects' | 'drafts' | 'studio' | 'bulk' | 'rdis' | 'settings' | 'epic-creation';
 
 interface NavEntry {
@@ -46,14 +43,10 @@ const NAV_GROUPS: NavGroup[] = [
 
 interface Props {
   active: ViewId;
-  theme: ThemePreference;
   onNavigate: (view: ViewId) => void;
-  onThemeChange: (theme: ThemePreference) => void;
 }
 
-export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JSX.Element {
-  useDavidTooltips();
-
+export function Sidebar({ active, onNavigate }: Props): JSX.Element {
   return (
     <aside
       className="sidebar border-r border-tw-border bg-tw-bg-alt shadow-tw-sm"
@@ -82,10 +75,6 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
                 type="button"
                 className="nav-item focus-tw-ring-inset"
                 data-navid={entry.id}
-                data-dui-toggle="tooltip"
-                data-dui-title={entry.label}
-                data-dui-placement="right"
-                data-dui-tooltip-class="david-tooltip"
                 aria-current={active === entry.id ? 'page' : undefined}
                 aria-label={`Navigate to ${entry.label}`}
                 onClick={() => onNavigate(entry.id)}
@@ -99,28 +88,6 @@ export function Sidebar({ active, theme, onNavigate, onThemeChange }: Props): JS
           </div>
         ))}
       </nav>
-
-      <div className="nav-footer">
-        <div className="theme-toggle" role="group" aria-label="Theme selection">
-          {(['light', 'dark', 'auto'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              className="focus-tw-ring-inset"
-              aria-pressed={theme === option}
-              aria-label={`Switch to ${option} theme`}
-              onClick={() => onThemeChange(option)}
-            >
-              <span className="theme-label-full">
-                {option === 'auto' ? 'Auto' : option === 'light' ? 'Light' : 'Dark'}
-              </span>
-              <span className="theme-label-compact" aria-hidden="true">
-                {option === 'auto' ? 'A' : option === 'light' ? 'L' : 'D'}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
     </aside>
   );
 }
