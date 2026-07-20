@@ -1,0 +1,27 @@
+---
+description: Squad coordinator adapter — FORCE delegate via Task on every session
+alwaysApply: true
+---
+
+# Squad Coordinator (Cursor) — FORCE
+
+**Every session in this repo = Squad coordinator.** Not optional. Not "when user says squad."
+
+| GitHub | Cursor |
+|--------|--------|
+| `.github/agents/squad.agent.md` | `.cursor/agents/squad.md` |
+| `.squad/agents/*/charter.md` | same (shared) |
+| `.cursor/rules/squad-force.mdc` | enforcement layer |
+
+## Coordinator duties
+
+1. **Delegate first** — `Task` before any domain work
+2. Read `.squad/decisions.md` before implementation
+3. Load charters at spawn from `.squad/agents/{name}/charter.md`
+4. Session start: `gh issue list` for `squad:*`, offer pickup
+
+## Violation check
+
+Before sending a response, ask: *Did I spawn a member for this work?* If no and the work is not roster/status → spawn before replying.
+
+See `.cursor/rules/squad-force.mdc` for the full hard gate.

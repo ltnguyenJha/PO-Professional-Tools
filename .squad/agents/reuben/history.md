@@ -37,3 +37,51 @@ Reuben joined to own all end-user documentation and release notes for PBI Studio
 - WCAG 2.1 AA compliant (PR #62)
 - Full keyboard navigation support
 - Screen reader compatible
+
+---
+
+## 2026-07-08 — Root documentation consolidation (with Danny cleanup)
+
+**Branch:** `chore/docs-consolidation`  
+**Scope:** Reduce root markdown sprawl; align with 2026-04-28 reorg decision (`PITCH.md` → `docs/PRODUCT_VISION.md`).
+
+### Before — root inventory (7 `.md`, 5 `.txt`)
+| File | Disposition |
+|------|-------------|
+| `README.md` | **Kept** — repo entry point |
+| `AGENTS.md` | **Kept** — agent baseline (untracked; out of scope) |
+| `PITCH.md` | Duplicate of `docs/PRODUCT_VISION.md` → **deleted** |
+| `INSTALLATION_GUIDE.md` | Overlap with `docs/QUICK_START.md` → **merged then deleted** |
+| `ISSUE_34_MERGE_STATUS.md` | Ephemeral squad handoff → **moved** to `.squad/artifacts/issue-34-merge-status.md` |
+| `HANDOFF_PR_CREATION.md` | Ephemeral squad handoff → **moved** to `.squad/artifacts/issue-34-pr-handoff.md` |
+| `FINAL_REPORT_ISSUE_34.txt` | Duplicate of issue-34 artifacts → **deleted** |
+| `ISSUE_34_COMPLETION_SUMMARY.txt` | Duplicate of issue-34 artifacts → **deleted** |
+| `build-output.txt` | Ephemeral build log → **deleted** |
+| `design-handoff-content.txt` | Empty temp file → **deleted** |
+
+### After — root inventory (2 `.md`, 0 `.txt`)
+- `README.md`
+- `AGENTS.md`
+
+### Consolidation map
+| Action | Source | Destination |
+|--------|--------|-------------|
+| **Deleted** | `PITCH.md` | Canonical: `docs/PRODUCT_VISION.md` |
+| **Merged + deleted** | `INSTALLATION_GUIDE.md` | `docs/QUICK_START.md` (VSIX steps, troubleshooting table, system requirements) |
+| **Moved** | `ISSUE_34_MERGE_STATUS.md` | `.squad/artifacts/issue-34-merge-status.md` |
+| **Moved** | `HANDOFF_PR_CREATION.md` | `.squad/artifacts/issue-34-pr-handoff.md` |
+| **Deleted** | `FINAL_REPORT_ISSUE_34.txt`, `ISSUE_34_COMPLETION_SUMMARY.txt`, `build-output.txt`, `design-handoff-content.txt` | — (content covered by `.squad/artifacts/` or obsolete) |
+
+### Link updates
+- `.squad/agents/README.md` — `../../PITCH.md` → `../../docs/PRODUCT_VISION.md` (Danny)
+- `.squad/artifacts/issue-34-pr-handoff.md` — internal refs updated to `.squad/artifacts/issue-34-merge-status.md` (Reuben)
+- `README.md` — no change needed (already links `docs/QUICK_START.md`, `docs/PRODUCT_VISION.md`)
+
+### Canonical locations (confirmed)
+| Audience | Location |
+|----------|----------|
+| Repo overview | `README.md` (root) |
+| PO / end users | `docs/QUICK_START.md`, `docs/PO-TOOLS-SIMPLE-GUIDE.md` |
+| Stakeholders | `docs/PRODUCT_VISION.md` |
+| Developers | `dev/DEVELOPMENT_GUIDE.md`, `dev/ARCHITECTURE.md` |
+| Squad ops / session artifacts | `.squad/artifacts/`, `.squad/decisions.md` |

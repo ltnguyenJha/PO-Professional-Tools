@@ -902,3 +902,22 @@
     font: var(--typography-label);
   }
 }
+
+/* Light theme — label contrast (no opacity fade; ink-muted hierarchy) */
+html[data-theme="light"] .wizard-progress-step-label,
+html[data-theme="light"] .wizard-step-description,
+html[data-theme="light"] .wizard-radio-label-description,
+html[data-theme="light"] .wizard-empty-state-description {
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+html[data-theme="light"] .wizard-field-label {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+html[data-theme="light"] .wizard-progress-step-indicator {
+  color: var(--ink-muted);
+  font-weight: 600;
+}

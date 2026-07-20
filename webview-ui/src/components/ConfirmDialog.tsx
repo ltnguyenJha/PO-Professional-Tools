@@ -1,3 +1,6 @@
+import { useId } from 'react';
+import { DavidModal } from './david/DavidModal';
+
 interface Props {
   open: boolean;
   title: string;
@@ -19,27 +22,24 @@ export function ConfirmDialog({
   onConfirm,
   onCancel
 }: Props): JSX.Element | null {
-  if (!open) {
-    return null;
-  }
+  const titleId = useId();
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" onClick={onCancel}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>{title}</h3>
-        <p className="card-subtitle">{message}</p>
-        <div className="actions">
-          <button className="btn btn-ghost" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button
-            className={`btn ${destructive ? 'btn-danger' : 'btn-primary'}`}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <DavidModal open={open} onClose={onCancel} titleId={titleId}>
+      <h3 id={titleId}>{title}</h3>
+      <p className="card-subtitle">{message}</p>
+      <div className="actions">
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          className={`btn ${destructive ? 'btn-danger' : 'btn-primary'}`}
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </DavidModal>
   );
 }

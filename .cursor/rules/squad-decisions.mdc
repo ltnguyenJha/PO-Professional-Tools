@@ -1,0 +1,14 @@
+---
+description: Team decision ledger — read and respect before implementation
+alwaysApply: true
+---
+
+# Squad Decisions
+
+Before implementing or reviewing PO-Professional-Tools changes:
+
+1. Read `.squad/decisions.md` (active section at top)
+2. Respect hard gates: **feature branch only** (never `main`), PR required, `npm run lint` + `npm run build` before PR
+3. New team directives → `.squad/decisions/inbox/{agent}-{slug}.md` (not direct edits to decisions.md)
+
+If a user directive conflicts with an older decision, ask once — then follow the latest explicit user instruction and record it.

@@ -201,4 +201,78 @@
 - **2026-04-30 [current]:** Fixed card alignment consistency across PBI Studio (Issue: card spacing misalignment).
 - **2026-04-30:** Delivered RDI creation wizard UX specification (Issue #41)
 - **2026-04-30:** Delivered Feature Creation & Epics UX specification (dedicated wizard, Epics view, Dashboard redesign)
-- **2026-04-30 21:44:** Team sync: Danny's architecture approved; cross-agent decisions merged into `.squad/decisions.md`. Ready for Rusty + Saul implementation handoff. Orchestration logs written. Session complete.
+- **2026-05-01:** Authored `docs/DESIGN.md` UI/UX refresh living document; updated charter with AI-UX patterns; created `ai-ux-patterns` skill.
+
+### Accessibility + David UI Design Spec (2026-07-08)
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**What I designed:**
+- **Section 6 — Accessibility Standards:** WCAG 2.1 AA checklist mapped to webview surfaces — focus rings via `--vscode-focusBorder`, AI `aria-live` region strategy, keyboard navigation map, contrast rules coordinated with Saul's token layer (VS Code tokens first, then `tokens.css`, then brand accents).
+- **Section 7 — David UI Component Mapping:** Full mapping of `david-ai` components (Accordion, Modal, Tabs, Dropdown, Alert, Tooltip, Stepper, etc.) to PO Tools surfaces with migration priority order.
+- **Section 8 — Component Usage Guidelines:** Decision matrix for React + david Tailwind classes vs programmatic API vs hybrid; anti-patterns; ownership split (Tess/Saul/Rusty).
+
+**Top 5 a11y gaps identified (webview scan):**
+1. **`ConfirmDialog`** — Has `role="dialog"` but missing `aria-labelledby`, focus trap, Escape handling, and focus return on close.
+2. **`SearchableDropdown`** — Incomplete combobox pattern: no `role="combobox"`, `aria-expanded`, `aria-controls`, or `aria-activedescendant`; options are non-semantic `<div>` elements.
+3. **`SettingsView`** — Zero ARIA usage; collapsible sections lack `aria-expanded`/`aria-controls`; connection/save results not announced to screen readers.
+4. **Bulk Breakdown mode switcher** — Tab-like UI uses `aria-pressed` only; missing proper `tablist`/`tab`/`tabpanel` roles and arrow-key navigation.
+5. **Inconsistent AI live regions** — Feature/Epic wizards and RDI have good patterns; PBI Studio has partial coverage; Bulk Breakdown, Dashboard sync, and Settings lack a unified global AI/status announcer.
+
+**Saul coordination:**
+- Focus rings: `--vscode-focusBorder` (primary a11y ring), not Saul's `--color-focus` alone.
+- david-ai Tailwind colors must map through Saul's `tailwind.config.js` bridge — no raw david palette.
+- AI violet uses Saul's `--ai` / `--accent-ai`; teal manual actions unchanged.
+
+**Files updated:**
+- `docs/DESIGN.md` — Sections 6–8 added; Last Updated → 2026-07-08
+
+- **2026-07-08:** Accessibility standards + david-ai component mapping added to DESIGN.md; top 5 a11y gaps documented for Rusty implementation handoff.
+
+### Responsive Layout + Text Contrast Hierarchy (2026-07-08)
+
+**Branch:** `feature/a11y-david-ui-refresh`
+
+**What I designed:**
+- **Section 10 — Responsive Layout & Text Contrast Hierarchy** in `docs/DESIGN.md`: VS Code webview container context (sidebar panel vs editor tab), canonical breakpoints aligned to `tailwind.config.js` (`sm` 480, `md` 640, `panel-wide` 700, `xl` 1024).
+- **Sidebar icon rail** spec for `<480px`: 56px rail, icon-only nav with tooltips, compact theme control, brand mark only — replaces legacy 960px horizontal sidebar wrap.
+- **Dashboard grids:** explicit 1 / 2 / 3 column breakpoints (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3`); retained `panel-wide` hierarchy + Recent Activity split at 700px.
+- **Forms:** stack `.field-row` and horizontal label patterns below `md` (640px); modal actions stack on mobile.
+- **Text contrast hierarchy table:** page title → section heading → body → muted with minimum 4.5:1 for all essential text; 3:1 for large display/disabled; migration map from legacy `--ink-soft` to bridge tokens.
+
+**Saul coordination:**
+- No new tokens in §10 — references §9.1 bridge utilities only.
+- Saul validates `text-tw-fg-muted` color-mix achieves 4.5:1 on `bg-tw-surface` in light + dark themes.
+
+**Rusty handoff:**
+- Priority: sidebar rail → KPI grid columns → form row stacking → remove legacy 960px media query → muted text audit.
+
+**Files updated:**
+- `docs/DESIGN.md` — Section 10 added; purpose line updated
+
+- **2026-07-08 (pm):** Responsive breakpoints + contrast hierarchy spec delivered for Rusty on `feature/a11y-david-ui-refresh`.
+
+- **2026-07-08 (eve):** Section 13 — Information Architecture & Flow Logic on `feature/a11y-david-ui-refresh`.
+  - **Nav groups:** Plan (Dashboard, Epics) | Create (PBI Studio, Feature Creation, RDIs) | Manage (Projects, My Drafts) | Configure (Settings).
+  - **Dashboard energy hub:** welcome hero (ADO-aware copy), KPIs, quick actions row (Create PBI, New Epic, Open Settings), hierarchy.
+  - **Empty-state copy:** encouraging, action-oriented voice across Dashboard, Drafts, PBI Studio — documented in §13.4.
+  - **Implementation:** `Sidebar.tsx` nav groups + `styles.css` `.nav-group-label`; semantic bridge tokens only (no hardcoded hex in new UI).
+  - **Files:** `docs/DESIGN.md`, `Sidebar.tsx`, `DashboardView.tsx`, `DraftsView.tsx`, `PbiStudio.tsx`, `styles.css`.
+
+- **2026-07-08 (late):** Livingston P1 copy fixes — `DashboardView.tsx` hero + quick action labels on `feature/a11y-david-ui-refresh`.
+  - **Hero (§13.2):** State-specific headings — connected: "Welcome back — let's ship something great ✨"; not connected: "Welcome — your backlog starts here ✨". Subtext unchanged (already matched spec).
+  - **Quick action:** "Configure ADO" → "Open Settings"; dual description when ADO not ready ("Connect Azure DevOps…") vs connected ("ADO connection and workspace defaults").
+  - **Scope:** Labels only in `DashboardWelcome` + `QuickActionsRow`; resolves Livingston P1 items #8–#9.
+
+- **2026-07-08 (Phase 2):** AI loading + success copy spec on `feature/a11y-david-ui-refresh`.
+  - **§2.2.1:** AI loading label table (default "✨ AI is thinking…"), success toast examples ("Nailed it! PBI ready to edit."), `aria-live` polite vs assertive matrix.
+  - **§6.6 / §12.7:** Cross-referenced warm copy + `.success-pop` toast pattern.
+  - **Components:** `LoadingBar` `variant="ai"` + `AiLoadingBar` wrapper; `App.tsx` success toasts get `success-pop` + per-toast `aria-live`; Feature/Epic wizards use `AiLoadingBar` on AI generation steps.
+  - **Files:** `docs/DESIGN.md`, `LoadingBar.tsx`, `App.tsx`, `styles.css`, `FeatureCreationWizard.tsx`, `EpicCreationWizard.tsx`.
+
+- **2026-07-08 (Phase 3):** Conversational UX spec on `feature/a11y-david-ui-refresh`.
+  - **§14 — Phase 3 Conversational UX:** Chat-like "Collaborate with AI" panel spec (user/teal right, AI/violet left bubbles, quick pills, Send to AI ✨, manual edit escape hatch); global `#ai-status-announcer` wired in `App.tsx`; Bulk Breakdown `DavidTabs` migration spec.
+  - **Copy constants:** `webview-ui/src/constants/refinePrompts.ts` — four quick-refinement pills + panel strings.
+  - **Announcer events:** `AI_PROGRESS`, `AI_SUGGESTION_READY`, `AI_BREAKDOWN_READY` (plain-language sr-only text; visual toasts unchanged).
+  - **Rusty handoff:** Re-enable hidden Refine section in `PbiStudio.tsx`; replace `.tabs` in `BulkBreakdownView.tsx` with `DavidTabs`; add `.refine-chat-*` CSS.
+  - **Files:** `docs/DESIGN.md`, `refinePrompts.ts`, `App.tsx`.

@@ -1308,7 +1308,7 @@ export class DashboardPanel {
       });
 
       if (testCases.length === 0) {
-        this.postToast('warning', 'AI did not produce test cases; skipping test suite population.');
+        this.postToast('info', 'AI did not produce test cases; skipping test suite population.');
         return;
       }
 
@@ -1355,7 +1355,7 @@ export class DashboardPanel {
       const userMsg = msg.includes('401')
         ? 'Test plan setup requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
         : `Test plan setup failed (PBI pushed successfully): ${msg}`;
-      this.postToast('warning', userMsg);
+      this.postToast('info', userMsg);
     }
   }
 
@@ -1460,22 +1460,23 @@ export class DashboardPanel {
       const userMsg = msg.includes('401')
         ? 'Test case update requires a PAT with "Test Plans (Read & Write)" scope. Update your PAT in Settings.'
         : `Test case update failed (PBI updated successfully): ${msg}`;
-      this.postToast('warning', userMsg);
+      this.postToast('info', userMsg);
     }
   }
 
   /** Builds linked project context string for the draft's associated repo projects. */
   private async buildLinkedContextForDraft(draft: PbiDraft): Promise<string> {
     try {
-      const importedProjects = this.importService.getAll();
-      const draftProjects = importedProjects.filter((p) =>
-        draft.projectId === STANDALONE_PROJECT_ID || p.id === draft.projectId
-      );
-      if (draftProjects.length === 0) {
-        return '';
+      if (draft.projectId !== STANDALONE_PROJECT_ID) {
+        return (await this.buildLinkedContextForProjectId(draft.projectId)) ?? '';
       }
-      const contexts = await Promise.all(
-        draftProjects.map((p) => buildLinkedProjectContext(p, this.context))
+      const targets = await this.importService.getLinkTargets();
+      const contexts = targets.map((p) =>
+        buildLinkedProjectContext({
+          rootPath: p.path,
+          projectName: p.name,
+          scanSummary: p.scanSummary
+        })
       );
       return contexts.filter((c) => c.length > 0).join('\n\n');
     } catch {
@@ -1921,7 +1922,9 @@ export class DashboardPanel {
       const now = new Date().toISOString();
       const allFeaturesLinked = epicFeatures.length === 0 || result.featureResults.length >= epicFeatures.length;
       const hierarchyStatus: HierarchyStatus =
-        epicFeatures.length === 0
+        epic.linkedFeatureIds.length > 0 && !pushChildren
+          ? 'partial'
+          : epicFeatures.length === 0
           ? 'pushed'
           : result.featureErrors.length === 0 && allFeaturesLinked
           ? 'pushed'

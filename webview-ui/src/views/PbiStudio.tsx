@@ -12,10 +12,12 @@ import type {
 import { STANDALONE_PROJECT_ID, WORK_ITEM_TYPES } from '../types';
 import { ListEditor } from '../components/ListEditor';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { LoadingBar } from '../components/LoadingBar';
+import { AiLoadingBar, LoadingBar } from '../components/LoadingBar';
 import { FeatureWizard } from '../components/FeatureWizard';
 import { BugReportWizard } from '../components/BugReportWizard';
 import { TechnicalConsiderationsSection } from '../components/TechnicalConsiderationsSection';
+import { DavidCollapse } from '../components/david';
+import { RefineChatPanel } from '../components/RefineChatPanel';
 import { parsePbiSuggestionFromText } from '../utils/extractCopilotJson';
 import {
   extractMermaidBlocksAsAttachments,
@@ -56,9 +58,9 @@ export function PbiStudio({
   const linkTargets = linkTargetsState ?? projects;
   const [activeId, setActiveId] = useState<string | undefined>(pbiDrafts[0]?.id);
   const [working, setWorking] = useState<PbiDraft | undefined>(undefined);
-  const [aiInstruction, setAiInstruction] = useState('');
   const [pastedAi, setPastedAi] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editCardFlash, setEditCardFlash] = useState(false);
 
   const [newScope, setNewScope] = useState<string>('');
   const [heroTitle, setHeroTitle] = useState('');
@@ -78,12 +80,8 @@ export function PbiStudio({
 
   // PBI type selector: 'feature' | 'bug'
   const [pbiType, setPbiType] = useState<'feature' | 'bug'>('feature');
-  // Collapsible section state — User Story Wizard starts expanded, others collapsed
-  const [openEditItem, setOpenEditItem] = useState(true);
+  // Collapsible section state — hidden demo sections only
   const [openFullStory, setOpenFullStory] = useState(false);
-  const [openCopilotChat, setOpenCopilotChat] = useState(false);
-  const [openRefineAI, setOpenRefineAI] = useState(false);
-  const [openBugRefinement, setOpenBugRefinement] = useState(false);
   const [openTechnicalConsiderations, setOpenTechnicalConsiderations] = useState(false);
 
   useEffect(() => {
@@ -129,7 +127,6 @@ export function PbiStudio({
       }
       setWorking(next);
     }
-    setAiInstruction('');
     setPastedAi('');
     setFullStorySeed('');
     lastClipboardApplyHash.current = '';
@@ -206,6 +203,11 @@ export function PbiStudio({
       : 'Syncing with Azure DevOps…';
   const isLinkedToAdo = Boolean(active?.status === 'pushed' && active?.adoWorkItemId != null);
 
+  const triggerAiSuccessFlash = useCallback((): void => {
+    setEditCardFlash(true);
+    window.setTimeout(() => setEditCardFlash(false), 650);
+  }, []);
+
   const tryApplyRawToActive = useCallback(
     (raw: string): boolean => {
       if (!activeId) {
@@ -220,11 +222,12 @@ export function PbiStudio({
         payload: { draftId: activeId, suggestion: suggestionParsed }
       });
       setPastedAi('');
+      triggerAiSuccessFlash();
       setAutoApplyNotice('Applied Copilot JSON to this backlog item.');
       window.setTimeout(() => setAutoApplyNotice(''), 4000);
       return true;
     },
-    [activeId, send]
+    [activeId, send, triggerAiSuccessFlash]
   );
 
   useEffect(() => {
@@ -359,11 +362,11 @@ export function PbiStudio({
     window.setTimeout(() => setAutoApplyNotice(''), 4000);
   };
 
-  const refine = (): void => {
+  const refine = (instruction: string): void => {
     if (active) {
       send({
         type: 'REFINE_PBI_WITH_AI',
-        payload: { draftId: active.id, instruction: aiInstruction || undefined }
+        payload: { draftId: active.id, instruction: instruction.trim() || undefined }
       });
     }
   };
@@ -384,6 +387,7 @@ export function PbiStudio({
       payload: { draftId: activeId, suggestion: suggestionParsed }
     });
     setPastedAi('');
+    triggerAiSuccessFlash();
     setAutoApplyNotice('Applied JSON from the text box.');
     window.setTimeout(() => setAutoApplyNotice(''), 3500);
   };
@@ -428,20 +432,20 @@ export function PbiStudio({
       partial.businessRulesAndAssumptions = suggestion.businessRulesAndAssumptions;
     }
     send({ type: 'APPLY_AI_SUGGESTION', payload: { draftId: active.id, suggestion: partial } });
+    triggerAiSuccessFlash();
   };
 
   if (pbiDrafts.length === 0) {
     return (
       <div className="content">
-        <section className="card studio-hero">
-          <h2 style={{ margin: '0 0 8px' }}>✨ Let's build your backlog</h2>
-          <p className="card-subtitle" style={{ marginBottom: 16 }}>
-            Link each backlog item to a <strong>repo or workspace folder</strong> so AI refinement
-            and Copilot Chat use your codebase as context. Turn on <strong>Auto-apply</strong>{' '}
-            and JSON from Chat merges into your draft automatically — no copy-paste.
+        <section className="hero-energy">
+          <h2 className="text-lg font-bold text-tw-fg mb-2">Ready to build something great? ✨</h2>
+          <p className="card-subtitle text-contrast-muted mb-4">
+            Generate from your code with AI or start from scratch — your first PBI is one click away.
+            Link each item to a <strong>repo or workspace folder</strong> so Copilot uses your codebase as context.
           </p>
           {linkTargets.length === 0 ? (
-            <p className="hint" style={{ marginBottom: 16 }}>
+            <p className="hint text-contrast-muted" style={{ marginBottom: 16 }}>
               Open a folder in this workspace or use the <strong>Projects</strong> tab to import a repo
               before creating a PBI.
             </p>
@@ -458,7 +462,7 @@ export function PbiStudio({
                   ))}
                 </select>
               ) : (
-                <p className="hint" style={{ marginTop: 6 }}>
+                <p className="hint text-contrast-muted" style={{ marginTop: 6 }}>
                   No workspace folders yet — add one above first.
                 </p>
               )}
@@ -484,17 +488,22 @@ export function PbiStudio({
           <div className="action-row" style={{ marginTop: 8 }}>
             <button
               type="button"
-              className="btn btn-ai focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+              className="btn-energy btn-energy-ai focus-tw-ring"
               disabled={!canCreateLinked}
               onClick={() => createPayload(true)}
             >
               ✨ Create &amp; open Copilot Chat
             </button>
-            <button type="button" className="btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" disabled={!canCreateLinked} onClick={() => createPayload(false)}>
+            <button
+              type="button"
+              className="btn-energy focus-tw-ring"
+              disabled={!canCreateLinked}
+              onClick={() => createPayload(false)}
+            >
               Create blank PBI only
             </button>
           </div>
-          <p className="hint" style={{ marginTop: 12 }}>
+          <p className="hint text-contrast-muted" style={{ marginTop: 12 }}>
             The list includes <strong>imported projects</strong> and <strong>folders in this workspace</strong>{' '}
             (multi-root). Use <strong>Projects</strong> to import or scan; linking here does not require import.
             When Copilot replies with JSON, select your new draft and use <strong>Apply AI Result</strong> below.
@@ -504,9 +513,123 @@ export function PbiStudio({
     );
   }
 
+  if (!working) {
+    return (
+      <div className="content">
+        <LoadingBar label="Loading draft…" ariaLabel="Loading PBI draft" />
+      </div>
+    );
+  }
+
+  const draft = working;
+
+  const renderSuggestionReview = (s: AiSuggestion): JSX.Element => (
+    <div className="ai-suggestion">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap'
+        }}
+      >
+        <h4 style={{ margin: 0 }}>
+          AI suggestion — review per field <span className="ai-badge">AI</span>
+        </h4>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => onDismissSuggestion(draft.id)}
+        >
+          Dismiss all
+        </button>
+      </div>
+      {typeof s.title === 'string' && (
+        <>
+          <div className="diff-block">{s.title}</div>
+          <div className="diff-actions">
+            <button className="btn btn-primary btn-sm" onClick={() => acceptSuggestedField('title')}>
+              Apply title
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.description === 'string' && (
+        <>
+          <div className="diff-block">{s.description}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('description')}
+            >
+              Apply description
+            </button>
+          </div>
+        </>
+      )}
+      {s.acceptanceCriteria && (
+        <>
+          <div className="diff-block">
+            {s.acceptanceCriteria.map((item) => `• ${item}\n`).join('')}
+          </div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('acceptanceCriteria')}
+            >
+              Apply acceptance criteria
+            </button>
+          </div>
+        </>
+      )}
+      {s.testScenarios && (
+        <>
+          <div className="diff-block">
+            {s.testScenarios.map((item) => `• ${item}\n`).join('')}
+          </div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('testScenarios')}
+            >
+              Apply test scenarios
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.userStoryStatement === 'string' && (
+        <>
+          <div className="diff-block">{s.userStoryStatement}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('userStoryStatement')}
+            >
+              Apply user story statement
+            </button>
+          </div>
+        </>
+      )}
+      {typeof s.businessRulesAndAssumptions === 'string' && (
+        <>
+          <div className="diff-block">{s.businessRulesAndAssumptions}</div>
+          <div className="diff-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
+            >
+              Apply business rules & assumptions
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="content">
-      <div className="studio-toolbar card" style={{ padding: '12px 16px', marginBottom: 4 }}>
+      <div className="studio-toolbar card card-modern hover-lift" style={{ padding: '12px 16px', marginBottom: 4 }}>
         <div className="action-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
           <strong style={{ marginRight: 8 }}>New PBI</strong>
           <select
@@ -525,7 +648,7 @@ export function PbiStudio({
           </select>
           <button
             type="button"
-            className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
+            className="btn-energy btn-sm focus-tw-ring"
             disabled={!canCreateLinked}
             onClick={quickCreateBlank}
           >
@@ -533,7 +656,7 @@ export function PbiStudio({
           </button>
           <button
             type="button"
-            className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] transition-colors duration-200"
+            className="btn-energy btn-energy-ai btn-sm focus-tw-ring"
             disabled={!canCreateLinked}
             onClick={() => {
               send({
@@ -551,6 +674,13 @@ export function PbiStudio({
         </div>
       </div>
 
+      {aiBusy && active && (
+        <AiLoadingBar
+          label="Copilot is thinking…"
+          ariaLabel="AI generation in progress"
+        />
+      )}
+
       {active && adoSyncingThis && (
         <LoadingBar label={adoMessage} ariaLabel={`Azure DevOps: ${adoMessage}`} />
       )}
@@ -558,9 +688,11 @@ export function PbiStudio({
       <section className="studio-editor">
           {!active && (
             <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <h3>No draft selected</h3>
-              <p>Open <strong>My Drafts</strong> to browse and select a story, or create a new one above.</p>
+              <div className="empty-icon" aria-hidden="true">✨</div>
+              <h3>Pick a draft or start fresh</h3>
+              <p>
+                Select a story from the list, or create a new one above — then refine with AI or edit by hand.
+              </p>
             </div>
           )}
           {active && (
@@ -570,7 +702,7 @@ export function PbiStudio({
                   <span>Pushed to ADO as #{active.adoWorkItemId}.</span>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                    className="btn btn-sm pushed-banner-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
                     onClick={() =>
                       send({ type: 'OPEN_EXTERNAL', payload: { url: active.adoWorkItemUrl! } })
                     }
@@ -581,7 +713,7 @@ export function PbiStudio({
               )}
 
               <div className="pbi-type-selector-wrap">
-                <span className="pbi-type-label">PBI Type</span>
+                <span className="pbi-type-label text-contrast-muted">PBI Type</span>
                 <div className="pbi-type-selector">
                   <button
                     type="button"
@@ -614,19 +746,8 @@ export function PbiStudio({
               )}
 
               {pbiType === 'bug' && (
-                <article className="card">
-                  <button
-                    type="button"
-                    className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-                    onClick={() => setOpenBugRefinement((o) => !o)}
-                    aria-expanded={openBugRefinement}
-                  >
-                    <h3 style={{ margin: 0 }}>Bug Refinement Details</h3>
-                    <span className={`section-chevron ${openBugRefinement ? 'open' : ''}`}>▾</span>
-                  </button>
-
-                  <div className={`section-body ${openBugRefinement ? '' : 'collapsed'}`}>
-                    <p className="card-subtitle">
+                <DavidCollapse title="Bug Refinement Details">
+                    <p className="card-subtitle text-contrast-muted">
                       Document the root cause, expected behavior, and actual behavior to help developers
                       understand and fix the issue faster. These details complement the reproduction steps.
                     </p>
@@ -675,14 +796,13 @@ export function PbiStudio({
                         setWorking({ ...active, bugReproductionSteps: next })
                       }
                     />
-                  </div>
-                </article>
+                </DavidCollapse>
               )}
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
                 <TechnicalConsiderationsSection
-                  draft={active}
+                  draft={draft}
                   isLoading={aiBusy}
                   onUpdate={handleUpdateTechnicalConsiderations}
                   onGenerate={handleGenerateTechnicalConsiderations}
@@ -691,7 +811,7 @@ export function PbiStudio({
 
               {/* Hidden for demo — re-enable when ready (issue #42) */}
               {false && (
-              <article className="card ai-section">
+              <article className="card card-modern ai-section">
                 <div className="section-header" onClick={() => setOpenFullStory((o) => !o)}>
                   <h3 style={{ margin: 0 }}>Generate full story in-panel (no Chat paste)</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -700,7 +820,7 @@ export function PbiStudio({
                   </div>
                 </div>
                 <div className={`section-body ${openFullStory ? '' : 'collapsed'}`}>
-                <p className="card-subtitle">
+                <p className="card-subtitle text-contrast-muted">
                   Uses the same GitHub Copilot <strong>language model inside VS Code</strong> (not Copilot
                   Chat). This path <strong>applies title, description, acceptance criteria, and tests
                   automatically</strong> — no copy/paste. Prompts favor <strong>4–7 sharp, testable
@@ -724,10 +844,10 @@ export function PbiStudio({
                       send({
                         type: 'GENERATE_FULL_STORY_AI',
                         payload: {
-                          draftId: active.id,
+                          draftId: draft.id,
                           seedText:
                             fullStorySeed.trim() ||
-                            active.description.trim() ||
+                            draft.description.trim() ||
                             undefined
                         }
                       })
@@ -740,21 +860,22 @@ export function PbiStudio({
               </article>
               )}{/* end hidden: Generate full story in-panel */}
 
-              <article className="card ai-section">
-                <button
-                  type="button"
-                  className="section-header w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)] focus-visible:ring-inset"
-                  onClick={() => setOpenCopilotChat((o) => !o)}
-                  aria-expanded={openCopilotChat}
-                >
-                  <h3 style={{ margin: 0 }}>✨ Copilot Chat <span className="ai-badge">AI</span></h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info" aria-live="polite">Copilot is thinking...</span>}
-                    <span className={`section-chevron ${openCopilotChat ? 'open' : ''}`}>▾</span>
-                  </div>
-                </button>
-                <div className={`section-body ${openCopilotChat ? '' : 'collapsed'}`}>
-                <p className="card-subtitle">
+              <DavidCollapse
+                className={`ai-section${aiBusy ? ' ai-thinking' : ''}`}
+                title={
+                  <h3 style={{ margin: 0 }}>
+                    ✨ Copilot Chat <span className="ai-badge">AI</span>
+                  </h3>
+                }
+                trailing={
+                  aiBusy ? (
+                    <span className="chip info" aria-live="polite">
+                      Copilot is thinking...
+                    </span>
+                  ) : null
+                }
+              >
+                <p className="card-subtitle text-contrast-muted">
                   <strong>Build story</strong> opens Chat with a prompt to draft the user story and
                   acceptance criteria from scratch (or your seed). <strong>Refine</strong> improves
                   what is already in the fields below.
@@ -762,7 +883,7 @@ export function PbiStudio({
                 <div className="action-row" style={{ flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    className="btn btn-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                    className="btn-energy btn-energy-ai focus-tw-ring"
                     onClick={() =>
                       send({
                         type: 'OPEN_IN_COPILOT_CHAT',
@@ -785,60 +906,132 @@ export function PbiStudio({
                     Refine in Copilot Chat
                   </button>
                 </div>
-                </div>{/* end section-body */}
-              </article>
+              </DavidCollapse>
 
-              <article className="card">
-                <div className="section-header">
-                  <button
-                    type="button"
-                    className="flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
-                    onClick={() => setOpenEditItem((o) => !o)}
-                    aria-expanded={openEditItem}
+              <DavidCollapse
+                defaultOpen
+                className={`ai-section${aiBusy ? ' ai-thinking' : ''}`}
+                title={
+                  <h3 style={{ margin: 0 }}>
+                    Collaborate with AI ✨ <span className="ai-badge">AI</span>
+                  </h3>
+                }
+                trailing={
+                  aiBusy ? (
+                    <span className="chip info" aria-live="polite">
+                      Collaborating with AI…
+                    </span>
+                  ) : null
+                }
+              >
+                <p className="card-subtitle text-contrast-muted">
+                  Runs Copilot inside the extension. Chat to refine your draft, or use quick pills for
+                  common improvements — review each field before applying.
+                </p>
+                <RefineChatPanel
+                  key={active.id}
+                  busy={aiBusy}
+                  onRefine={refine}
+                  completionMessage="Looking good! I've prepared an updated draft — review the suggestion below."
+                />
+
+                {suggestion ? renderSuggestionReview(suggestion!) : null}
+
+                <div className="apply-ai-box">
+                  <div className="card-header" style={{ padding: 0, marginBottom: 6 }}>
+                    <strong>Apply JSON from Copilot Chat</strong>
+                  </div>
+                  <p className="hint text-contrast-muted" style={{ marginTop: 0 }}>
+                    When <strong>Auto-apply</strong> is on, pasting Copilot&apos;s reply or returning to
+                    this tab after copying JSON will merge title, description, acceptance criteria, and
+                    tests into the selected item. Extra text (e.g. &quot;GitHub&quot; or link junk) is
+                    ignored when possible.
+                  </p>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      fontSize: '0.88rem',
+                      marginBottom: 8
+                    }}
                   >
-                    <h3 style={{ margin: 0 }}>Edit item</h3>
-                  </button>
-                  <div
-                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="action-row">
-                      <button type="button" className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={save} disabled={adoSyncingThis}>
-                        Save
-                      </button>
-                      {isLinkedToAdo ? (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-                          onClick={updateInAdo}
-                          disabled={adoSyncingThis}
-                        >
-                          Update in ADO
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-                          onClick={pushOne}
-                          disabled={adoSyncingThis}
-                        >
-                          Push to ADO
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn btn-danger btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
-                        onClick={() => setConfirmDelete(active.id)}
-                      >
-                        Delete
-                      </button>
+                    <input
+                      type="checkbox"
+                      checked={autoApplyEnabled}
+                      onChange={(e) => persistAutoApply(e.target.checked)}
+                    />
+                    Auto-apply JSON from paste and when this panel gets focus (uses clipboard)
+                  </label>
+                  {autoApplyNotice && (
+                    <div className="pushed-banner" style={{ marginBottom: 8 }}>
+                      {autoApplyNotice}
                     </div>
-                    <span className={`section-chevron ${openEditItem ? 'open' : ''}`}>▾</span>
+                  )}
+                  <span className="hint text-contrast-muted">Or paste below and click Apply JSON</span>
+                  <textarea
+                    value={pastedAi}
+                    placeholder={
+                      '{\n  "title": "Optional better title",\n  "description": "...",\n  "acceptanceCriteria": ["..."],\n  "testScenarios": ["..."]\n}'
+                    }
+                    onChange={(e) => setPastedAi(e.target.value)}
+                    onPaste={onPasteApplyBox}
+                    rows={6}
+                  />
+                  <div className="action-row">
+                    <button
+                      className="btn btn-sm"
+                      disabled={!pastedAi.trim()}
+                      onClick={applyPastedAi}
+                    >
+                      Apply JSON
+                    </button>
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={importFromClipboard}>
+                      Import from clipboard
+                    </button>
                   </div>
                 </div>
+              </DavidCollapse>
 
-                <div className={`section-body ${openEditItem ? '' : 'collapsed'}`}>
+              <DavidCollapse
+                defaultOpen
+                title="Edit item"
+                className={editCardFlash ? 'ai-success-flash' : ''}
+                headerActions={
+                  <div className="action-row">
+                    <button type="button" className="btn btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]" onClick={save} disabled={adoSyncingThis}>
+                      Save
+                    </button>
+                    {isLinkedToAdo ? (
+                      <button
+                        type="button"
+                        className="btn-energy btn-sm focus-tw-ring"
+                        onClick={updateInAdo}
+                        disabled={adoSyncingThis}
+                      >
+                        Update in ADO
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-energy btn-sm focus-tw-ring"
+                        onClick={pushOne}
+                        disabled={adoSyncingThis}
+                      >
+                        Push to ADO
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vscode-focusBorder)]"
+                      onClick={() => setConfirmDelete(active.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                }
+              >
                 <div className="field-row">
                   <label className="field" style={{ gridColumn: '1 / -1' }}>
                     Title
@@ -869,7 +1062,7 @@ export function PbiStudio({
                         </option>
                       ))}
                     </select>
-                    <p className="hint" style={{ marginTop: 6 }}>
+                    <p className="hint text-contrast-muted" style={{ marginTop: 6 }}>
                       Refine, full-story AI, and Copilot Chat scan this folder (README, layout,
                       package.json, and last Projects scan when present) so descriptions match the
                       Product Manager rulebook and your codebase. Azure DevOps push requires a linked
@@ -1004,7 +1197,7 @@ export function PbiStudio({
                 <div className="field-row" style={{ marginTop: 12 }}>
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
                     <strong>Attachments (upload on Push / Update in ADO)</strong>
-                    <p className="hint" style={{ margin: '4px 0 8px' }}>
+                    <p className="hint text-contrast-muted" style={{ margin: '4px 0 8px' }}>
                       Diagrams, Mermaid exports, or specs appear under the work item in Azure DevOps.
                       Pending files clear after a successful sync.
                     </p>
@@ -1036,207 +1229,13 @@ export function PbiStudio({
                       ))}
                     </ul>
                     {(active.attachments ?? []).length === 0 && (
-                      <p className="hint" style={{ marginTop: 6 }}>
+                      <p className="hint text-contrast-muted" style={{ marginTop: 6 }}>
                         No pending attachments.
                       </p>
                     )}
                   </div>
                 </div>
-                </div>{/* end section-body */}
-              </article>
-
-              {/* Hidden for demo — re-enable when ready (issue #42) */}
-              {false && (
-              <article className="card ai-section">
-                <div className="section-header" onClick={() => setOpenRefineAI((o) => !o)}>
-                  <h3 style={{ margin: 0 }}>Refine with AI (in panel)</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {aiBusy && <span className="chip info">Working...</span>}
-                    <span className={`section-chevron ${openRefineAI ? 'open' : ''}`}>▾</span>
-                  </div>
-                </div>
-                <div className={`section-body ${openRefineAI ? '' : 'collapsed'}`}>
-                <p className="card-subtitle">
-                  Runs Copilot inside the extension. Review each field before applying.
-                </p>
-                <label className="field">
-                  PO notes for refinement (optional — prioritized when filled)
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. compliance must mention NACHA; mobile-first; keep scope to guest pay only"
-                    value={aiInstruction}
-                    onChange={(e) => setAiInstruction(e.target.value)}
-                  />
-                </label>
-                <div className="action-row">
-                  <button className="btn btn-primary" disabled={aiBusy} onClick={refine}>
-                    Refine with AI
-                  </button>
-                </div>
-
-                {suggestion && (
-                  <div className="ai-suggestion">
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 8,
-                        flexWrap: 'wrap'
-                      }}
-                    >
-                      <h4 style={{ margin: 0 }}>AI suggestion — review per field</h4>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => onDismissSuggestion(active.id)}
-                      >
-                        Dismiss all
-                      </button>
-                    </div>
-                    {typeof suggestion.title === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.title}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('title')}
-                          >
-                            Apply title
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.description === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.description}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('description')}
-                          >
-                            Apply description
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {suggestion.acceptanceCriteria && (
-                      <>
-                        <div className="diff-block">
-                          {suggestion.acceptanceCriteria.map((item, i) => `• ${item}\n`).join('')}
-                        </div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('acceptanceCriteria')}
-                          >
-                            Apply acceptance criteria
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {suggestion.testScenarios && (
-                      <>
-                        <div className="diff-block">
-                          {suggestion.testScenarios.map((item, i) => `• ${item}\n`).join('')}
-                        </div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('testScenarios')}
-                          >
-                            Apply test scenarios
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.userStoryStatement === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.userStoryStatement}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('userStoryStatement')}
-                          >
-                            Apply user story statement
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {typeof suggestion.businessRulesAndAssumptions === 'string' && (
-                      <>
-                        <div className="diff-block">{suggestion.businessRulesAndAssumptions}</div>
-                        <div className="diff-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptSuggestedField('businessRulesAndAssumptions')}
-                          >
-                            Apply business rules & assumptions
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                <div className="apply-ai-box">
-                  <div className="card-header" style={{ padding: 0, marginBottom: 6 }}>
-                    <strong>Apply JSON from Copilot Chat</strong>
-                  </div>
-                  <p className="hint" style={{ marginTop: 0 }}>
-                    When <strong>Auto-apply</strong> is on, pasting Copilot&apos;s reply or returning to
-                    this tab after copying JSON will merge title, description, acceptance criteria, and
-                    tests into the selected item. Extra text (e.g. &quot;GitHub&quot; or link junk) is
-                    ignored when possible.
-                  </p>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      cursor: 'pointer',
-                      fontSize: '0.88rem',
-                      marginBottom: 8
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={autoApplyEnabled}
-                      onChange={(e) => persistAutoApply(e.target.checked)}
-                    />
-                    Auto-apply JSON from paste and when this panel gets focus (uses clipboard)
-                  </label>
-                  {autoApplyNotice && (
-                    <div className="pushed-banner" style={{ marginBottom: 8 }}>
-                      {autoApplyNotice}
-                    </div>
-                  )}
-                  <span className="hint">Or paste below and click Apply JSON</span>
-                  <textarea
-                    value={pastedAi}
-                    placeholder={
-                      '{\n  "title": "Optional better title",\n  "description": "...",\n  "acceptanceCriteria": ["..."],\n  "testScenarios": ["..."]\n}'
-                    }
-                    onChange={(e) => setPastedAi(e.target.value)}
-                    onPaste={onPasteApplyBox}
-                    rows={6}
-                  />
-                  <div className="action-row">
-                    <button
-                      className="btn btn-sm"
-                      disabled={!pastedAi.trim()}
-                      onClick={applyPastedAi}
-                    >
-                      Apply JSON
-                    </button>
-                    <button className="btn btn-ghost btn-sm" type="button" onClick={importFromClipboard}>
-                      Import from clipboard
-                    </button>
-                  </div>
-                </div>
-                </div>{/* end section-body */}
-              </article>
-              )}{/* end hidden: Refine with AI (in panel) */}
+              </DavidCollapse>
             </>
           )}
         </section>

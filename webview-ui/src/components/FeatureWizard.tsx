@@ -248,7 +248,7 @@ export function FeatureWizard({ draftId }: Props) {
         aria-atomic="true"
       />
 
-      <div className="wizard-container">
+      <div className={`wizard-container${aiGenerating ? ' ai-section ai-thinking' : ''}`}>
         {/* Progress indicator */}
         <div className="wizard-progress" role="progressbar" aria-valuenow={currentStep + 1} aria-valuemin={1} aria-valuemax={steps.length}>
           {steps.map((stepName, idx) => (

@@ -510,3 +510,126 @@ Rusty's frontend restoration + Linus's backend handler = complete feature. No re
 - Reusable skills inventory
 
 **Key Learning:** AI team memory is *real*. The Squad's orchestration logs, decision records, and agent histories form a coherent institutional memory that persists across sessions. This memory enables new agents to onboard with context, complex multi-agent coordination, and retrospective analysis without manual reconstruction.
+
+### Repo Cleanup — Root Sprawl Reduction (2026-07-08)
+
+**Task:** Remove ephemeral `.txt`/`.pdf` artifacts, tighten `.gitignore`, consolidate root-level one-off markdown on feature branch `chore/repo-cleanup`.
+
+**Branch:** `chore/repo-cleanup` (created via `ensure-feature-branch.ps1`, renamed from auto branch).
+
+**Deleted (6 files):**
+- `build-output.txt`, `ISSUE_34_COMPLETION_SUMMARY.txt`, `FINAL_REPORT_ISSUE_34.txt` — root build/issue handoff artifacts
+- `.squad/test-reports/phase-5-summary.txt` — test report export
+- `PITCH.md` — duplicate of `docs/PRODUCT_VISION.md` (per 2026-04-28 reorg decision; root copy never removed)
+- `INSTALLATION_GUIDE.md` — superseded by `docs/QUICK_START.md` + `deploy/DEPLOYMENT.md`
+
+**Archived to `.squad/artifacts/`:**
+- `ISSUE_34_MERGE_STATUS.md` → `issue-34-merge-status.md`
+- `HANDOFF_PR_CREATION.md` → `issue-34-pr-handoff.md`
+
+**`.gitignore`:** Added `*.txt` and `*.pdf` to block future artifact commits. No LICENSE.txt or requirements.txt in repo; runtime `.txt` uploads in PbiStudio are user-local, not tracked.
+
+**Reference fix:** `.squad/agents/README.md` PITCH link → `docs/PRODUCT_VISION.md`.
+
+**Intentionally untouched:** `.squad/` operational files, agent charters, `AGENTS.md`, `README.md`, `docs/`, `dev/`, `deploy/`, webview test `.md` plans. No PDFs found in repo.
+
+**Validation:** `npm run lint` — 0 errors (7 pre-existing warnings). `npm run build` — PASS.
+
+**Rationale:** Root = essentials only (charter principle). Completed issue handoffs belong in `.squad/artifacts/`; user-facing install/vision docs already live under `docs/` and `deploy/`.
+
+### A11y + david-ai UI Refresh — Architecture Scope (2026-07-08)
+
+**Task:** Scope accessibility improvement initiative using `david-ai` npm package; create feature branch from `chore/docs-consolidation`; write inbox decision; delegate implementation.
+
+**Branch:** `feature/a11y-david-ui-refresh` (already existed at same HEAD as `chore/docs-consolidation` @ `6367dba`; checked out and confirmed).
+
+**Deliverable:** `.squad/decisions/inbox/danny-a11y-david-ui.md`
+
+**Key decisions:**
+- **Hybrid integration:** React + david Tailwind classes for simple stateful UI; david-ai programmatic API (Modal, Dropdown, Accordion) for focus trap, combobox, and roving tabindex — not a React port of the library.
+- **Phase 1 pilots:** Dashboard hierarchy accordions, Settings collapsible sections (highest a11y gap), PBI Studio `.section-header` blocks.
+- **WCAG 2.1 AA:** Mandatory baseline; detailed checklist lives in `docs/DESIGN.md` Sections 6–8 (Tess maintains living doc).
+- **Hard gates:** VS Code `--vscode-*` theme bridge, message contract unchanged, nav structure unchanged, wizard logic untouched in Phase 1.
+- **Phasing:** Phase 0 spike → Phase 1 pilot → Phase 2 Modal/Dropdown/Tabs → Phase 3 polish per DESIGN.md Section 7 priority table.
+
+**Delegation:** Rusty (implementation), Tess (a11y UX + DESIGN.md), Saul (token mapping). Danny reviews at Phase 1 PR only — no production UI code.
+
+**Note:** Uncommitted working-tree changes on branch (`david-ai` in `webview-ui/package.json`, DESIGN.md Sections 6–8) predate this scope doc; Rusty commits with first implementation PR after Phase 0 spike validates bundle/Popper behavior.
+
+### UI Energy Refresh — Scope & Phase 1 Delegation (2026-07-08)
+
+**Task:** User directive — "More colorful, high energy, positive vibe" with responsive design and logical flow. Scope only; no implementation.
+
+**Branch:** `feature/a11y-david-ui-refresh` — **keep** (do not rename to `feature/ui-energy-refresh`; a11y + energy ship on one branch).
+
+**Deliverable:** `.squad/decisions/inbox/danny-ui-energy-refresh.md`
+
+**Key decisions:**
+- **Dashboard as home hub:** Hero strip ("What will you build today?") + Quick Actions grid above KPIs/hierarchy; empty first-run surfaces hero instead of sad tree-only state.
+- **Nav grouping (visual only):** Home → Create (Epics, Feature Creation, PBI Studio, RDIs) → Workspace (Projects, My Drafts) → System (Settings). `ViewId` routing unchanged.
+- **CTA hierarchy:** Violet gradient = AI primary; teal = manual primary; ghost = secondary.
+- **Phase 1 this session:** Tokens/micro-interactions, sidebar icon rail `<480px`, dashboard hero + quick actions, four empty-state refreshes, `hover-lift` on touched controls.
+- **Deferred:** david-ai Modal/Dropdown (Phase 2), AI shimmer/success animations, conversational refine, personalization.
+
+**Delegation:** Tess (IA/copy/a11y sign-off), Saul (hero gradient + `btn-ai` + nav accent tokens), Rusty (Sidebar groups, DashboardHero, QuickActions, empty states, responsive shell), Livingston (lint/build/axe gate).
+
+**Related:** Extends `danny-a11y-david-ui.md`; DESIGN.md §1–11 authoritative for visual specs.
+
+### Phase 2 Kickoff — AI Visual Identity + david-ai Pilots (2026-07-08)
+
+**Task:** User directive "move to next" after Phase 1 complete + Livingston merge-ready YES on `feature/a11y-david-ui-refresh`. Scope only; no implementation.
+
+**Deliverable:** `.squad/decisions/inbox/danny-phase2-ai-identity.md`
+
+**Phase 2 theme:** AI actions feel distinct, responsive, and trustworthy.
+
+**Scope locked:**
+- AI violet surfaces (consistent `--ai` / `btn-ai` on all AI entry points)
+- Shimmer loading skeleton (PBI Studio, Feature wizard AI step; `prefers-reduced-motion` safe)
+- Success micro-celebrations (checkmark bounce, green flash, polite toast — no confetti)
+- PBI Studio hero parity with Dashboard
+- ConfirmDialog → david-ai Modal (focus trap, labelling, Escape)
+- SearchableDropdown pilot — Settings Default Work Item Type only
+- Settings accordion ARIA (Connection + Defaults)
+
+**Deferred to Phase 3:** Bulk Breakdown Tabs, confetti, conversational refine UI, full Dropdown rollout.
+
+**Delegation:** Saul (tokens/animations), Tess (copy/a11y/live regions), Rusty (implementation), Livingston (8-point exit gate).
+
+**Hard gates unchanged:** VS Code theme bridge, WCAG 2.1 AA, no message-contract changes, teal=manual / violet=AI.
+
+**Danny:** PR review only; no production UI code.
+
+### Post-PR #88 UI Completeness Assessment (2026-07-08)
+
+**Question:** Do we need more UI improvements after Phase 1–2 + david-ai a11y?
+
+**Verdict:** **Ship PR #88** — Livingston merge-ready YES (all gates green). **Further UI work is optional for release, recommended for "complete" vision.**
+
+**DONE (users will feel the shift):** Energy layer (hero, KPI, quick actions, empty states, icon rail), violet AI identity (shimmer loading, success flash/toasts, DavidModal/DavidDropdown pilots), contrast tokens, nav IA groups, encouraging copy.
+
+**Remaining gaps:** Phase 3 conversational refine + pills, full combobox rollout, global `#ai-status-announcer`, `.ai-thinking` pulse, Phase 4 personalization — per DESIGN.md deferred phases + Livingston P1/P2 carry-over.
+
+**Next 3 (if continuing):** (1) AI state/a11y bundle — announcer + ai-thinking + §2.2.1 copy; (2) david-ai combobox + Settings accordion completion; (3) Phase 3 Refine-with-AI conversational UI + quick-refinement pills.
+
+### Phase 3 Kickoff — Conversational & Progress (2026-07-08)
+
+**Task:** User directive "Let's do Phase 3" after PR #88 on `feature/a11y-david-ui-refresh`. Scope only; no implementation.
+
+**Deliverable:** `.squad/decisions/inbox/danny-phase3-conversational.md`
+
+**Branch:** **`feature/phase3-conversational-refine`** (new from `main` after PR #88 merge) — rejected continuing a11y branch to keep PR #88 review bounded.
+
+**Phase 3 theme:** AI as co-creator; long-running ADO work never blocks navigation.
+
+**Scope locked (IN):** Refine-with-AI chat UI (`RefineChatPanel` polish), quick refinement pills, global `#ai-status-announcer`, `.ai-thinking` toggle across AI surfaces, Bulk Breakdown `DavidTabs` on active route, app-shell non-blocking bulk ADO progress panel, celebratory toasts via existing `TOAST` only.
+
+**Scope locked (OUT):** Phase 4 personalization, predictive UX pills, confetti, new message types, extension-host contract changes.
+
+**Message contract:** No new types — `REFINE_PBI_WITH_AI`, `TOAST`, `AI_PROGRESS`, `ADO_PROGRESS` only.
+
+**Livingston gate:** P3-E1–P3-E9 (build, refine chat, announcer, ai-thinking, bulk progress dock, DavidTabs, contract audit, regression, responsive).
+
+**Rusty priority:** (1) announcer → (2) ai-thinking → (3) bulk progress shell → (4) RefineChatPanel polish → (5) pills → (6) DavidTabs on active bulk route → (7) toast copy → (8) Vitest/axe.
+
+**References:** DESIGN.md §2 patterns 4–5, §2.2.1, §6.6; Livingston P1 #4/#6/#8 carry-over.

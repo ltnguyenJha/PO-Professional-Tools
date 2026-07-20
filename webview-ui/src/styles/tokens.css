@@ -21,7 +21,7 @@
   --color-neutral-300: #d7e0ea;    /* Border default */
   --color-neutral-350: #c3cedb;    /* Border strong (focus, active) */
   --color-neutral-400: #475569;    /* Text secondary (muted labels) */
-  --color-neutral-450: #64748b;    /* Text soft (hints, captions) */
+  --color-neutral-450: #475569;    /* Text soft — ≥4.5:1 on white (light theme) */
   --color-neutral-500: #0f172a;    /* Text primary (body, headings) */
   --color-neutral-600: #e6edf7;    /* Dark mode text primary */
   --color-neutral-700: #a3b1c6;    /* Dark mode text secondary */
@@ -179,6 +179,12 @@
 /* ============================================================
    DARK MODE COLOR OVERRIDES
    ============================================================ */
+
+[data-theme="light"] {
+  /* Explicit light neutrals — wizard.css reads these via legacy bridge in styles.css */
+  --color-neutral-450: #475569;
+  --color-neutral-400: #475569;
+}
 
 [data-theme="dark"] {
   /* Neutrals (dark mode inversions) */

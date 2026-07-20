@@ -10,6 +10,7 @@ import type {
 import { WORK_ITEM_TYPES } from '../types';
 import { DropdownWithFallback } from '../components/DropdownWithFallback';
 import { SearchableDropdown } from '../components/SearchableDropdown';
+import { DavidDropdown, DavidTabs } from '../components/david';
 
 interface Props {
   adoSettings?: AdoSettings;
@@ -62,9 +63,6 @@ export function SettingsView({
 
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
-  
-  const [openConnection, setOpenConnection] = useState<boolean>(true);
-  const [openDefaults, setOpenDefaults] = useState<boolean>(true);
 
   // Load settings from adoSettings
   useEffect(() => {
@@ -124,10 +122,11 @@ export function SettingsView({
           error: message.payload.valid ? undefined : message.payload.error
         });
       } else if (message.type === 'ADO_TEAMS_RESULT') {
-        if (Array.isArray(message.payload)) {
+        const payload = message.payload;
+        if (Array.isArray(payload)) {
           setDropdownState((prev) => ({
             ...prev,
-            teams: message.payload as string[],
+            teams: payload,
             teamsLoading: false,
             teamsError: undefined
           }));
@@ -136,14 +135,15 @@ export function SettingsView({
             ...prev,
             teams: [],
             teamsLoading: false,
-            teamsError: message.payload.error
+            teamsError: payload.error
           }));
         }
       } else if (message.type === 'ADO_ITERATIONS_RESULT') {
-        if (Array.isArray(message.payload)) {
+        const payload = message.payload;
+        if (Array.isArray(payload)) {
           setDropdownState((prev) => ({
             ...prev,
-            iterations: message.payload as string[],
+            iterations: payload,
             iterationsLoading: false,
             iterationsError: undefined
           }));
@@ -152,7 +152,7 @@ export function SettingsView({
             ...prev,
             iterations: [],
             iterationsLoading: false,
-            iterationsError: message.payload.error
+            iterationsError: payload.error
           }));
         }
       }
@@ -252,22 +252,24 @@ export function SettingsView({
 
   return (
     <div className="content">
-      {/* Azure DevOps Connection Section */}
-      <section className="card settings-section">
-        <div className="section-header" onClick={() => setOpenConnection((o) => !o)}>
-          <div>
-            <h3 className="settings-section-title">Azure DevOps Connection</h3>
-            <p className="settings-section-subtitle">Configure your Azure DevOps organization and project</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className={`status-badge ${hasAdoPat ? 'status-success' : 'status-warning'}`}>
-              {hasAdoPat ? '✓ PAT Saved' : '⚠ PAT Missing'}
-            </span>
-            <span className={`section-chevron ${openConnection ? 'open' : ''}`}>▾</span>
-          </div>
-        </div>
-
-        <div className={`section-body ${openConnection ? '' : 'collapsed'}`}>
+      <section className="card card-modern settings-section">
+        <DavidTabs
+          defaultTabId="tab-connection"
+          tabs={[
+            {
+              id: 'tab-connection',
+              label: 'Connection',
+              content: (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div>
+                      <h3 className="settings-section-title">Azure DevOps Connection</h3>
+                      <p className="settings-section-subtitle">Configure your Azure DevOps organization and project</p>
+                    </div>
+                    <span className={`status-badge ${hasAdoPat ? 'status-success' : 'status-warning'}`}>
+                      {hasAdoPat ? '✓ PAT Saved' : '⚠ PAT Missing'}
+                    </span>
+                  </div>
         {/* PAT Validation Status Banner */}
         {hasAdoPat && (
           <div className="validation-status-container">
@@ -292,7 +294,7 @@ export function SettingsView({
           </div>
         )}
 
-        <div className="field-row">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="field">
             <span className="field-label">Organization URL</span>
             <input
@@ -311,7 +313,7 @@ export function SettingsView({
               className="smooth-input"
             />
           </label>
-          <label className="field" style={{ gridColumn: '1 / -1' }}>
+          <label className="field md:col-span-2">
             <span className="field-label">Personal Access Token</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: 8, width: '100%' }}>
@@ -378,22 +380,20 @@ export function SettingsView({
             </span>
           )}
         </div>
-        </div>
-      </section>
-
-      {/* Team & Defaults Section */}
-      <section className="card settings-section">
-        <div className="section-header" onClick={() => setOpenDefaults((o) => !o)}>
-          <div>
-            <h3 className="settings-section-title">Team & Defaults</h3>
-            <p className="settings-section-subtitle">Configure team-specific settings and work item defaults</p>
-          </div>
-          <span className={`section-chevron ${openDefaults ? 'open' : ''}`}>▾</span>
-        </div>
-
-        <div className={`section-body ${openDefaults ? '' : 'collapsed'}`}>
+                </>
+              )
+            },
+            {
+              id: 'tab-defaults',
+              label: 'Team & Defaults',
+              content: (
+                <>
+                  <div style={{ marginBottom: 8 }}>
+                    <h3 className="settings-section-title">Team & Defaults</h3>
+                    <p className="settings-section-subtitle">Configure team-specific settings and work item defaults</p>
+                  </div>
         {/* First Row: Team and Iteration Path */}
-        <div className="field-row">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <DropdownWithFallback
             label="Team"
             value={form.team ?? ''}
@@ -431,14 +431,12 @@ export function SettingsView({
         </div>
 
         {/* Second Row: Default Work Item Type (full width) */}
-        <div className="field-row" style={{ marginTop: '16px' }}>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <DropdownWithFallback
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mt-4">
+          <div className="md:col-span-2">
+            <DavidDropdown
               label="Default Work Item Type"
               value={form.defaultWorkItemType ?? 'Product Backlog Item'}
               options={WORK_ITEM_TYPES}
-              loading={false}
-              disabled={false}
               placeholder="Select work item type"
               helperText="Used when creating new work items"
               onChange={(value) =>
@@ -447,7 +445,11 @@ export function SettingsView({
             />
           </div>
         </div>
-        </div>
+                </>
+              )
+            }
+          ]}
+        />
       </section>
 
       {/* Save Settings Button - After Team & Defaults Section */}
@@ -475,7 +477,7 @@ export function SettingsView({
             </span>
           )}
           {hasUnsavedChanges && !saveSuccess && (
-            <small style={{ color: 'var(--ink-muted)' }}>
+            <small className="text-sm field-hint">
               You have unsaved changes
             </small>
           )}

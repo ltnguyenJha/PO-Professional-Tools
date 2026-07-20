@@ -6,11 +6,43 @@
 
 ## Step 1: Install
 
-1. Get **VS Code 1.96+** and **GitHub Copilot** (with Copilot Chat).
-2. Ask IT for an **Azure DevOps PAT** (personal access token) with Read/Write Work Items permission.
-3. Install the PO Tools extension:
-   - If you have a `.vsix` file: **Extensions → ⋯ menu → Install from VSIX**.
-   - Otherwise: Search "PO Professional Tools" in Extensions and click Install.
+### Prerequisites
+
+- **VS Code 1.96+**
+- **GitHub Copilot** (with Copilot Chat)
+- **Azure DevOps PAT** (personal access token) with Read/Write Work Items permission — ask IT if you don't have one
+
+### Install the extension
+
+**From a `.vsix` file (recommended for pinned releases):**
+
+1. Download the `.vsix` from your team's release channel or GitHub Releases.
+2. Open VS Code → **Extensions** (`Ctrl+Shift+X`).
+3. Click the **⋯** menu → **Install from VSIX...**
+4. Select the file and wait for installation to finish.
+5. Reload VS Code if prompted (`Ctrl+R` / `Cmd+R`).
+
+**From the Marketplace:**
+
+Search **PO Professional Tools** in Extensions and click **Install**.
+
+### First run
+
+Open the Command Palette (`Ctrl+Shift+P`) and run:
+
+- `PO Tools: Open Dashboard` — main project dashboard
+- `PO Tools: Open PBI Studio` — PBI generation studio
+- `PO Tools: Open Bulk Breakdown` — bulk PBI breakdown tool
+
+### Install troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Extension not appearing | Reload VS Code (`Ctrl+R` / `Cmd+R`) |
+| Commands not found | Confirm the extension is enabled and VS Code was reloaded |
+| Webview panel fails to load | Check **Output → Extension Host** for errors |
+
+**System requirements:** VS Code 1.96+, ~512 MB RAM, ~20 MB disk. First load may take 2–3 seconds while the extension initializes.
 
 ---
 
