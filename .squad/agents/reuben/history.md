@@ -85,3 +85,21 @@ Reuben joined to own all end-user documentation and release notes for PBI Studio
 | Stakeholders | `docs/PRODUCT_VISION.md` |
 | Developers | `dev/DEVELOPMENT_GUIDE.md`, `dev/ARCHITECTURE.md` |
 | Squad ops / session artifacts | `.squad/artifacts/`, `.squad/decisions.md` |
+
+---
+
+## 2026-07-21 — Add root CHANGELOG.md for release CI gate (0.1.4)
+
+**Branch:** `docs/changelog-0.1.4` (from `origin/main`)  
+**Trigger:** Squad Release CI failed on main — `package.json` is `0.1.4` but `CHANGELOG.md` lacked `## [0.1.4]` (workflows `squad-release.yml` / `squad-promote.yml` / `squad-preview.yml`).
+
+### What I did
+- Left unrelated `feature/a11y-david-ui-refresh` branch; created `docs/changelog-0.1.4` from `origin/main`
+- Added repo-root `CHANGELOG.md` (Keep a Changelog) with solid **`## [0.1.4] — 2026-07-20`** summarizing user-facing work since tag `v0.1.3` through #88
+- Brief honest **`## [0.1.3] — 2026-04-29`** from the tagged release commit only (no invented earlier history)
+- Verified gate: `grep "## [0.1.4]"` would pass against `package.json` version
+- Commit + push for Danny PR review/merge (Reuben does not merge)
+
+### Notes for Danny
+- Date on 0.1.4 uses merge of #88 (`2026-07-20`); version bump itself landed earlier in #73
+- Prior versions beyond 0.1.3 intentionally omitted — no prior CHANGELOG existed to reconstruct from
